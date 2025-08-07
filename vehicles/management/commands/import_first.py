@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import requests
 from asgiref.sync import sync_to_async
+from channels.layers import get_channel_layer
 from django.db.models import Q
 from django.contrib.gis.db.models import Extent
 from django.contrib.gis.geos import Point
@@ -14,11 +15,16 @@ from websockets.asyncio.client import connect
 from busstops.models import DataSource, Operator, Service
 
 from ...models import Vehicle, VehicleJourney, VehicleLocation
-from ..import_live_vehicles import ImportLiveVehiclesCommand, logger
+from ..import_live_vehicles import (
+    ImportLiveVehiclesCommand,
+    logger,
+    redis_client,
+    DjangoJSONEncoder,
+)
 
 
 class Command(ImportLiveVehiclesCommand):
-    def handle_item(self, item, vehicle):
+    async def handle_item(self, item, vehicle):
         journey_code, vehicle_code = self.split_vehicle_id(item)
 
         recorded_at_time = datetime.fromisoformat(item["status"]["recorded_at_time"])
@@ -31,7 +37,9 @@ class Command(ImportLiveVehiclesCommand):
             created = False
         else:
             fleet_number = int(vehicle_code) if vehicle_code.isdigit() else None
-            vehicle, created = Vehicle.objects.get_or_create(
+            vehicle, created = await Vehicle.objects.select_related(
+                "latest_journey"
+            ).aget_or_create(
                 {
                     "source": self.source,
                     "fleet_code": str(fleet_number or ""),
@@ -50,29 +58,29 @@ class Command(ImportLiveVehiclesCommand):
         if vehicle.latest_journey and vehicle.latest_journey.datetime == departure_time:
             journey = vehicle.latest_journey
         elif not created:
-            journey = VehicleJourney.objects.filter(
+            journey = await VehicleJourney.objects.filter(
                 vehicle=vehicle, datetime=departure_time
-            ).first()
+            ).afirst()
         else:
             journey = None
 
         if not journey:
             try:
-                service = (
+                service = await (
                     Service.objects.filter(
                         current=True,
                         operator=item["operator"],
                         route__line_name__iexact=item["line_name"],
                     )
                     .distinct()
-                    .get()
+                    .aget()
                 )
             except (Service.DoesNotExist, Service.MultipleObjectsReturned) as e:
                 print(e, item["operator"], item["line_name"])
                 service = None
             if service and not service.tracking:
                 service.tracking = True
-                service.save(update_fields=["tracking"])
+                await service.asave(update_fields=["tracking"])
 
             destination = item["stops"][-1]
             if destination["locality"]:
@@ -88,13 +96,12 @@ class Command(ImportLiveVehiclesCommand):
                 vehicle=vehicle,
                 service=service,
             )
-            journey.trip = journey.get_trip(
+            journey.trip = await sync_to_async(journey.get_trip)(
                 departure_time=departure_time,
                 destination_ref=item["stops"][-1]["atcocode"],
             )
             if not journey.date:
                 journey.date = timezone.localdate(departure_time)
-            journey.save()
             if (
                 journey.trip
                 and journey.trip.garage_id
@@ -102,11 +109,12 @@ class Command(ImportLiveVehiclesCommand):
             ):
                 vehicle.garage_id = journey.trip.garage_id
                 vehicle.save(update_fields=["garage"])
+            await journey.asave()
 
         if vehicle.latest_journey != journey:
             vehicle.latest_journey = journey
             vehicle.latest_journey_data = item
-            vehicle.save(update_fields=["latest_journey", "latest_journey_data"])
+            await vehicle.asave(update_fields=["latest_journey", "latest_journey_data"])
 
         heading = item["status"]["bearing"]
         if heading == -1:
@@ -146,8 +154,7 @@ class Command(ImportLiveVehiclesCommand):
             item["dir"] = parts[1]
             return parts[5], "-".join(parts[6:-1])
 
-    @sync_to_async
-    def handle_data(self, data):
+    async def handle_data(self, data):
         if "params" in data:
             items = data["params"]["resource"]["member"]
         else:
@@ -159,10 +166,44 @@ class Command(ImportLiveVehiclesCommand):
             operator__group__name="First", code__in=vehicle_codes
         )
         vehicles = vehicles.select_related("latest_journey")
-        vehicles = {vehicle.code: vehicle for vehicle in vehicles}
+        vehicles = {vehicle.code: vehicle async for vehicle in vehicles}
         for i, item in enumerate(items):
-            self.handle_item(item, vehicles.get(vehicle_codes[i]))
-        self.save()
+            await self.handle_item(item, vehicles.get(vehicle_codes[i]))
+
+        await self.save()
+
+    async def save(self):
+        channel_layer = get_channel_layer()
+
+        if redis_client:
+            pipeline = redis_client.pipeline(transaction=False)
+        else:
+            pipeline = None
+        geoadds = []
+
+        for location, vehicle in self.to_save:
+            redis_json = location.get_redis_json()
+
+            redis_json_string = json.dumps(redis_json, cls=DjangoJSONEncoder)
+            pipeline.set(f"vehicle{vehicle.id}", redis_json_string, ex=900)
+
+            geoadds += [location.latlong.x, location.latlong.y, vehicle.id]
+
+            await channel_layer.group_send(
+                f"vehicle{vehicle.id}",
+                {"type": "move_vehicle", "item": redis_json_string},
+            )
+
+        pipeline.geoadd("vehicle_location_locations", geoadds)
+
+        # add locations to journey history
+        for location, vehicle in self.to_save:
+            if location.latlong:
+                pipeline.rpush(*location.get_appendage())
+
+        pipeline.execute()
+
+        self.to_save = []
 
     @staticmethod
     def get_extent(operator):
