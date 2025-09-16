@@ -20,7 +20,7 @@ services:
     restart: on-failure
 
   postgres:
-    image: postgis/postgis
+    image: postgis/postgis:17-3.6-alpine
     tmpfs:
       - "/var/lib/postgresql/data/"
     # # sloppy non-durable settings, which allegedly make the tests run faster
