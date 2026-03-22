@@ -68,6 +68,7 @@ test = [
     "coverage>=7.6.1,<8",
     # prebuilt wheel for CI, where psycopg-c is excluded to avoid a slow source build
     "psycopg[binary]>=3.1.8,<4",
+    "patchy>=2.10.0",
 ]
 dev = [
     "django-debug-toolbar~=8.0.0",

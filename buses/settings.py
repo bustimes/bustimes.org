@@ -16,6 +16,7 @@ CSRF_TRUSTED_ORIGINS = os.environ.get(
 ).split()
 
 TEST = "test" in sys.argv or "pytest" in sys.argv[0]
+TEST_RUNNER = "buses.test_runner.RandomOrderQuerySetRunner"
 DEBUG = bool(os.environ.get("DEBUG"))
 
 DEFAULT_FROM_EMAIL = '"bustimes.org" <bustimes.org@bustimes.org>'
