@@ -1662,8 +1662,9 @@ def search(request):
                 ("services", services),
             ):
                 if key == "services" and len(query_text) <= 3:
+                    # search for line names like "A" which the full text search would ignore
                     queryset = queryset.filter(
-                        Q(search_vector=query) | Q(line_name__iexact=query_text)
+                        Q(search_vector=query) | Q(route__line_name__iexact=query_text)
                     )
                 else:
                     queryset = queryset.filter(search_vector=query)
