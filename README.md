@@ -92,7 +92,7 @@
 | bustimes/management/tests/test\_import\_passenger.py            |       23 |        0 |    100% |           |
 | bustimes/management/tests/test\_import\_transxchange.py         |      783 |        0 |    100% |           |
 | bustimes/management/tests/test\_tnds.py                         |       19 |        0 |    100% |           |
-| bustimes/models.py                                              |      343 |        7 |     98% |117, 223, 424, 469-472, 504 |
+| bustimes/models.py                                              |      347 |        7 |     98% |126, 232, 439, 484-487, 530 |
 | bustimes/test\_get\_trip.py                                     |       31 |        0 |    100% |           |
 | bustimes/tests.py                                               |      134 |        0 |    100% |           |
 | bustimes/timetables.py                                          |      646 |       50 |     92% |39-52, 162-173, 204-205, 293, 307-312, 325, 344, 419, 422, 438-441, 443, 470, 582-597, 748-749, 820, 966-968, 1017 |
@@ -196,7 +196,7 @@
 | vosa/tests.py                                                   |       60 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
 | vosa/views.py                                                   |       59 |        0 |    100% |           |
-| **TOTAL**                                                       | **16946** | **1273** | **92%** |           |
+| **TOTAL**                                                       | **16950** | **1273** | **92%** |           |
 
 
 ## Setup coverage badge
