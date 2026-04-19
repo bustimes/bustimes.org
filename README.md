@@ -178,7 +178,7 @@
 | vehicles/management/tests/test\_stats.py                        |       24 |        0 |    100% |           |
 | vehicles/management/tests/test\_translink\_avl.py               |       22 |        0 |    100% |           |
 | vehicles/models.py                                              |      517 |       35 |     93% |75, 193, 218, 285, 304, 310, 382, 388, 439, 460, 581-582, 595, 603, 620-622, 630-631, 634-635, 637-642, 647-648, 679, 760-763, 818, 827, 853 |
-| vehicles/rtpi.py                                                |       92 |        6 |     93% |35, 80-81, 87-89 |
+| vehicles/rtpi.py                                                |       92 |        6 |     93% |35, 84-85, 91-93 |
 | vehicles/signals.py                                             |       11 |        0 |    100% |           |
 | vehicles/tasks.py                                               |      163 |       36 |     78% |97, 102, 113, 120-123, 126, 143, 156, 160-161, 183, 208, 216-217, 225, 288-289, 292, 313-333 |
 | vehicles/test\_models.py                                        |       62 |        0 |    100% |           |
