@@ -25,14 +25,6 @@ class Migration(migrations.Migration):
             index=models.Index(condition=models.Q(('service__isnull', False)), fields=['source', 'service_code'], name='route_source_service_code'),
         ),
         migrations.AddIndex(
-            model_name='stoptime',
-            index=models.Index(condition=models.Q(('pick_up', True)), fields=['stop', 'departure'], include=('trip',), name='stoptime_stop_dep_covering'),
-        ),
-        migrations.AddIndex(
-            model_name='stoptime',
-            index=models.Index(fields=['trip', 'id'], name='stoptime_trip_id'),
-        ),
-        migrations.AddIndex(
             model_name='version',
             index=models.Index(fields=['source', 'start_date', 'end_date'], name='bustimes_ve_source__8a8cdc_idx'),
         ),
@@ -40,14 +32,10 @@ class Migration(migrations.Migration):
             model_name='route',
             name='bustimes_ro_source__a99810_idx',
         ),
-        migrations.RemoveIndex(
-            model_name='stoptime',
-            name='bustimes_st_stop_id_cde000_idx',
-        ),
         migrations.AlterField(
             model_name='calendardate',
             name='end_date',
-            field=models.DateField(blank=True, null=True),
+            field=models.DateField(blank=True, null=True),  
         ),
         migrations.AlterField(
             model_name='calendardate',
