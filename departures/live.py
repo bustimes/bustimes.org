@@ -133,9 +133,9 @@ def get_departures(stop, services, when) -> dict:
                         ],
                         Prefetch(
                             "stoptime_set",
-                            StopTime.objects.select_related("stop")
-                            .only("trip_id", "arrival", "departure", "stop__latlong")
-                            .filter(stop__latlong__isnull=False),
+                            StopTime.objects.select_related("stop").only(
+                                "trip_id", "arrival", "departure", "stop__latlong"
+                            ),
                         ),
                     )
 

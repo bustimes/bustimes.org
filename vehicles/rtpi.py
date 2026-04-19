@@ -61,7 +61,11 @@ def get_progress(item, stop_time=None):
     point_3857 = point.transform(3857, clone=True)
 
     if stop_time:
-        stop_times = stop_time.trip.stoptime_set.all()  # prefetched earlier
+        stop_times = [
+            st
+            for st in stop_time.trip.stoptime_set.all()  # prefetched earlier
+            if st.stop_id and st.stop.latlong
+        ]
     else:
         try:
             stop_times = get_stop_times(item)
