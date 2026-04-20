@@ -80,6 +80,10 @@ class Command(ImportLiveVehiclesCommand):
             destination=item["DirectionText"],
             route_name=item["LineText"],
         )
+
+        if "#" in journey.code:
+            journey.code = journey.code.split("#", 1)[0]
+
         if (latest_journey := vehicle.latest_journey) and (
             journey.code == latest_journey.code
             and journey.route_name == latest_journey.route_name
