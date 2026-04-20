@@ -157,7 +157,7 @@
 | vehicles/management/commands/import\_gtfsr\_ie.py               |       89 |        4 |     96% |94, 108, 139, 146 |
 | vehicles/management/commands/import\_live\_jersey.py            |       39 |        0 |    100% |           |
 | vehicles/management/commands/import\_stagecoach\_avl.py         |       72 |        7 |     90% |119, 129, 134-136, 168-169 |
-| vehicles/management/commands/import\_translink\_avl.py          |       56 |        7 |     88% |13, 66-69, 103-104 |
+| vehicles/management/commands/import\_translink\_avl.py          |       58 |        8 |     86% |13, 66-69, 85, 107-108 |
 | vehicles/management/commands/listen.py                          |       24 |        0 |    100% |           |
 | vehicles/management/commands/lothian.py                         |       55 |        0 |    100% |           |
 | vehicles/management/commands/newport.py                         |       44 |        2 |     95% |    46, 62 |
@@ -196,7 +196,7 @@
 | vosa/tests.py                                                   |       60 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
 | vosa/views.py                                                   |       59 |        0 |    100% |           |
-| **TOTAL**                                                       | **16950** | **1273** | **92%** |           |
+| **TOTAL**                                                       | **16952** | **1274** | **92%** |           |
 
 
 ## Setup coverage badge
