@@ -6,11 +6,11 @@
 |---------------------------------------------------------------- | -------: | -------: | ------: | --------: |
 | accounts/\_\_init\_\_.py                                        |        0 |        0 |    100% |           |
 | accounts/admin.py                                               |       47 |        0 |    100% |           |
-| accounts/forms.py                                               |       50 |        0 |    100% |           |
+| accounts/forms.py                                               |       52 |        0 |    100% |           |
 | accounts/models.py                                              |       32 |        0 |    100% |           |
-| accounts/tests.py                                               |      109 |        0 |    100% |           |
+| accounts/tests.py                                               |      112 |        0 |    100% |           |
 | accounts/urls.py                                                |        4 |        0 |    100% |           |
-| accounts/views.py                                               |       60 |        1 |     98% |        99 |
+| accounts/views.py                                               |       61 |        1 |     98% |       102 |
 | api/\_\_init\_\_.py                                             |        0 |        0 |    100% |           |
 | api/api.py                                                      |       11 |        0 |    100% |           |
 | api/filters.py                                                  |       70 |        0 |    100% |           |
@@ -196,7 +196,7 @@
 | vosa/tests.py                                                   |       60 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
 | vosa/views.py                                                   |       59 |        0 |    100% |           |
-| **TOTAL**                                                       | **16952** | **1274** | **92%** |           |
+| **TOTAL**                                                       | **16958** | **1274** | **92%** |           |
 
 
 ## Setup coverage badge
