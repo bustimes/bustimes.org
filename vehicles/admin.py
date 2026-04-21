@@ -180,65 +180,66 @@ class VehicleAdmin(admin.ModelAdmin):
             self.message_user(request, "Select a vehicle with colours and branding.")
 
     def merge_all_selected(self, request, vehicles):
-        vehicle = vehicles[0]
+        vehicle = vehicles[0]  # vehicle to keep
 
         for duplicate in vehicles[1:]:
-            vehicle.vehiclejourney_set.update(vehicle=duplicate)
-            vehicle.vehiclecode_set.update(vehicle=duplicate)
-            vehicle.vehiclerevision_set.update(vehicle=duplicate)
+            duplicate.vehiclejourney_set.update(vehicle=vehicle)
+            duplicate.vehiclecode_set.update(vehicle=vehicle)
+            duplicate.vehiclerevision_set.update(vehicle=vehicle)
 
-            if (
-                not duplicate.latest_journey_id
-                or vehicle.latest_journey_id
-                and vehicle.latest_journey_id > duplicate.latest_journey_id
-            ):
-                duplicate.code = vehicle.code
-                duplicate.latest_journey = vehicle.latest_journey
-            vehicle.latest_journey = None
-            vehicle.save(update_fields=["latest_journey"])
-            duplicate.save(update_fields=["latest_journey"])
-            duplicate.fleet_code = vehicle.fleet_code
-            duplicate.fleet_number = vehicle.fleet_number
-            if duplicate.withdrawn and not vehicle.withdrawn:
-                duplicate.withdrawn = False
             try:
                 models.VehicleCode.objects.create(
-                    vehicle=duplicate, scheme="slug", code=vehicle.slug
+                    vehicle=vehicle, scheme="slug", code=vehicle.slug
                 )
             except IntegrityError:
                 pass
-            vehicle.delete()
-            duplicate.save(
-                update_fields=["code", "fleet_code", "fleet_number", "reg", "withdrawn"]
+
+            vehicle.slug = duplicate.slug
+            vehicle.code = duplicate.code
+
+            if not vehicle.latest_journey_id or (
+                not duplicate.latest_journey_id
+                and duplicate.latest_journey_id > vehicle.latest_journey_id
+            ):
+                vehicle.latest_journey = duplicate.latest_journey
+
+            if vehicle.withdrawn and not duplicate.withdrawn:
+                vehicle.fleet_code = duplicate.fleet_code
+                vehicle.fleet_number = duplicate.fleet_number
+                vehicle.withdrawn = False
+
+            duplicate.delete()
+            vehicle.save(
+                update_fields=[
+                    "slug",
+                    "code",
+                    "fleet_code",
+                    "fleet_number",
+                    "withdrawn",
+                    "latest_journey",
+                ]
             )
             self.message_user(
                 request,
                 format_html(
-                    "{} deleted, merged with <a href='{}'>{}</a>",
-                    vehicle,
-                    duplicate.get_absolute_url(),
+                    "{} deleted, merged into <a href='{}'>{}</a>",
                     duplicate,
+                    vehicle.get_absolute_url(),
+                    vehicle,
                 ),
             )
 
     def deduplicate(self, request, queryset):
         for vehicle in queryset.order_by("id"):
-            if not vehicle.reg and not vehicle.fleet_code:
+            if not vehicle.reg:
                 self.message_user(request, f"{vehicle} has no reg")
                 continue
             try:
-                if vehicle.reg:
-                    duplicate = models.Vehicle.objects.get(
-                        id__lt=vehicle.id,
-                        operator=vehicle.operator_id,
-                        reg__iexact=vehicle.reg,
-                    )  # vehicle with lower id number we will keep
-                else:
-                    duplicate = models.Vehicle.objects.get(
-                        id__lt=vehicle.id,
-                        operator=vehicle.operator_id,
-                        fleet_code__iexact=vehicle.fleet_code,
-                    )  # vehicle with lower id number we will keep
+                duplicate = models.Vehicle.objects.get(
+                    id__gt=vehicle.id,
+                    reg__iexact=vehicle.reg,
+                    operator=vehicle.operator_id,
+                )  # newer record
             except (
                 models.Vehicle.DoesNotExist,
                 models.Vehicle.MultipleObjectsReturned,

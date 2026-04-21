@@ -21,7 +21,7 @@ class RegistrationTest(TransactionTestCase):
     def test_registration(self, mocked_validate):
         dummy_uuid = "b4fcbc02-1920-4d0d-b07b-756db0cb2cd0"
 
-        # invite code not created yet - no registration
+        # invite code not created yet - no registration form
         response = self.client.get(f"/accounts/register/?invite_code={dummy_uuid}")
         self.assertNotContains(response, "Email address")
         self.assertNotContains(response, dummy_uuid)
