@@ -140,7 +140,7 @@
 | photos/models.py                                                |       19 |        1 |     95% |        38 |
 | photos/utils.py                                                 |       25 |       18 |     28% |10-12, 16-43 |
 | vehicles/\_\_init\_\_.py                                        |        0 |        0 |    100% |           |
-| vehicles/admin.py                                               |      258 |       22 |     91% |34, 62, 89, 91, 194-195, 265-266, 269-270, 293, 299, 301, 303, 306, 335, 351, 357, 461, 521-523 |
+| vehicles/admin.py                                               |      258 |       14 |     95% |34, 194-195, 293, 299, 301, 303, 306, 351, 357, 461, 521-523 |
 | vehicles/apps.py                                                |        6 |        0 |    100% |           |
 | vehicles/context\_processors.py                                 |       14 |        0 |    100% |           |
 | vehicles/fields.py                                              |       23 |        0 |    100% |           |
@@ -183,7 +183,7 @@
 | vehicles/tasks.py                                               |      163 |       36 |     78% |97, 102, 113, 120-123, 126, 143, 156, 160-161, 183, 208, 216-217, 225, 288-289, 292, 313-333 |
 | vehicles/test\_models.py                                        |       62 |        0 |    100% |           |
 | vehicles/test\_schedule\_adherence.py                           |       75 |        0 |    100% |           |
-| vehicles/tests.py                                               |      468 |        0 |    100% |           |
+| vehicles/tests.py                                               |      481 |        0 |    100% |           |
 | vehicles/time\_aware\_polyline.py                               |       56 |       28 |     50% |18, 36, 49, 54, 57, 87-98, 106-120 |
 | vehicles/urls.py                                                |        4 |        0 |    100% |           |
 | vehicles/utils.py                                               |      128 |        6 |     95% |29, 59, 162, 174-175, 179 |
@@ -196,7 +196,7 @@
 | vosa/tests.py                                                   |       60 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
 | vosa/views.py                                                   |       59 |        0 |    100% |           |
-| **TOTAL**                                                       | **16961** | **1270** | **93%** |           |
+| **TOTAL**                                                       | **16974** | **1262** | **93%** |           |
 
 
 ## Setup coverage badge
