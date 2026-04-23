@@ -193,14 +193,11 @@ BNML:
 AJTX:
   url: http://taxi-one.co.uk/
 COEV:
-  name: Coach Events Services
-  url: http://www.coacheventsservices.co.uk/
+  url: https://www.cesfamily.co.uk/mayflower
 ABCF:
   url: https://www.argyll-bute.gov.uk/roads-and-travel/public-transport/ferry-travel
 SLCS:
   url: https://www.selseytowncouncil.gov.uk/article/28402/Community-bus
-GCTG:
-  url: https://glenfargct.co.uk/
 SBLB:
   name: Stagecoach North Scotland
 FHUD:
@@ -215,26 +212,14 @@ WEFC:
   url: https://www.westmorlandandfurness.gov.uk/parking-streets-and-transport/bus-services/find-bus
 ACAH:
   name: Aircoach
-KLCO:
-  url: https://klch.co.uk/
 NTMY:
   name: Ashwood Travel
-SULV:
-  url: https://www.sullivanbuses.com
-ARCT:
-  url: https://archwaytravel.co.uk/
 TXCO:
   url: https://www.facebook.com/AimeesTravel
 AMGR:
   url: https://flexi-bus.co.uk/
-FBSM:
-  url: https://www.1stbusstop.co.uk/
 HCCT:
   url: https://www.hants.gov.uk/transport/alternativetransport/carshares/services
-TMST:
-  url: http://www.travel-masters.co.uk/
-BJCO:
-  url: https://www.brianjonesbusandcoachhire.co.uk/
 AMBS:
   url: https://ambassadortravelanglialtd.co.uk/
 DGCB:
