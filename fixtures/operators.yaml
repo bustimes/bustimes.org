@@ -11,8 +11,6 @@ GRTL:
   phone: ""
   email: ""
   address: ""
-VCBO:
-  url: http://villagerbus.co.uk/
 STAR:
   address: |
     177 Cambridge Street
@@ -213,8 +211,6 @@ FLON:
 HOWT:
   name: Omega Busways
   url: https://www.omegabusways.uk/
-SSSN:
-  url: https://www.shorelinetravel.co.uk/
 WEFC:
   url: https://www.westmorlandandfurness.gov.uk/parking-streets-and-transport/bus-services/find-bus
 ACAH:
@@ -245,8 +241,6 @@ DGCB:
   url: https://www.dumfriesandgalloway.gov.uk/roads-transport-parking/public-transport/bus-ferry-timetables
 YSQU:
   url: https://www.squarepegbuses.co.uk/
-ASHT:
-  url: https://ashcrofttravel.co.uk/
 FXTX:
   url: https://www.felixcoaches.co.uk/
 HASO:
