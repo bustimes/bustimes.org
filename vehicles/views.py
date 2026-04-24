@@ -778,15 +778,6 @@ def check_user(request):
     if request.user.trusted is False:
         raise PermissionDenied
 
-    if (
-        not request.user.trusted
-        and timezone.now() - request.user.date_joined < datetime.timedelta(hours=1)
-        and request.user.vehiclerevision_set.count() > 4
-    ):
-        raise PermissionDenied(
-            "As your account is so new, please wait a bit before editing any more vehicles"
-        )
-
 
 revision_display_related_fields = (
     "from_type",
@@ -810,7 +801,7 @@ def edit_vehicle(request, **kwargs):
     )
 
     if not request.user.is_superuser and not vehicle.is_editable():
-        raise PermissionDenied()
+        raise PermissionDenied
 
     form_data = request.POST or None
 
@@ -951,8 +942,8 @@ def vehicle_revision_action(request, revision_id, action):
     if action == "disapprove" and request.user.id == revision.user_id:
         revision.delete()  # cancel one's own edit
         return HttpResponse("")
-    else:
-        assert request.user.trusted
+    elif not request.user.trusted:
+        raise PermissionDenied
 
     revision.disapproved_reason = unquote(request.headers.get("HX-Prompt", ""))
     revision.approved_by = request.user

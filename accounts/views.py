@@ -76,13 +76,15 @@ def user_detail(request, pk):
         if request.POST and form.is_valid():
             if "confirm_delete" in request.POST:
                 delete_form = forms.DeleteForm(request.POST)
-                if delete_form.is_valid():
-                    assert request.user == user
-                    assert delete_form.cleaned_data["confirm_delete"]
+                if (
+                    delete_form.is_valid()
+                    and request.user == user
+                    and delete_form.cleaned_data["confirm_delete"]
+                ):
                     user.is_active = False
                     user.save(update_fields=["is_active"])
 
-            if "name" in form.changed_data:
+            elif "name" in form.changed_data:
                 user.username = form.cleaned_data["name"]
                 if not user.username:
                     user.username = user.email
