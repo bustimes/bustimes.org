@@ -1,10 +1,9 @@
 # "Real Time Passenger Information"-ish stuff - calculating delays etc
 
-from datetime import datetime, timedelta
+import datetime
 from itertools import pairwise
 from django.contrib.gis.geos import LineString, Point
 from django.contrib.gis.db.models.functions import Distance, LineLocatePoint
-from django.utils import timezone
 
 from bustimes.models import RouteLink, StopTime, Trip
 from bustimes.utils import contiguous_stoptimes_only
@@ -45,6 +44,7 @@ class Progress:
         self.next_stop_time = next_stop_time
         self.progress = round(progress, 3)
         self.distance = distance
+        self.delay = None
 
     def to_json(self):
         return {
@@ -54,6 +54,38 @@ class Progress:
             "next_stop": self.next_stop_time.stop_id,
             "progress": self.progress,
         }
+
+    def calculate_delay(self, when, date):
+        # if the trip hasn't started yet...
+        first = self.stop_times[0]
+        first_dep = first.departure_datetime(date) or first.arrival_datetime(date)
+        if when < first_dep:
+            return
+
+        prev = self.prev_stop_time
+        next_ = self.next_stop_time
+
+        # when the bus is scheduled to leave prev / arrive at next
+        # (arrival/departure can be None when the two would be equal)
+        prev_dep = prev.departure_datetime(date) or prev.arrival_datetime(date)
+        next_arr = next_.arrival_datetime(date) or next_.departure_datetime(date)
+
+        # if the bus is at prev stop and within its scheduled dwell, it's on time
+        if self.progress == 0:
+            prev_arr = prev.arrival_datetime(date)
+            if prev_arr and prev_arr < prev_dep and prev_arr <= when <= prev_dep:
+                self.delay = 0
+                return
+
+        # likewise if the bus is at next stop and within its scheduled dwell
+        if self.progress == 1:
+            next_dep = next_.departure_datetime(date)
+            if next_dep and next_arr < next_dep and next_arr <= when <= next_dep:
+                self.delay = 0
+                return
+
+        expected_time = prev_dep + (next_arr - prev_dep) * self.progress
+        self.delay = int((when - expected_time).total_seconds())
 
 
 def get_progress(item, stop_time=None):
@@ -128,9 +160,15 @@ def get_progress(item, stop_time=None):
                 closest = next_closest
                 distance = next_closest[2].distance
 
-    return Progress(
+    progress = Progress(
         stop_times, closest[0], closest[1], closest[2].progress, closest[2].distance
     )
+
+    when = datetime.datetime.fromisoformat(item["datetime"])
+    date = datetime.date.fromisoformat(item["date"])
+    progress.calculate_delay(when, date)
+
+    return progress
 
 
 def add_progress_and_delay(item, stop_time=None):
@@ -139,21 +177,5 @@ def add_progress_and_delay(item, stop_time=None):
         return
 
     item["progress"] = progress.to_json()
-    when = datetime.fromisoformat(item["datetime"])
-    when = timezone.localtime(when)
-    when = timedelta(hours=when.hour, minutes=when.minute, seconds=when.second)
-
-    prev_time = progress.prev_stop_time.departure_or_arrival()
-    next_time = progress.next_stop_time.arrival_or_departure()
-
-    # correct for timetable times being > 24 hours:
-    if when - prev_time < -timedelta(hours=12):
-        when += timedelta(hours=24)
-    elif when - prev_time > timedelta(hours=12):
-        when -= timedelta(hours=24)
-
-    # TODO: cope with waittimes better
-
-    expected_time = prev_time + (next_time - prev_time) * progress.progress
-    delay = int((when - expected_time).total_seconds())
-    item["delay"] = delay
+    if progress.delay is not None:
+        item["delay"] = progress.delay

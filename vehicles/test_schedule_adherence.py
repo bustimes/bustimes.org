@@ -201,6 +201,8 @@ class ScheduleAdherenceTest(TestCase):
                 "coordinates": [-0.320573, 51.75536],
                 "trip_id": self.journey.trip_id,
                 "heading": 200,
+                "datetime": "2023-08-31T09:50:07Z",
+                "date": "2023-08-31",
             }
         )
         self.assertEqual(progress.prev_stop_time.stop_id, "210021502200")
@@ -209,6 +211,8 @@ class ScheduleAdherenceTest(TestCase):
                 "coordinates": [-0.320573, 51.75536],
                 "trip_id": self.journey.trip_id,
                 "heading": 84,
+                "datetime": "2023-08-31T09:50:07Z",
+                "date": "2023-08-31",
             }
         )
         self.assertEqual(progress.prev_stop_time.stop_id, "210021505160")
@@ -217,6 +221,8 @@ class ScheduleAdherenceTest(TestCase):
                 "coordinates": [-0.307577, 51.75986],
                 "trip_id": self.journey.trip_id,
                 "heading": 200.0,
+                "datetime": "2023-08-31T09:50:07Z",
+                "date": "2023-08-31",
             }
         )
         self.assertEqual(progress.prev_stop_time.stop_id, "210021509645")
@@ -225,6 +231,8 @@ class ScheduleAdherenceTest(TestCase):
                 "coordinates": [-0.307577, 51.75986],
                 "trip_id": self.journey.trip_id,
                 "heading": "90",
+                "datetime": "2023-08-31T09:50:07Z",
+                "date": "2023-08-31",
             }
         )
         self.assertEqual(progress.prev_stop_time.stop_id, "210021509620")
@@ -234,6 +242,7 @@ class ScheduleAdherenceTest(TestCase):
             "trip_id": self.journey.trip_id,
             "heading": None,
             "datetime": "2023-08-31T09:50:07Z",
+            "date": "2023-08-31",
         }
         rtpi.add_progress_and_delay(item)
         self.assertEqual(item["progress"]["progress"], 1)
@@ -244,20 +253,23 @@ class ScheduleAdherenceTest(TestCase):
             "trip_id": self.journey.trip_id,
             "heading": None,
             "datetime": "2023-08-31T09:50:07Z",
+            "date": "2023-08-31",
         }
         rtpi.add_progress_and_delay(item)
         self.assertEqual(item["progress"]["progress"], 1)
         self.assertEqual(item["delay"], 967)
 
-        # more than 12 hours early/late - should adjust by 24 hours
+        # trip hasn't started yet - shouldn't be flagged as late/early
         item["datetime"] = "2023-08-30T22:59:00Z"
+        del item["progress"]
+        del item["delay"]
         rtpi.add_progress_and_delay(item)
-        self.assertEqual(item["delay"], -38100)
+        self.assertIn("progress", item)
+        self.assertNotIn("delay", item)
 
         # a long way off route
         item["coordinates"] = [0, 50]
         del item["progress"]
-        del item["delay"]
         rtpi.add_progress_and_delay(item)
         self.assertNotIn("progress", item)
         self.assertNotIn("delay", item)
@@ -282,6 +294,7 @@ class ScheduleAdherenceTest(TestCase):
                         "heading": 0,
                         "trip_id": self.journey.trip_id,
                         "datetime": "2023-08-31T09:50:07Z",
+                        "date": "2023-08-31",
                     }
                 ),
             )
@@ -314,6 +327,7 @@ class ScheduleAdherenceTest(TestCase):
                         "heading": 0,
                         "trip_id": self.journey.trip_id,
                         "datetime": "2023-08-31T09:50:07Z",
+                        "date": "2023-08-31",
                     }
                 ),
             )

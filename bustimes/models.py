@@ -543,13 +543,15 @@ class StopTime(models.Model):
         return format_timedelta(self.arrival)
 
     def arrival_datetime(self, date):
-        return time_datetime(self.arrival, date)
+        if self.arrival:
+            return time_datetime(self.arrival, date)
 
     def departure_time(self):
         return format_timedelta(self.departure)
 
     def departure_datetime(self, date):
-        return time_datetime(self.departure, date)
+        if self.departure:
+            return time_datetime(self.departure, date)
 
     def is_minor(self):
         return self.timing_status and self.timing_status != "PTP"

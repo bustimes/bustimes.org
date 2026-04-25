@@ -207,7 +207,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                     "OriginName": "Dame Mary Archer Wa",
                     "DestinationRef": "0500CCITY544",
                     "DestinationName": "Eddington Sainsbury",
-                    "OriginAimedDepartureTime": "2020-06-17T08:23:00+00:00",
+                    "OriginAimedDepartureTime": "2020-10-15T08:23:00+00:00",
                     "VehicleLocation": {
                         "Longitude": "0.141533",
                         "Latitude": "52.1727219",
@@ -381,7 +381,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                     "progress": 0.097,
                 },
             )
-            self.assertEqual(json[0]["delay"], 27962)
+            self.assertNotIn("delay", json[0])
 
             with self.assertNumQueries(0):
                 response = self.client.get("/vehicles.json?service=ff")
@@ -390,12 +390,12 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             # test history view
             whippet_journey = VehicleJourney.objects.get(vehicle__operator="WHIP")
 
-            with time_machine.travel("2020-06-17"), self.assertNumQueries(8):
+            with time_machine.travel("2020-10-15"), self.assertNumQueries(8):
                 response = self.client.get(whippet_journey.get_absolute_url())
 
             self.assertContains(
                 response,
-                '<a href="/services/u/vehicles?date=2020-06-17" rel="nofollow">UU</a>',
+                '<a href="/services/u/vehicles?date=2020-10-15" rel="nofollow">UU</a>',
             )
             self.assertContains(
                 response, f"""<a href="#journeys/{whippet_journey.id}">09:23</a>"""
@@ -403,7 +403,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             self.assertContains(response, "<p>Great Yarmouth</p>")  # garage
 
             with self.assertNumQueries(5):
-                response = self.client.get("/services/u/vehicles?date=2020-06-17")
+                response = self.client.get("/services/u/vehicles?date=2020-10-15")
             self.assertContains(response, "<p>Great Yarmouth</p>")  # garage
 
             response = self.client.get("/operators/whip/debug")
