@@ -73,32 +73,17 @@ CBBH:
   name: Centrebus (South)
 CBNL:
   name: Centrebus (North)
-ARBB:
-  url: https://www.arrivabus.co.uk/locations/beds-and-bucks
-WRAY:
-  url: https://www.arrivabus.co.uk/locations/yorkshire
 AMTM:
   name: Arriva Kent Thameside
-  url: https://www.arrivabus.co.uk/locations/kent-and-surrey
 AMNO:
   name: Arriva Midlands North
   url: https://www.arrivabus.co.uk/locations/midlands
-AKSS:
-  url: https://www.arrivabus.co.uk/locations/kent-and-surrey
-ARHE:
-  url: https://www.arrivabus.co.uk/locations/herts-and-essex
 AMID:
   url: https://www.arrivabus.co.uk/locations/midlands
 AMSY:
   name: Arriva Merseyside
-  url: https://www.arrivabus.co.uk/locations/north-west
-ANEA:
-  url: https://www.arrivabus.co.uk/locations/north-east
 ANUM:
   name: Arriva Northumbria
-  url: https://www.arrivabus.co.uk/locations/north-east
-ACYM:
-  url: https://www.arrivabus.co.uk/locations/wales
 A1CS:
   name: A1 Coaches (Fife)
 AOLC:
@@ -230,7 +215,7 @@ YSQU:
   url: https://www.squarepegbuses.co.uk/
 FXTX:
   url: https://www.felixcoaches.co.uk/
-FVTC: 
+FVTC:
   url: https://www.facebook.com/favershamcommunitybus/
 HASO:
   url: https://harpurscoachesltd.co.uk/
