@@ -479,20 +479,22 @@ def stop_times_json(request, atco_code):
     )[:limit]:
         times.append(stop_time_json(stop_time, yesterday_date))
 
+    today = when.date()
+
     # journeys that started today
     # possibly late-running
     if by_trip:
-        stop_times = departures.get_times(when.date(), time_since_midnight, by_trip)
+        stop_times = departures.get_times(today, time_since_midnight, by_trip)
         for stop_time in stop_times.select_related(
             "trip__destination__locality", "trip__route__service", "trip__operator"
         )[:limit]:
-            times.append(stop_time_json(stop_time, when.date()))
+            times.append(stop_time_json(stop_time, today))
 
-    stop_times = departures.get_times(when.date(), time_since_midnight)
+    stop_times = departures.get_times(today, time_since_midnight)
     for stop_time in stop_times.select_related(
         "trip__destination__locality", "trip__route__service", "trip__operator"
     )[:limit]:
-        times.append(stop_time_json(stop_time, when.date()))
+        times.append(stop_time_json(stop_time, today))
 
     if by_trip:
         prefetch_related_objects(
@@ -509,7 +511,12 @@ def stop_times_json(request, atco_code):
             if time["trip_id"] in by_trip:
                 item = by_trip[time["trip_id"]]
 
-                if "progress" not in item and "delay" not in item:
+                if (time["aimed_arrival_time"] or time["aimed_departure_time"]) < when:
+                    time["overdue"] = True
+
+                if "delay" not in item or (
+                    "overdue" in time and "progress" not in item
+                ):
                     add_progress_and_delay(item, time["stop_time"])
 
                 if "delay" not in item:
@@ -518,7 +525,7 @@ def stop_times_json(request, atco_code):
                 progress = item.get("progress")
 
                 if (
-                    (time["aimed_arrival_time"] or time["aimed_departure_time"]) >= when
+                    "overdue" not in time
                     or progress
                     and (
                         progress["id"] < time["id"]
@@ -541,12 +548,7 @@ def stop_times_json(request, atco_code):
                     else:
                         time["expected_arrival_time"] = time["expected_departure_time"]
 
-    times = [
-        time
-        for time in times
-        if "delay" in time
-        or (time["aimed_arrival_time"] or time["aimed_departure_time"]) >= when
-    ]
+    times = [time for time in times if "delay" in time or ("overdue" not in time)]
     for time in times:
         del time["stop_time"]
 
