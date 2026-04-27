@@ -38,7 +38,7 @@ def get_stop_times(item):
 
 class Progress:
     def __init__(self, stop_times, prev_stop_time, next_stop_time, progress, distance):
-        self.stop_times = list(stop_times)
+        self.stop_times = stop_times
         self.sequence = self.stop_times.index(prev_stop_time)
         self.prev_stop_time = prev_stop_time
         self.next_stop_time = next_stop_time
@@ -55,42 +55,40 @@ class Progress:
             "progress": self.progress,
         }
 
-    def calculate_delay(self, when, date):
-        # if the trip hasn't started yet...
-        if when < self.stop_times[0].departure_datetime(date):
-            return
 
-        prev = self.prev_stop_time
-        next_ = self.next_stop_time
+def get_delay(progress, date, when) -> int:
+    prev = progress.prev_stop_time
+    next_ = progress.next_stop_time
 
-        # when the bus is scheduled to leave prev / arrive at next
-        # (arrival/departure can be None when the two would be equal)
-        prev_dep = prev.departure_datetime(date)
-        if prev_dep is None:
-            prev_dep = prev.arrival_datetime(date)
-        next_arr = next_.arrival_datetime(date)
-        if next_arr is None:
-            next_arr = next_.departure_datetime(date)
+    # when the bus is scheduled to leave prev / arrive at next
+    # (arrival/departure can be None when the two would be equal)
+    prev_dep = prev.departure_datetime(date)
+    if prev_dep is None:
+        prev_dep = prev.arrival_datetime(date)
+    next_arr = next_.arrival_datetime(date)
+    if next_arr is None:
+        next_arr = next_.departure_datetime(date)
 
-        # if the bus is at prev stop and within its scheduled dwell, it's on time
-        if self.progress == 0:
-            prev_arr = prev.arrival_datetime(date)
-            if prev_arr and prev_arr < prev_dep and prev_arr <= when <= prev_dep:
-                self.delay = 0
-                return
+    # if the bus is at prev stop and within its scheduled dwell, it's on time
+    if progress.progress <= 0.1:
+        prev_arr = prev.arrival_datetime(date)
+        if prev_arr and prev_arr < prev_dep and prev_arr <= when <= prev_dep:
+            return 0
 
-        # likewise if the bus is at next stop and within its scheduled dwell
-        if self.progress == 1:
-            next_dep = next_.departure_datetime(date)
-            if next_dep and next_arr < next_dep and next_arr <= when <= next_dep:
-                self.delay = 0
-                return
+    # likewise if the bus is at next stop and within its scheduled dwell
+    elif progress.progress >= 0.9:
+        next_dep = next_.departure_datetime(date)
+        if next_dep and next_arr < next_dep and next_arr <= when <= next_dep:
+            return 0
 
-        expected_time = prev_dep + (next_arr - prev_dep) * self.progress
-        self.delay = int((when - expected_time).total_seconds())
+    expected_time = prev_dep + (next_arr - prev_dep) * progress.progress
+    return int((when - expected_time).total_seconds())
 
 
-def get_progress(item, stop_time=None):
+def get_progress(item: dict, stop_time=None) -> Progress | None:
+    when = datetime.datetime.fromisoformat(item["datetime"])
+    date = datetime.date.fromisoformat(item["date"])
+
     point = Point(*item["coordinates"], srid=4326)
     point_3857 = point.transform(3857, clone=True)
 
@@ -102,9 +100,13 @@ def get_progress(item, stop_time=None):
         ]
     else:
         try:
-            stop_times = get_stop_times(item)
+            stop_times = list(get_stop_times(item))
         except Trip.DoesNotExist:
             return
+
+    start_time = stop_times[0].departure_datetime(date)
+    if start_time is None:
+        start_time = stop_times[0].arrival_datetime(date)
 
     route_links = {}
     if "service_id" in item:
@@ -141,14 +143,14 @@ def get_progress(item, stop_time=None):
     nearby_pairs.sort(key=lambda p: p[2].distance)
 
     closest = nearby_pairs[0]
+    next_closest = nearby_pairs[1] if len(nearby_pairs) > 1 else None
 
-    if len(nearby_pairs) >= 2 and item["heading"] is not None:
+    if next_closest and item["heading"] is not None:
         vehicle_heading = int(item["heading"])
 
         route_bearing = get_route_bearing(closest[2].geometry, closest[2].progress)
 
         difference = (vehicle_heading - route_bearing + 180) % 360 - 180
-        next_closest = nearby_pairs[1]
 
         if not (abs(difference) < 90) and next_closest[2].distance < 100:
             # bus seems to be heading the wrong way - does the bus go both ways on this road?
@@ -165,10 +167,25 @@ def get_progress(item, stop_time=None):
     progress = Progress(
         stop_times, closest[0], closest[1], closest[2].progress, closest[2].distance
     )
+    progress.delay = get_delay(progress, date, when)
 
-    when = datetime.datetime.fromisoformat(item["datetime"])
-    date = datetime.date.fromisoformat(item["date"])
-    progress.calculate_delay(when, date)
+    # if closest and next_closest involve the same stop
+    # (e.g. it's a circular route),
+    # choose the one with the smaller delay
+    if next_closest and (
+        closest[0].stop_id == next_closest[1].stop_id
+        or closest[1].stop_id == next_closest[0].stop_id
+    ):
+        alt = Progress(
+            stop_times,
+            next_closest[0],
+            next_closest[1],
+            next_closest[2].progress,
+            next_closest[2].distance,
+        )
+        alt.delay = get_delay(alt, date, when)
+        if abs(alt.delay) < abs(progress.delay):
+            progress = alt
 
     return progress
 

@@ -383,7 +383,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                     "progress": 0.097,
                 },
             )
-            self.assertNotIn("delay", json[0])
+            self.assertEqual(json[0]["delay"], -58437)
 
             with self.assertNumQueries(0):
                 response = self.client.get("/vehicles.json?service=ff")

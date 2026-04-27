@@ -259,17 +259,10 @@ class ScheduleAdherenceTest(TestCase):
         self.assertEqual(item["progress"]["progress"], 1)
         self.assertEqual(item["delay"], 967)
 
-        # trip hasn't started yet - shouldn't be flagged as late/early
-        item["datetime"] = "2023-08-30T22:59:00Z"
-        del item["progress"]
-        del item["delay"]
-        rtpi.add_progress_and_delay(item)
-        self.assertIn("progress", item)
-        self.assertNotIn("delay", item)
-
         # a long way off route
         item["coordinates"] = [0, 50]
         del item["progress"]
+        del item["delay"]
         rtpi.add_progress_and_delay(item)
         self.assertNotIn("progress", item)
         self.assertNotIn("delay", item)
@@ -316,7 +309,7 @@ class ScheduleAdherenceTest(TestCase):
                 self.assertContains(response, "10:43")  # scheduled time
                 self.assertContains(response, "10:59")  # expected time
 
-            # on route, but before scheduled start - progress but no delay
+            # on route, before scheduled start
             redis_client.set(
                 "vehicle1",
                 json.dumps(
@@ -332,8 +325,11 @@ class ScheduleAdherenceTest(TestCase):
                 ),
             )
             response_json = self.client.get("/stops/210021509680/times.json").json()
-            self.assertNotIn("delay", response_json["times"][0])
-            self.assertNotIn("expected_departure_time", response_json["times"][0])
+            self.assertEqual(response_json["times"][0]["delay"], "-P0DT00H33M53S")
+            self.assertEqual(
+                response_json["times"][0]["expected_departure_time"],
+                "2024-02-16T10:09:07Z",
+            )
 
             # delay already calculated (eg TfW)
             redis_client.set(
