@@ -178,11 +178,11 @@
 | vehicles/management/tests/test\_stats.py                        |       24 |        0 |    100% |           |
 | vehicles/management/tests/test\_translink\_avl.py               |       22 |        0 |    100% |           |
 | vehicles/models.py                                              |      518 |       35 |     93% |75, 193, 218, 285, 304, 310, 382, 388, 439, 460, 581-582, 595, 603, 620-622, 630-631, 634-635, 637-642, 647-648, 679, 760-763, 819, 828, 854 |
-| vehicles/rtpi.py                                                |      109 |       13 |     88% |34, 70, 77-80, 86-87, 118-119, 125-127 |
+| vehicles/rtpi.py                                                |      113 |       11 |     90% |34, 67, 76, 82, 109, 120-121, 127-129, 188 |
 | vehicles/signals.py                                             |       11 |        0 |    100% |           |
 | vehicles/tasks.py                                               |      163 |       36 |     78% |97, 102, 113, 120-123, 126, 143, 156, 160-161, 183, 208, 216-217, 225, 288-289, 292, 313-333 |
 | vehicles/test\_models.py                                        |       62 |        0 |    100% |           |
-| vehicles/test\_schedule\_adherence.py                           |       85 |        0 |    100% |           |
+| vehicles/test\_schedule\_adherence.py                           |       80 |        0 |    100% |           |
 | vehicles/tests.py                                               |      481 |        0 |    100% |           |
 | vehicles/time\_aware\_polyline.py                               |       56 |       28 |     50% |18, 36, 49, 54, 57, 87-98, 106-120 |
 | vehicles/urls.py                                                |        4 |        0 |    100% |           |
@@ -196,7 +196,7 @@
 | vosa/tests.py                                                   |       60 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
 | vosa/views.py                                                   |       59 |        0 |    100% |           |
-| **TOTAL**                                                       | **17007** | **1270** | **93%** |           |
+| **TOTAL**                                                       | **17006** | **1268** | **93%** |           |
 
 
 ## Setup coverage badge
