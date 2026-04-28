@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "huey.contrib.djhuey",
     "corsheaders",
     "turnstile",
+    "django_http_compression",
 ]
 
 
@@ -67,6 +68,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.csp.ContentSecurityPolicyMiddleware",
+    "django_http_compression.middleware.HttpCompressionMiddleware",
     "busstops.middleware.WhiteNoiseWithFallbackMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
