@@ -21,7 +21,7 @@
 | buses/asgi.py                                                   |        4 |        0 |    100% |           |
 | buses/context\_processors.py                                    |        5 |        0 |    100% |           |
 | buses/jinja2.py                                                 |       36 |        1 |     97% |        40 |
-| buses/settings.py                                               |      122 |       33 |     73% |97-107, 127, 141-149, 218, 237-245, 262-280, 340 |
+| buses/settings.py                                               |      122 |       33 |     73% |99-109, 129, 143-151, 220, 239-247, 264-282, 342 |
 | buses/tests.py                                                  |       12 |        0 |    100% |           |
 | buses/urls.py                                                   |        5 |        0 |    100% |           |
 | buses/utils.py                                                  |       11 |        4 |     64% |     13-16 |
