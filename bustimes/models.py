@@ -202,7 +202,7 @@ class Calendar(models.Model):
         indexes = [models.Index(fields=["start_date", "end_date"])]
 
     def is_sufficiently_simple(self, today, future) -> bool:
-        if self.summary or all(
+        if all(
             date.start_date > future or date.end_date and date.end_date < today
             for date in self.calendardate_set.all()
         ):
