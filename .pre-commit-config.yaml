@@ -13,7 +13,7 @@ repos:
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.15.7
+    rev: v0.15.12
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -26,7 +26,7 @@ repos:
         args: [--target-version, "5.2"] # Django version
 
   - repo: https://github.com/biomejs/pre-commit
-    rev: v2.4.8
+    rev: v2.4.13
     hooks:
       - id: biome-check
         additional_dependencies:
