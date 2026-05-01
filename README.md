@@ -140,7 +140,7 @@
 | photos/models.py                                                |       19 |        1 |     95% |        38 |
 | photos/utils.py                                                 |       25 |       18 |     28% |10-12, 16-43 |
 | vehicles/\_\_init\_\_.py                                        |        0 |        0 |    100% |           |
-| vehicles/admin.py                                               |      258 |       14 |     95% |34, 194-195, 293, 299, 301, 303, 306, 351, 357, 461, 521-523 |
+| vehicles/admin.py                                               |      258 |       14 |     95% |34, 194-195, 294, 300, 302, 304, 307, 352, 358, 462, 522-524 |
 | vehicles/apps.py                                                |        6 |        0 |    100% |           |
 | vehicles/context\_processors.py                                 |       14 |        0 |    100% |           |
 | vehicles/fields.py                                              |       23 |        0 |    100% |           |
