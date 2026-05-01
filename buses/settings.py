@@ -32,7 +32,8 @@ if TEST:
     EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
 INSTALLED_APPS = [
-    # "daphne",
+    "daphne",
+    "channels",
     "accounts",
     "busstops",
     "django.contrib.admin",
@@ -160,6 +161,15 @@ HUEY = {
     "immediate": DEBUG or TEST,
     "connection": {
         "url": REDIS_URL,
+    },
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [{"address": REDIS_URL}],
+        },
     },
 }
 
