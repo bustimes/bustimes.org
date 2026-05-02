@@ -11,6 +11,7 @@ import {
   Layer,
   type MapLayerMouseEvent,
   type MapProps,
+  Popup,
   Source,
   type ViewStateChangeEvent,
   useMap,
@@ -27,6 +28,7 @@ import VehicleMarker, {
 import {
   Locations,
   type VehicleJourney,
+  getUtcOffsetSeconds,
   locationsFromPolyline,
 } from "./JourneyMap";
 import LoadingSorry from "./LoadingSorry";
@@ -533,10 +535,13 @@ export default function BigMap(
 
   const journeyLocations = useMemo(() => {
     if (journey?.time_aware_polyline) {
-      return locationsFromPolyline(journey.time_aware_polyline);
+      return locationsFromPolyline(
+        journey.time_aware_polyline,
+        getUtcOffsetSeconds(journey.datetime),
+      );
     }
     return [];
-  }, [journey?.time_aware_polyline]);
+  }, [journey?.time_aware_polyline, journey?.datetime]);
 
   const journeyIsCurrent = useMemo(() => {
     if (!journey) return false;
@@ -871,7 +876,10 @@ export default function BigMap(
 
   const [cursor, setCursor] = React.useState<string>();
 
-  const hoveredLocation = React.useRef<number | null>(null);
+  const [hoveredLocation, setHoveredLocation] = React.useState<{
+    coordinates: [number, number];
+    time: string;
+  } | null>(null);
 
   const onMouseEnter = React.useCallback((e: MapLayerMouseEvent) => {
     const vehicleId = getClickedVehicleMarkerId(e);
@@ -881,28 +889,28 @@ export default function BigMap(
 
     if (e.features?.length) {
       setCursor("pointer");
-      // journey map
       for (const feature of e.features) {
         if (feature.layer.id === "locations") {
-          if (hoveredLocation.current) {
-            e.target.setFeatureState(
-              { source: "locations", id: hoveredLocation.current },
-              { hover: false },
-            );
-          }
-          e.target.setFeatureState(
-            { source: "locations", id: feature.id },
-            { hover: true },
-          );
-          hoveredLocation.current = feature.id as number;
+          const geom = feature.geometry as {
+            type: "Point";
+            coordinates: [number, number];
+          };
+          setHoveredLocation({
+            coordinates: geom.coordinates,
+            time: feature.properties?.time,
+          });
           return;
         }
       }
+      setHoveredLocation(null);
+    } else {
+      setHoveredLocation(null);
     }
   }, []);
 
   const onMouseLeave = React.useCallback(() => {
     setCursor(undefined);
+    setHoveredLocation(null);
   }, []);
 
   const showStops = shouldShowStops(zoom);
@@ -1052,6 +1060,20 @@ export default function BigMap(
 
           {props.mode === MapMode.Journey && journeyLocations.length ? (
             <Locations locations={journeyLocations} />
+          ) : null}
+
+          {hoveredLocation ? (
+            <Popup
+              longitude={hoveredLocation.coordinates[0]}
+              latitude={hoveredLocation.coordinates[1]}
+              closeButton={false}
+              closeOnClick={false}
+              offset={8}
+              focusAfterOpen={false}
+              className="location-popup"
+            >
+              {hoveredLocation.time}
+            </Popup>
           ) : null}
         </BusTimesMap>
       </div>

@@ -21,7 +21,7 @@ import VehicleMarker, {
 import VehiclePopup from "./VehiclePopup";
 import { recordSkew } from "./clockSkew";
 import { decodeTimeAwarePolyline } from "./time-aware-polyline";
-import { getBounds, getFont } from "./utils";
+import { getBounds } from "./utils";
 
 export type VehicleJourneyLocation = {
   id: number;
@@ -69,10 +69,24 @@ function calcBearing(
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
+// Parse "+HH:MM" / "-HH:MM" / "Z" offset from an ISO datetime string.
+// Used so the client doesn't need to trust the browser's local time zone
+// (some privacy-focused browsers force UTC).
+export function getUtcOffsetSeconds(isoStr: string): number {
+  const m = isoStr.match(/([+-])(\d{2}):?(\d{2})$/);
+  if (!m) return 0;
+  const sign = m[1] === "-" ? -1 : 1;
+  return (
+    sign * (Number.parseInt(m[2], 10) * 3600 + Number.parseInt(m[3], 10) * 60)
+  );
+}
+
 export function locationsFromPolyline(
   polyline: string,
+  utcOffsetSeconds = 0,
 ): VehicleJourneyLocation[] {
   const points = decodeTimeAwarePolyline(polyline);
+  const offsetMs = utcOffsetSeconds * 1000;
   return points.map(([lat, lng, ts], i) => {
     const coordinates: [number, number] = [lng, lat];
     let direction: number | undefined;
@@ -83,10 +97,12 @@ export function locationsFromPolyline(
     } else if (prev) {
       direction = calcBearing([prev[1], prev[0]], coordinates);
     }
+    // Shift then format as ISO so slice(11, 19) gives local time-of-day,
+    // independent of the browser's reported time zone.
     return {
       id: ts,
       coordinates,
-      datetime: new Date(ts).toISOString(),
+      datetime: new Date(ts + offsetMs).toISOString(),
       direction,
     };
   });
@@ -108,34 +124,16 @@ export const Locations = React.memo(function Locations({
     },
   };
 
-  const font = getFont(theme);
-
   const locationsStyle: LayerProps = {
     id: "locations",
     type: "symbol",
     layout: {
-      "text-field": ["get", "time"],
-      "text-size": 12,
-      "text-font": font,
-
       "icon-rotate": ["+", 45, ["get", "heading"]],
       "icon-image": "history-arrow",
       "icon-allow-overlap": true,
       "icon-ignore-placement": true,
       "icon-anchor": "top-left",
-
-      "text-allow-overlap": true,
-    },
-    paint: {
-      "text-opacity": [
-        "case",
-        ["boolean", ["feature-state", "hover"], false],
-        1,
-        0,
-      ],
-      "text-color": darkMode ? "#fff" : "#333",
-      "text-halo-color": darkMode ? "#333" : "#fff",
-      "text-halo-width": 3,
+      "icon-padding": [4],
     },
   };
 
