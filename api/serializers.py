@@ -217,7 +217,7 @@ class TripSerializer(serializers.ModelSerializer):
         for stop_time in obj.stops:
             route_link = route_links.get((previous_stop_id, stop_time.stop_id))
             if stop := stop_time.stop:
-                name = stop.get_name_for_timetable()
+                name = stop.get_qualified_name()
                 bearing = stop.get_heading()
                 location = stop.latlong and stop.latlong.coords
                 icon = stop.get_icon()
