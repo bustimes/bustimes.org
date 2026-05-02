@@ -24,7 +24,6 @@ import { decodeTimeAwarePolyline } from "./time-aware-polyline";
 import { getBounds } from "./utils";
 
 export type VehicleJourneyLocation = {
-  id: number;
   coordinates: [number, number];
   direction?: number | null;
   datetime: string;
@@ -100,7 +99,6 @@ export function locationsFromPolyline(
     // Shift then format as ISO so slice(11, 19) gives local time-of-day,
     // independent of the browser's reported time zone.
     return {
-      id: ts,
       coordinates,
       datetime: new Date(ts + offsetMs).toISOString(),
       direction,
@@ -157,7 +155,7 @@ export const Locations = React.memo(function Locations({
           features: locations.map((l) => {
             return {
               type: "Feature",
-              id: l.id,
+              id: l.datetime,
               geometry: {
                 type: "Point",
                 coordinates: l.coordinates,

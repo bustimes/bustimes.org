@@ -564,14 +564,13 @@ export default function BigMap(
     if (props.mode !== MapMode.Journey || !tripVehicle) return;
     setAppendedLocations((appended) => {
       const lastTs = appended.length
-        ? appended[appended.length - 1].id
+        ? appended[appended.length - 1].datetime
         : polylineLocations.length
-          ? polylineLocations[polylineLocations.length - 1].id
+          ? polylineLocations[polylineLocations.length - 1].datetime
           : 0;
       if (tripVehicle.datetime <= lastTs) return appended;
       return appended.concat([
         {
-          id: tripVehicle.datetime,
           coordinates: tripVehicle.coordinates,
           datetime: tripVehicle.datetime,
           direction: tripVehicle.heading,
