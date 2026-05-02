@@ -44,7 +44,7 @@ function StopTimes({ properties }: { properties: Stop["properties"] }) {
     aimed = (
       <>
         <tr>
-          <th scope="row" rowspan="2">
+          <th scope="row" rowSpan={2}>
             Scheduled
           </th>
           <td>{aimedArrival}</td>
