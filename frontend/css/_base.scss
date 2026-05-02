@@ -435,6 +435,7 @@ form p select {
 .loading,
 .htmx-request {
     opacity: .5;
+    transition: opacity .2s;
 
     &,
     & a {
