@@ -13,7 +13,7 @@
 | accounts/views.py                                               |       59 |        1 |     98% |       104 |
 | api/\_\_init\_\_.py                                             |        0 |        0 |    100% |           |
 | api/api.py                                                      |       11 |        0 |    100% |           |
-| api/filters.py                                                  |       70 |        0 |    100% |           |
+| api/filters.py                                                  |       71 |        0 |    100% |           |
 | api/serializers.py                                              |      120 |        5 |     96% |225-228, 230 |
 | api/tests.py                                                    |        9 |        0 |    100% |           |
 | api/views.py                                                    |       97 |        1 |     99% |       146 |
@@ -196,7 +196,7 @@
 | vosa/tests.py                                                   |       60 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
 | vosa/views.py                                                   |       59 |        0 |    100% |           |
-| **TOTAL**                                                       | **17007** | **1268** | **93%** |           |
+| **TOTAL**                                                       | **17008** | **1268** | **93%** |           |
 
 
 ## Setup coverage badge
