@@ -54,8 +54,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">50 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">50<span class="text"> run</span></button>
+            <span class="text">51 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">51<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_75b41f4b22c00b34_import_gtfsr_ie_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-02 15:12 +0000
+            created at 2026-05-04 01:47 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -157,16 +157,18 @@
     <p class="run run2"><span class="n"><a id="t75" href="#t75">75</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">            <span class="nam">now</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">get_datetime</span><span class="op">(</span><span class="nam">item</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t77" href="#t77">77</a></span><span class="t">            <span class="key">if</span> <span class="nam">journey</span><span class="op">.</span><span class="nam">datetime</span> <span class="op">-</span> <span class="nam">now</span> <span class="op">></span> <span class="nam">timedelta</span><span class="op">(</span><span class="nam">hours</span><span class="op">=</span><span class="num">12</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">                <span class="nam">journey</span><span class="op">.</span><span class="nam">datetime</span> <span class="op">-=</span> <span class="nam">timedelta</span><span class="op">(</span><span class="nam">days</span><span class="op">=</span><span class="num">1</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">            <span class="nam">journey</span><span class="op">.</span><span class="nam">service</span> <span class="op">=</span> <span class="nam">trip</span><span class="op">.</span><span class="nam">route</span><span class="op">.</span><span class="nam">service</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">                <span class="com"># `start_date` is today but the trip's operational day is yesterday</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">                <span class="nam">journey</span><span class="op">.</span><span class="nam">datetime</span> <span class="op">-=</span> <span class="nam">timedelta</span><span class="op">(</span><span class="nam">days</span><span class="op">=</span><span class="num">1</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">                <span class="nam">journey</span><span class="op">.</span><span class="nam">date</span> <span class="op">-=</span> <span class="nam">timedelta</span><span class="op">(</span><span class="nam">days</span><span class="op">=</span><span class="num">1</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">            <span class="nam">journey</span><span class="op">.</span><span class="nam">route_name</span> <span class="op">=</span> <span class="nam">journey</span><span class="op">.</span><span class="nam">service</span><span class="op">.</span><span class="nam">line_name</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">            <span class="nam">journey</span><span class="op">.</span><span class="nam">destination</span> <span class="op">=</span> <span class="nam">trip</span><span class="op">.</span><span class="nam">headsign</span> <span class="key">or</span> <span class="str">""</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">        <span class="nam">vehicle</span><span class="op">.</span><span class="nam">latest_journey_data</span> <span class="op">=</span> <span class="nam">json_format</span><span class="op">.</span><span class="nam">MessageToDict</span><span class="op">(</span><span class="nam">item</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">            <span class="nam">journey</span><span class="op">.</span><span class="nam">service</span> <span class="op">=</span> <span class="nam">trip</span><span class="op">.</span><span class="nam">route</span><span class="op">.</span><span class="nam">service</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">            <span class="nam">journey</span><span class="op">.</span><span class="nam">route_name</span> <span class="op">=</span> <span class="nam">journey</span><span class="op">.</span><span class="nam">service</span><span class="op">.</span><span class="nam">line_name</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">            <span class="nam">journey</span><span class="op">.</span><span class="nam">destination</span> <span class="op">=</span> <span class="nam">trip</span><span class="op">.</span><span class="nam">headsign</span> <span class="key">or</span> <span class="str">""</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t86" href="#t86">86</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">        <span class="key">return</span> <span class="nam">journey</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">        <span class="nam">vehicle</span><span class="op">.</span><span class="nam">latest_journey_data</span> <span class="op">=</span> <span class="nam">json_format</span><span class="op">.</span><span class="nam">MessageToDict</span><span class="op">(</span><span class="nam">item</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t89" href="#t89">89</a></span><span class="t">        <span class="key">return</span> <span class="nam">journey</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -176,7 +178,7 @@
             <a class="nav" href="z_75b41f4b22c00b34_import_gtfsr_ie_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-02 15:12 +0000
+            created at 2026-05-04 01:47 +0000
         </p>
     </div>
 </footer>
