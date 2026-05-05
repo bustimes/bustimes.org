@@ -735,6 +735,7 @@ export default function BigMap(
   );
 
   React.useEffect(() => {
+    setAppendedLocations([]);
     if (props.tripId) {
       // trip mode
       if (trip?.id?.toString() === props.tripId) {
@@ -742,7 +743,6 @@ export default function BigMap(
         document.title = `${trip.service?.line_name} \u2013 ${trip.operator?.name} \u2013 bustimes.org`;
       } else {
         setJourney(undefined);
-        setTrip(undefined);
         fetchJson(`api/trips/${props.tripId}/`).then(setTrip);
       }
     } else if (props.noc) {
@@ -760,7 +760,6 @@ export default function BigMap(
           loadVehicles(true);
         }
       } else {
-        setJourney(undefined);
         setTrip(undefined);
         fetchJson(`api/vehiclejourneys/${props.journeyId}/`).then(
           (journey: VehicleJourney) => {
