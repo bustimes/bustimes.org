@@ -141,10 +141,10 @@
             <td class="tabular">{% if journey.code|length < 20 %}{{ journey.code }}{% endif %}</td>
             {% if journey.trip_id %}
                 <td class="link tabular">
-                    <a href="{% if journey.locations is not False %}#journeys/{{ journey.id }}{% else %}{{ journey.trip.get_absolute_url }}{% endif %}">{{ journey.datetime|time:"H:i" }}</a>
+                    <a href="{% if journey.locations is not False %}#journeys/{{ journey.id }}{% else %}{{ journey.trip.get_absolute_url }}{% endif %}">{{ journey.datetime|time:"H:i" }}{% if journey.datetime.date > date %}⁺¹{% endif %}</a>
                 </td>
             {% else %}
-                <td class="tabular">{{ journey.datetime|time:"H:i" }}</td>
+                <td class="tabular">{{ journey.datetime|time:"H:i" }}{% if journey.datetime.date > date %}⁺¹{% endif %}</td>
             {% endif %}
             <td>{% firstof journey.destination journey.direction %}</td>
             {% if journey.locations is not False %}
