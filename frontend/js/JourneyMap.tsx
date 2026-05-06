@@ -4,6 +4,7 @@ import {
   Layer,
   type LayerProps,
   type MapLayerMouseEvent,
+  Popup,
   Source,
 } from "react-map-gl/maplibre";
 
@@ -65,6 +66,105 @@ export type VehicleJourney = {
   };
 };
 
+// --- helpers ---
+
+function haversine(
+  [lng1, lat1]: [number, number],
+  [lng2, lat2]: [number, number],
+): number {
+  const R = 6371000;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(Δφ / 2) ** 2 +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function findNearestLocation(
+  { lng, lat }: { lng: number; lat: number },
+  locations: VehicleJourneyLocation[],
+): VehicleJourneyLocation | null {
+  if (!locations.length) return null;
+  let best = locations[0];
+  let bestDist =
+    (lng - best.coordinates[0]) ** 2 + (lat - best.coordinates[1]) ** 2;
+  for (let i = 1; i < locations.length; i++) {
+    const loc = locations[i];
+    const d =
+      (lng - loc.coordinates[0]) ** 2 + (lat - loc.coordinates[1]) ** 2;
+    if (d < bestDist) {
+      bestDist = d;
+      best = loc;
+    }
+  }
+  return best;
+}
+
+// Returns a line-gradient expression with stops coloured by speed (blue=slow, red=fast).
+// Returns null when there are fewer than 2 points or no distance variation.
+function buildLineGradient(locations: VehicleJourneyLocation[]): unknown[] | null {
+  if (locations.length < 2) return null;
+
+  const cumDist: number[] = [0];
+  const segSpeeds: number[] = [];
+  for (let i = 1; i < locations.length; i++) {
+    const dist = haversine(locations[i - 1].coordinates, locations[i].coordinates);
+    const dt =
+      (new Date(locations[i].datetime).getTime() -
+        new Date(locations[i - 1].datetime).getTime()) /
+      1000;
+    cumDist.push(cumDist[i - 1] + dist);
+    segSpeeds.push(dt > 0 ? (dist / dt) * 3.6 : 0); // km/h
+  }
+
+  const totalDist = cumDist[cumDist.length - 1];
+  if (totalDist === 0) return null;
+
+  const fractions = cumDist.map((d) => d / totalDist);
+
+  // Smooth speed per point by averaging adjacent segment speeds.
+  const pointSpeeds = locations.map((_, i) => {
+    if (i === 0) return segSpeeds[0] ?? 0;
+    if (i === locations.length - 1) return segSpeeds[segSpeeds.length - 1] ?? 0;
+    return ((segSpeeds[i - 1] ?? 0) + (segSpeeds[i] ?? 0)) / 2;
+  });
+
+  const maxSpeed = Math.max(...pointSpeeds, 1);
+
+  // hue: 240 (blue) = stopped, 0 (red) = fastest
+  const stops: unknown[] = ["interpolate", ["linear"], ["line-progress"]];
+  for (let i = 0; i < locations.length; i++) {
+    const t = Math.min(pointSpeeds[i] / maxSpeed, 1);
+    const hue = Math.round(240 - 240 * t);
+    stops.push(fractions[i], `hsl(${hue}, 100%, 45%)`);
+  }
+  return stops;
+}
+
+// Speed in km/h between a location and the following one (falls back to preceding).
+export function locationSpeed(
+  loc: VehicleJourneyLocation,
+  locations: VehicleJourneyLocation[],
+): number | null {
+  const idx = locations.indexOf(loc);
+  if (idx < 0 || locations.length < 2) return null;
+  const next = locations[idx + 1];
+  const prev = locations[idx - 1];
+  const ref = next ?? prev;
+  if (!ref) return null;
+  const dist = haversine(loc.coordinates, ref.coordinates);
+  const dt =
+    Math.abs(
+      new Date(ref.datetime).getTime() - new Date(loc.datetime).getTime(),
+    ) / 1000;
+  return dt > 0 ? Math.round((dist / dt) * 3.6) : null;
+}
+
+// --- Locations layer ---
+
 export const Locations = React.memo(function Locations({
   locations,
 }: {
@@ -73,84 +173,59 @@ export const Locations = React.memo(function Locations({
   const theme = React.useContext(ThemeContext);
   const darkMode = theme.endsWith("_dark") || theme.endsWith("_satellite");
 
-  const routeStyle: LayerProps = {
+  const gradient = React.useMemo(() => buildLineGradient(locations), [locations]);
+
+  const coordinates = React.useMemo(
+    () => locations.map((l) => l.coordinates),
+    [locations],
+  );
+
+  const lineStyle: LayerProps = {
+    id: "journey-line",
     type: "line",
+    layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": darkMode ? "#eee" : "#666",
-      "line-width": 2,
-      "line-dasharray": [2, 2],
+      "line-width": 3,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...(gradient ? { "line-gradient": gradient as any } : { "line-color": darkMode ? "#eee" : "#666" }),
     },
   };
 
-  const font = getFont(theme);
-
-  const locationsStyle: LayerProps = {
-    id: "locations",
+  // Arrows spaced along the line, auto-rotated to follow the line direction.
+  // icon-rotate: 45 corrects for the history-arrow image's NW-pointing orientation.
+  const arrowStyle: LayerProps = {
+    id: "journey-arrows",
     type: "symbol",
     layout: {
-      "text-field": ["get", "time"],
-      "text-size": 12,
-      "text-font": font,
-
-      "icon-rotate": ["+", 45, ["get", "heading"]],
+      "symbol-placement": "line",
+      "symbol-spacing": 60,
       "icon-image": "history-arrow",
+      "icon-rotate": 45,
       "icon-allow-overlap": true,
       "icon-ignore-placement": true,
-      "icon-anchor": "top-left",
-
-      "text-allow-overlap": true,
     },
     paint: {
-      "text-opacity": [
-        "case",
-        ["boolean", ["feature-state", "hover"], false],
-        1,
-        0,
-      ],
-      "text-color": darkMode ? "#fff" : "#333",
-      "text-halo-color": darkMode ? "#333" : "#fff",
-      "text-halo-width": 3,
+      "icon-opacity": darkMode ? 0.8 : 0.6,
     },
+  };
+
+  // Invisible wide hit area so mouse events fire anywhere near the line.
+  const hitStyle: LayerProps = {
+    id: "journey-line-hit",
+    type: "line",
+    paint: { "line-width": 20, "line-opacity": 0 },
   };
 
   return (
-    <React.Fragment>
-      <Source
-        type="geojson"
-        data={{
-          type: "LineString",
-          coordinates: locations.map((l) => l.coordinates),
-        }}
-      >
-        <Layer {...routeStyle} />
-      </Source>
-
-      <Source
-        type="geojson"
-        id="locations"
-        data={{
-          type: "FeatureCollection",
-          features: locations.map((l) => {
-            return {
-              type: "Feature",
-              id: l.id,
-              geometry: {
-                type: "Point",
-                coordinates: l.coordinates,
-              },
-              properties: {
-                // delta: l.delta,
-                heading: l.direction,
-                // datetime: l.datetime,
-                time: l.datetime.slice(11, 19),
-              },
-            };
-          }),
-        }}
-      >
-        <Layer {...locationsStyle} />
-      </Source>
-    </React.Fragment>
+    <Source
+      type="geojson"
+      lineMetrics={true}
+      data={{ type: "LineString", coordinates }}
+    >
+      <Layer {...lineStyle} />
+      <Layer {...arrowStyle} />
+      <Layer {...hitStyle} />
+    </Source>
   );
 });
 
@@ -404,60 +479,36 @@ export default function JourneyMap({
 }) {
   const [cursor, setCursor] = React.useState<string>();
 
-  const hoveredLocation = React.useRef<number | null>(null);
-
-  const onMouseEnter = React.useCallback((e: MapLayerMouseEvent) => {
-    const vehicleId = getClickedVehicleMarkerId(e);
-    if (vehicleId) {
-      return;
-    }
-
-    if (e.features?.length) {
-      setCursor("pointer");
-
-      for (const feature of e.features) {
-        if (feature.layer.id === "locations") {
-          if (hoveredLocation.current) {
-            e.target.setFeatureState(
-              { source: "locations", id: hoveredLocation.current },
-              { hover: false },
-            );
-          }
-          e.target.setFeatureState(
-            { source: "locations", id: feature.id },
-            { hover: true },
-          );
-          hoveredLocation.current = feature.id as number;
-          return;
-        }
-      }
-    }
-  }, []);
-
-  const onMouseLeave = React.useCallback(() => {
-    setCursor(undefined);
-    // setClickedLocation(undefined);
-  }, []);
+  const [hoveredPoint, setHoveredPoint] =
+    React.useState<VehicleJourneyLocation | null>(null);
 
   const [clickedStopUrl, setClickedStop] = React.useState<string>();
 
   const [clickedVehicleMarker, setClickedVehicleMarker] =
     React.useState<boolean>(true);
 
-  const [locations, setLocations] = React.useState<VehicleJourneyLocation[]>(
-    [],
-  );
+  const [liveLocations, setLiveLocations] = React.useState<
+    VehicleJourneyLocation[]
+  >([]);
 
   const [vehicle, setVehicle] = React.useState<Vehicle>();
+
+  // All locations to display: historical + any live updates for a current journey.
+  const allLocations = React.useMemo<VehicleJourneyLocation[]>(() => {
+    if (!journey?.locations) return [];
+    return journey.current
+      ? journey.locations.concat(liveLocations)
+      : journey.locations;
+  }, [journey, liveLocations]);
 
   const handleVehicleMove = React.useCallback(
     (vehicle: Vehicle) => {
       if (
-        !locations.length ||
-        locations[locations.length - 1].datetime < vehicle.datetime
+        !allLocations.length ||
+        allLocations[allLocations.length - 1].datetime < vehicle.datetime
       ) {
-        setLocations(
-          locations.concat([
+        setLiveLocations((prev) =>
+          prev.concat([
             {
               id: new Date(vehicle.datetime).getTime(),
               coordinates: vehicle.coordinates,
@@ -469,8 +520,41 @@ export default function JourneyMap({
         setVehicle(vehicle);
       }
     },
-    [locations],
+    [allLocations],
   );
+
+  const onMouseMove = React.useCallback(
+    (e: MapLayerMouseEvent) => {
+      if (getClickedVehicleMarkerId(e)) {
+        setHoveredPoint(null);
+        return;
+      }
+
+      if (e.features?.length) {
+        for (const feature of e.features) {
+          if (feature.layer.id === "journey-line-hit") {
+            setCursor("crosshair");
+            setHoveredPoint(findNearestLocation(e.lngLat, allLocations));
+            return;
+          }
+          if (feature.layer.id === "stops") {
+            setCursor("pointer");
+            setHoveredPoint(null);
+            return;
+          }
+        }
+      }
+
+      setCursor(undefined);
+      setHoveredPoint(null);
+    },
+    [allLocations],
+  );
+
+  const onMouseLeave = React.useCallback(() => {
+    setCursor(undefined);
+    setHoveredPoint(null);
+  }, []);
 
   const handleMapClick = React.useCallback((e: MapLayerMouseEvent) => {
     const vehicleId = getClickedVehicleMarkerId(e);
@@ -512,12 +596,6 @@ export default function JourneyMap({
   const onMapInit = React.useCallback((map: MapGL) => {
     // debugger;
     mapRef.current = map;
-
-    // if (bounds) {
-    //   map.fitBounds(bounds, {
-    //     padding: 50,
-    //   });
-    // }
   }, []);
 
   React.useEffect(() => {
@@ -549,12 +627,12 @@ export default function JourneyMap({
               },
             }}
             cursor={cursor}
-            onMouseEnter={onMouseEnter}
-            onMouseMove={onMouseEnter}
+            onMouseEnter={onMouseMove}
+            onMouseMove={onMouseMove}
             onMouseLeave={onMouseLeave}
             onClick={handleMapClick}
             onMapInit={onMapInit}
-            interactiveLayerIds={["stops", "locations"]}
+            interactiveLayerIds={["stops", "journey-line-hit"]}
           >
             {journey.stops ? (
               <JourneyStops
@@ -564,24 +642,33 @@ export default function JourneyMap({
               />
             ) : null}
 
-            {journey.locations ? (
-              <Locations
-                locations={
-                  journey.current
-                    ? journey.locations.concat(locations)
-                    : journey.locations
-                }
-              />
+            {allLocations.length > 0 ? (
+              <Locations locations={allLocations} />
             ) : null}
+
             {journey.locations && journey.current ? (
               <JourneyVehicle
                 vehicleId={window.VEHICLE_ID}
-                // journey={journey}
                 onVehicleMove={handleVehicleMove}
                 clickedVehicleMarker={clickedVehicleMarker}
                 setClickedVehicleMarker={setClickedVehicleMarker}
               />
             ) : null}
+
+            {hoveredPoint && (
+              <Popup
+                longitude={hoveredPoint.coordinates[0]}
+                latitude={hoveredPoint.coordinates[1]}
+                closeButton={false}
+                anchor="bottom"
+                offset={10}
+                style={{ pointerEvents: "none" }}
+              >
+                <time dateTime={hoveredPoint.datetime}>
+                  {hoveredPoint.datetime.slice(11, 19)}
+                </time>
+              </Popup>
+            )}
           </BusTimesMap>
         ) : null}
       </div>
