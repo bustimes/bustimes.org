@@ -20,7 +20,7 @@
     "parcel": "^2.9.3",
     "react-test-renderer": "^19.1.1",
     "svgo": "^4.0.0",
-    "typescript": "^6.0.0"
+    "typescript": "^5.4.5"
   },
   "dependencies": {
     "@sentry/react": "^10.28.0",
