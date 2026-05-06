@@ -545,7 +545,16 @@ class Command(ImportLiveVehiclesCommand):
                             or journey.destination
                         )
 
-                    if not vehicle.operator_id and trip.operator_id:
+                    if (
+                        (vehicle.operator_id is None or vehicle.operator_id == "TFLO")
+                        and trip.operator_id
+                        or (
+                            vehicle.operator_id == "PLYC"
+                            and trip.operator_id == "TFCN"
+                            or vehicle.operator_id == "TFCN"
+                            and trip.operator_id == "PLYC"
+                        )
+                    ):
                         vehicle.operator_id = trip.operator_id
                         vehicle.save(update_fields=["operator"])
 
