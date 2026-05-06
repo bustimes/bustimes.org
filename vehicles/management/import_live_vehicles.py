@@ -118,16 +118,16 @@ class ImportLiveVehiclesCommand(BaseCommand):
     def handle_item(
         self,
         item,
-        now=None,
+        now,
         vehicle: Vehicle | None = None,
         latest: dict | None = None,
         keep_journey=False,
     ):
-        dt = self.get_datetime(item)
-        if dt.year == 1970:
-            dt = None
-        elif now and now < dt:
-            logger.warning("datetime %s is in the future", dt)
+        if dt := self.get_datetime(item):
+            if dt.year == 1970:
+                dt = None
+            elif now and now < dt:
+                logger.warning("datetime %s is in the future", dt)
 
         location = None
         if vehicle is None:
@@ -218,6 +218,8 @@ class ImportLiveVehiclesCommand(BaseCommand):
             location.heading = None
 
         location.datetime = dt
+        if not location.datetime:
+            location.datetime = now
 
         if latest and location.latlong and location.heading is None:
             if latest_latlong.equals_exact(location.latlong, 0.001):
