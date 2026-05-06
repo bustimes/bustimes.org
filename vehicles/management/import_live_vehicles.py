@@ -249,6 +249,11 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 journey.datetime = location.datetime
             if not journey.date:
                 journey.date = timezone.localdate(journey.datetime)
+                if journey.trip and journey.trip.start >= timedelta(days=1):
+                    # if the driver signed in before midnight on the service date,
+                    # the calendar date is already correct — don't roll back
+                    if timezone.localtime(journey.datetime).hour < 12:
+                        journey.date -= timedelta(days=journey.trip.start.days)
 
             if journey.service_id and VehicleJourney.service.is_cached(journey):
                 if not journey.service.tracking:
