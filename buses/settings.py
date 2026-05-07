@@ -242,6 +242,10 @@ if REDIS_URL and not TEST:
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": REDIS_URL,
         "KEY_PREFIX": os.environ.get("CACHE_KEY_PREFIX", ""),
+        "OPTIONS": {
+            "socket_timeout": 1,
+            "socket_connect_timeout": 1,
+        },
     }
     if "default" not in CACHES:
         CACHES["default"] = CACHES["redis"]
