@@ -390,6 +390,16 @@ function TripSidebar(props: {
         vehicle={props.vehicle}
         highlightedStop={props.highlightedStop}
       />
+      <dl className="contact-details">
+        {trip.block ? (
+          <div>
+            <dt>Block</dt>
+            <dd>
+              <a href={`/trips/${trip.id}/block`}>{trip.block}</a>
+            </dd>
+          </div>
+        ) : null}
+      </dl>
     </div>
   );
 }
@@ -455,15 +465,19 @@ function JourneySidebar(props: {
         </ul>
       ) : null}
       <dl className="contact-details">
-        <div>
-          <dt>Vehicle</dt>
-          <dd>
-            <a href={`/vehicles/${journey.vehicle.slug}`}>
-              {journey.vehicle.fleet_code}{" "}
-              <span className="reg">{journey.vehicle.reg}</span>
-            </a>
-          </dd>
-        </div>
+        {journey.vehicle ? (
+          <div>
+            <dt>Vehicle</dt>
+            <dd>
+              <a
+                href={`/vehicles/${journey.vehicle.slug}?date=${journey.date}#journey-${journey.id}`}
+              >
+                {journey.vehicle.fleet_code}{" "}
+                <span className="reg">{journey.vehicle.reg}</span>
+              </a>
+            </dd>
+          </div>
+        ) : null}
         <div>
           <dt>To</dt>
           <dd>{journey.destination}</dd>
