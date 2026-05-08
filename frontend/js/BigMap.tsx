@@ -454,6 +454,25 @@ function JourneySidebar(props: {
           {service}
         </ul>
       ) : null}
+      <dl className="contact-details">
+        <div>
+          <dt>Vehicle</dt>
+          <dd>
+            <a href={`/vehicles/${journey.vehicle.slug}`}>
+              {journey.vehicle.fleet_code}{" "}
+              <span className="reg">{journey.vehicle.reg}</span>
+            </a>
+          </dd>
+        </div>
+        <div>
+          <dt>To</dt>
+          <dd>{journey.destination}</dd>
+        </div>
+        {/*<div>
+          <dt>Block</dt>
+          <dd>{ journey.block }</dd>
+        </div>*/}
+      </dl>
       {journey.times ? (
         <TripTimetable
           trip={{ times: journey.times }}

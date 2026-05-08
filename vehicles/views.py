@@ -611,7 +611,7 @@ def journeys_list(request, journeys, service=None, vehicle=None) -> dict:
     # "Track this bus" button
     if vehicle and vehicle.latest_journey_id:
         if redis_client and redis_client.get(f"vehicle{vehicle.id}"):
-            context["tracking"] = f"#journeys/{vehicle.latest_journey_id}"
+            context["tracking"] = f"/journeys/{vehicle.latest_journey_id}"
 
         # predict next workings
         if vehicle.latest_journey_id == journeys[-1].pk:

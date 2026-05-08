@@ -118,22 +118,23 @@ export const Locations = React.memo(function Locations({
     type: "line",
     paint: {
       "line-color": darkMode ? "#eee" : "#666",
-      "line-width": 2,
+      "line-width": 7,
+      "line-pattern": "line-pattern",
     },
   };
 
-  const locationsStyle: LayerProps = {
-    id: "locations",
-    type: "symbol",
-    layout: {
-      "icon-rotate": ["+", 45, ["get", "heading"]],
-      "icon-image": "history-arrow",
-      "icon-allow-overlap": true,
-      "icon-ignore-placement": true,
-      "icon-anchor": "top-left",
-      "icon-padding": [4],
-    },
-  };
+  // const locationsStyle: LayerProps = {
+  //   id: "locations",
+  //   type: "symbol",
+  //   layout: {
+  //     "icon-rotate": ["+", 45, ["get", "heading"]],
+  //     "icon-image": "history-arrow",
+  //     "icon-allow-overlap": true,
+  //     "icon-ignore-placement": true,
+  //     "icon-anchor": "top-left",
+  //     "icon-padding": [4],
+  //   },
+  // };
 
   return (
     <React.Fragment>
@@ -146,8 +147,7 @@ export const Locations = React.memo(function Locations({
       >
         <Layer {...routeStyle} />
       </Source>
-
-      <Source
+      {/*      <Source
         type="geojson"
         id="locations"
         data={{
@@ -170,6 +170,7 @@ export const Locations = React.memo(function Locations({
       >
         <Layer {...locationsStyle} />
       </Source>
+*/}{" "}
     </React.Fragment>
   );
 });
