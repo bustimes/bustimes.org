@@ -1131,7 +1131,7 @@ export default function BigMap(
               latitude={hoveredLocation.coordinates[1]}
               closeButton={false}
               closeOnClick={false}
-              offset={8}
+              // offset={8}
               focusAfterOpen={false}
               className="location-popup"
             >

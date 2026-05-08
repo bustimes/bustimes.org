@@ -88,18 +88,11 @@ export function locationsFromPolyline(
   const offsetMs = utcOffsetSeconds * 1000;
   return points.map(([lat, lng, ts], i) => {
     const coordinates: [number, number] = [lng, lat];
-    let direction: number | undefined;
-    const next = points[i + 1];
-    const prev = points[i - 1];
-    if (next) {
-      direction = calcBearing(coordinates, [next[1], next[0]]);
-    } else if (prev) {
-      direction = calcBearing([prev[1], prev[0]], coordinates);
-    }
-    // Shift then format as ISO so slice(11, 19) gives local time-of-day,
-    // independent of the browser's reported time zone.
+    const prev = points[i - 1] || [lat, lng];
+    const next = points[i + 1] || [lat, lng];
+    const direction = calcBearing([prev[1], prev[0]], [next[1], next[0]]);
     return {
-      coordinates,
+      coordinates: [lng, lat],
       datetime: new Date(ts + offsetMs).toISOString(),
       direction,
     };
@@ -117,24 +110,24 @@ export const Locations = React.memo(function Locations({
   const routeStyle: LayerProps = {
     type: "line",
     paint: {
-      "line-color": darkMode ? "#eee" : "#666",
-      "line-width": 7,
-      "line-pattern": "line-pattern",
+      "line-color": darkMode ? "#eee" : "#54c",
+      "line-width": 4,
     },
   };
 
-  // const locationsStyle: LayerProps = {
-  //   id: "locations",
-  //   type: "symbol",
-  //   layout: {
-  //     "icon-rotate": ["+", 45, ["get", "heading"]],
-  //     "icon-image": "history-arrow",
-  //     "icon-allow-overlap": true,
-  //     "icon-ignore-placement": true,
-  //     "icon-anchor": "top-left",
-  //     "icon-padding": [4],
-  //   },
-  // };
+  const locationsStyle: LayerProps = {
+    id: "locations",
+    type: "symbol",
+    layout: {
+      "icon-rotate": ["+", 45, ["get", "heading"]],
+      "icon-image": "history-arrow",
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
+      "icon-anchor": "top-left",
+      "icon-padding": [4],
+      "icon-offset": [-4, -4],
+    },
+  };
 
   return (
     <React.Fragment>
@@ -147,7 +140,7 @@ export const Locations = React.memo(function Locations({
       >
         <Layer {...routeStyle} />
       </Source>
-      {/*      <Source
+      <Source
         type="geojson"
         id="locations"
         data={{
@@ -170,7 +163,6 @@ export const Locations = React.memo(function Locations({
       >
         <Layer {...locationsStyle} />
       </Source>
-*/}{" "}
     </React.Fragment>
   );
 });
