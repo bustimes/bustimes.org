@@ -1,6 +1,7 @@
 # "Real Time Passenger Information"-ish stuff - calculating delays etc
 
 import datetime
+import logging
 from itertools import pairwise
 from django.contrib.gis.geos import LineString, Point
 from django.contrib.gis.db.models.functions import Distance, LineLocatePoint
@@ -8,6 +9,9 @@ from django.contrib.gis.db.models.functions import Distance, LineLocatePoint
 from bustimes.models import RouteLink, StopTime, Trip
 from bustimes.utils import contiguous_stoptimes_only
 from vehicles.utils import calculate_bearing
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_route_bearing(geometry: LineString, progress: float):
@@ -186,6 +190,9 @@ def get_progress(item: dict, stop_time=None) -> Progress | None:
         alt.delay = get_delay(alt, date, when)
         if abs(alt.delay) < abs(progress.delay):
             progress = alt
+
+    if abs(progress.delay) > 43200:  # more than 12 hours
+        logger.warning("%s delay is %s", item, progress.delay)
 
     return progress
 
