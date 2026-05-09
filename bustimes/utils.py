@@ -461,9 +461,9 @@ def get_trip(
     trips = trips.filter(condition).annotate(score=score).order_by("-score")
 
     if trips:
+        if trips[0].start >= timedelta(days=1):
+            date -= timedelta(days=1)
         if len(trips) > 1 and trips[0].score == trips[1].score:
-            if trips[0].start >= timedelta(days=1):
-                date -= timedelta(days=1)
             filtered_trips = trips.filter(calendar__in=get_calendars(date))
             if filtered_trips:
                 trips = filtered_trips
