@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">629 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">608<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">21<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">607<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">22<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_a23ebd71efc9294f_popular_pages_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-05 14:04 +0000
+            created at 2026-05-09 13:05 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -1133,7 +1133,7 @@
     <p class="run"><span class="n"><a id="t1051" href="#t1051">1051</a></span><span class="t">        <span class="key">if</span> <span class="nam">existing_hash</span> <span class="op">!=</span> <span class="nam">proposed_hash</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1052" href="#t1052">1052</a></span><span class="t">            <span class="key">if</span> <span class="nam">len</span><span class="op">(</span><span class="nam">existing_hash</span><span class="op">)</span> <span class="op">>=</span> <span class="nam">len</span><span class="op">(</span><span class="nam">proposed_hash</span><span class="op">)</span><span class="op">:</span>  <span class="com"># reuse ids</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1053" href="#t1053">1053</a></span><span class="t">                <span class="key">for</span> <span class="nam">proposed_su</span><span class="op">,</span> <span class="nam">existing_su</span> <span class="key">in</span> <span class="nam">zip</span><span class="op">(</span><span class="nam">proposed</span><span class="op">,</span> <span class="nam">existing</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1054" href="#t1054">1054</a></span><span class="t">                    <span class="nam">proposed_su</span><span class="op">.</span><span class="nam">id</span> <span class="op">=</span> <span class="nam">existing_su</span><span class="op">.</span><span class="nam">id</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1054" href="#t1054">1054</a></span><span class="t">                    <span class="nam">proposed_su</span><span class="op">.</span><span class="nam">id</span> <span class="op">=</span> <span class="nam">existing_su</span><span class="op">.</span><span class="nam">id</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1055" href="#t1055">1055</a></span><span class="t">                <span class="nam">StopUsage</span><span class="op">.</span><span class="nam">objects</span><span class="op">.</span><span class="nam">bulk_update</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t1056" href="#t1056">1056</a></span><span class="t">                    <span class="nam">proposed</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t1057" href="#t1057">1057</a></span><span class="t">                    <span class="op">[</span><span class="str">"stop_id"</span><span class="op">,</span> <span class="str">"timing_point"</span><span class="op">,</span> <span class="str">"inbound"</span><span class="op">,</span> <span class="str">"order"</span><span class="op">,</span> <span class="str">"line_name"</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -1250,7 +1250,7 @@
             <a class="nav" href="z_a23ebd71efc9294f_popular_pages_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-05 14:04 +0000
+            created at 2026-05-09 13:05 +0000
         </p>
     </div>
 </footer>
