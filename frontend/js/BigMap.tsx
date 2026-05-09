@@ -463,25 +463,7 @@ function JourneySidebar(props: {
           {service}
         </ul>
       ) : null}
-      <dl className="contact-details">
-        {journey.vehicle ? (
-          <div>
-            <dt>Vehicle</dt>
-            <dd>
-              <a
-                href={`/vehicles/${journey.vehicle.slug}?date=${journey.date}#journey-${journey.id}`}
-              >
-                {journey.vehicle.fleet_code}{" "}
-                <span className="reg">{journey.vehicle.reg}</span>
-              </a>
-            </dd>
-          </div>
-        ) : null}
-        <div>
-          <dt>To</dt>
-          <dd>{journey.destination}</dd>
-        </div>
-      </dl>
+      {journey.trip ? null : <p>To {journey.destination}</p>}
       {journey.trip?.times ? (
         <TripTimetable
           trip={{ times: journey.trip.times }}
@@ -491,6 +473,19 @@ function JourneySidebar(props: {
       ) : null}
       {journey.trip?.block ? (
         <dl className="contact-details">
+          {journey.vehicle ? (
+            <div>
+              <dt>Vehicle</dt>
+              <dd>
+                <a
+                  href={`/vehicles/${journey.vehicle.slug}?date=${journey.date}#journey-${journey.id}`}
+                >
+                  {journey.vehicle.fleet_code}{" "}
+                  <span className="reg">{journey.vehicle.reg}</span>
+                </a>
+              </dd>
+            </div>
+          ) : null}
           <div>
             <dt>Block</dt>
             <dd>
