@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_47b23bc14ee40030_test_bod_avl_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-09 13:19 +0000
+            created at 2026-05-09 13:25 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -339,7 +339,7 @@
     <p class="pln"><span class="n"><a id="t257" href="#t257">257</a></span><span class="t">                    <span class="com"># if the driver signed in before midnight on the service date,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t258" href="#t258">258</a></span><span class="t">                    <span class="com"># the calendar date is already correct &#8212; don't roll back</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t259" href="#t259">259</a></span><span class="t">                    <span class="key">if</span> <span class="nam">timezone</span><span class="op">.</span><span class="nam">localtime</span><span class="op">(</span><span class="nam">journey</span><span class="op">.</span><span class="nam">datetime</span><span class="op">)</span><span class="op">.</span><span class="nam">hour</span> <span class="op">&lt;</span> <span class="num">12</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t260" href="#t260">260</a></span><span class="t">                        <span class="nam">journey</span><span class="op">.</span><span class="nam">date</span> <span class="op">-=</span> <span class="nam">timedelta</span><span class="op">(</span><span class="nam">days</span><span class="op">=</span><span class="nam">journey</span><span class="op">.</span><span class="nam">trip</span><span class="op">.</span><span class="nam">start</span><span class="op">.</span><span class="nam">days</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t260" href="#t260">260</a></span><span class="t">                        <span class="nam">journey</span><span class="op">.</span><span class="nam">date</span> <span class="op">-=</span> <span class="nam">timedelta</span><span class="op">(</span><span class="nam">days</span><span class="op">=</span><span class="num">1</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t261" href="#t261">261</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t262" href="#t262">262</a></span><span class="t">            <span class="key">if</span> <span class="nam">journey</span><span class="op">.</span><span class="nam">service_id</span> <span class="key">and</span> <span class="nam">VehicleJourney</span><span class="op">.</span><span class="nam">service</span><span class="op">.</span><span class="nam">is_cached</span><span class="op">(</span><span class="nam">journey</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t263" href="#t263">263</a></span><span class="t">                <span class="key">if</span> <span class="key">not</span> <span class="nam">journey</span><span class="op">.</span><span class="nam">service</span><span class="op">.</span><span class="nam">tracking</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -649,7 +649,7 @@
             <a class="nav" href="z_47b23bc14ee40030_test_bod_avl_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-09 13:19 +0000
+            created at 2026-05-09 13:25 +0000
         </p>
     </div>
 </footer>
