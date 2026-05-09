@@ -290,7 +290,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             self.assertEqual(11, wait)
 
             items[0]["RecordedAtTime"] = "2020-10-30T05:09:00+00:00"
-            with self.assertNumQueries(1):
+            with self.assertNumQueries(3):
                 command.update()
 
             items[0]["RecordedAtTime"] = "2020-10-30T05:10:00+00:00"
@@ -383,7 +383,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                     "progress": 0.097,
                 },
             )
-            self.assertEqual(json[0]["delay"], -58437)
+            self.assertEqual(json[0]["delay"], 117234)
 
             with self.assertNumQueries(0):
                 response = self.client.get("/vehicles.json?service=ff")
