@@ -400,7 +400,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                 '<a href="/services/u/vehicles?date=2020-10-15" rel="nofollow">UU</a>',
             )
             self.assertContains(
-                response, f"""<a href="#journeys/{whippet_journey.id}">09:23</a>"""
+                response, f"""<a href="/journeys/{whippet_journey.id}">09:23</a>"""
             )
             self.assertContains(response, "<p>Great Yarmouth</p>")  # garage
 
