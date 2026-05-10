@@ -131,7 +131,7 @@ class FlixbusTest(TestCase):
 
         self.assertEqual(Service.objects.count(), 2)
 
-    @time_machine.travel("2023-01-01")
+    @time_machine.travel("2024-09-16")
     def test_import_gtfs_ember(self):
         with (
             patch(
@@ -187,4 +187,5 @@ class FlixbusTest(TestCase):
         journey = service.vehiclejourney_set.first()
         self.assertEqual(str(journey.trip), "15:35")
         self.assertEqual(str(journey.datetime), "2024-01-18 15:35:00+00:00")
+        self.assertEqual(str(journey.date), "2024-01-18")
         self.assertEqual(journey.code, "5WGNCip")

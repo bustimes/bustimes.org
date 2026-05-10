@@ -1552,12 +1552,20 @@ class ImportTransXChangeTest(TestCase):
 
     @time_machine.travel("2023-10-23")
     def test_split_registration(self):
-        self.handle_files(
-            "FECS.zip",
-            [
-                "A_B_C-FECS_A_B_C--FECS-NORWICH-2023-10-22-NO3BSH-BODS_V1_1.xml",
-                "B_C_A-FECS_B_C_A--FECS-NORWICH-2023-10-22-NO3BSH-BODS_V1_1.xml",
-            ],
+        with self.assertLogs(
+            "bustimes.management.commands.import_transxchange", "WARNING"
+        ) as cm:
+            self.handle_files(
+                "FECS.zip",
+                [
+                    "A_B_C-FECS_A_B_C--FECS-NORWICH-2023-10-22-NO3BSH-BODS_V1_1.xml",
+                    "B_C_A-FECS_B_C_A--FECS-NORWICH-2023-10-22-NO3BSH-BODS_V1_1.xml",
+                ],
+            )
+
+        self.assertEqual(
+            cm.output[-1][-68:],
+            ":0500FWISM032 is 0.24674205822477827 from POINT (-0.260562 52.59902)",
         )
         self.assertEqual(3, Service.objects.filter(current=True).count())  # A, B, C
         self.assertEqual(6, Route.objects.count())
