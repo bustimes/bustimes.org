@@ -129,3 +129,9 @@
 # Stonebridge West End Close
 490012847E:
     latlong: POINT(-0.265290 51.542040)
+
+# Islip Primark Warehouse
+305000427OP:
+    latlong: POINT(-0.561243 52.395469)
+305000427P:
+    latlong: POINT(-0.561426 52.395265)
