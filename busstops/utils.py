@@ -4,9 +4,17 @@ from django.utils.timezone import make_aware
 
 
 def get_bounding_box(request):
-    return Polygon.from_bbox(
-        [request.GET[key] for key in ("xmin", "ymin", "xmax", "ymax")]
-    )
+    try:
+        return Polygon.from_bbox(
+            [
+                float(request.GET.get("xmin", 0)),
+                float(request.GET.get("ymin", 0)),
+                float(request.GET.get("xmax", 0)),
+                float(request.GET.get("ymax", 0)),
+            ]
+        )
+    except (TypeError, ValueError):
+        return None
 
 
 def get_datetime(string):
