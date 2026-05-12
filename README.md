@@ -72,7 +72,7 @@
 | bustimes/management/\_\_init\_\_.py                             |        0 |        0 |    100% |           |
 | bustimes/management/commands/\_\_init\_\_.py                    |        0 |        0 |    100% |           |
 | bustimes/management/commands/bank\_holidays.py                  |       52 |        1 |     98% |       102 |
-| bustimes/management/commands/import\_atco\_cif.py               |      235 |       25 |     89% |28-35, 40, 43-44, 71, 204, 206, 209, 211, 219, 225, 289, 322-327, 367-368, 435 |
+| bustimes/management/commands/import\_atco\_cif.py               |      235 |       25 |     89% |28-35, 40, 43-44, 71, 204, 206, 209, 211, 219, 225, 290, 323-328, 365-366, 433 |
 | bustimes/management/commands/import\_bod\_timetables.py         |      264 |       28 |     89% |35-43, 63, 106, 110, 113-116, 121, 126-127, 151, 179, 189, 200-201, 268, 285-289, 312, 328-329, 350 |
 | bustimes/management/commands/import\_gtfs.py                    |      193 |        6 |     97% |67, 120-121, 133, 140, 340 |
 | bustimes/management/commands/import\_gtfs\_ember.py             |      154 |        5 |     97% |43, 106, 226, 258, 271 |
@@ -191,7 +191,7 @@
 | vosa/\_\_init\_\_.py                                            |        0 |        0 |    100% |           |
 | vosa/admin.py                                                   |       37 |        0 |    100% |           |
 | vosa/management/commands/\_\_init\_\_.py                        |        0 |        0 |    100% |           |
-| vosa/management/commands/import\_vosa.py                        |      163 |        3 |     98% |26-27, 207 |
+| vosa/management/commands/import\_vosa.py                        |      163 |        3 |     98% |26-27, 210 |
 | vosa/models.py                                                  |       75 |        0 |    100% |           |
 | vosa/tests.py                                                   |       61 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
