@@ -261,7 +261,7 @@ export default function BusTimesMap(
             style={mapStyle}
             onChange={handleMapStyleChange}
           />
-          <AttributionControl />
+          <AttributionControl compact={false} />
           <MapChild onInit={props.onMapInit} />
 
           {props.children}
