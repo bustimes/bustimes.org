@@ -53,7 +53,8 @@ class Command(BaseCommand):
 
     def get_existing_variations(self, region) -> dict:
         variations = Variation.objects.filter(
-            registration__licence__traffic_area=region
+            Q(registration__licence__traffic_area=region)
+            | Q(registration__licence__traffic_area="")
         )
         variations = variations.select_related("registration").all()
         variations_dict = {}
@@ -71,7 +72,9 @@ class Command(BaseCommand):
         lics_to_update = set()
         lics_to_create = []
 
-        regs = Registration.objects.filter(licence__traffic_area=region)
+        regs = Registration.objects.filter(
+            Q(licence__traffic_area=region) | Q(licence__traffic_area="")
+        )
         regs = regs.in_bulk(field_name="registration_number")
         regs_to_update = set()
         regs_to_create = []
