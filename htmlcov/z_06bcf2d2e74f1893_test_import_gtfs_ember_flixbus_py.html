@@ -54,8 +54,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">80 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">80<span class="text"> run</span></button>
+            <span class="text">81 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">81<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_06bcf2d2e74f1893_test_import_ni_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-10 10:42 +0000
+            created at 2026-05-12 01:19 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -213,7 +213,7 @@
     <p class="pln"><span class="n"><a id="t131" href="#t131">131</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t132" href="#t132">132</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertEqual</span><span class="op">(</span><span class="nam">Service</span><span class="op">.</span><span class="nam">objects</span><span class="op">.</span><span class="nam">count</span><span class="op">(</span><span class="op">)</span><span class="op">,</span> <span class="num">2</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t133" href="#t133">133</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t134" href="#t134">134</a></span><span class="t">    <span class="op">@</span><span class="nam">time_machine</span><span class="op">.</span><span class="nam">travel</span><span class="op">(</span><span class="str">"2023-01-01"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t134" href="#t134">134</a></span><span class="t">    <span class="op">@</span><span class="nam">time_machine</span><span class="op">.</span><span class="nam">travel</span><span class="op">(</span><span class="str">"2024-09-16"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t135" href="#t135">135</a></span><span class="t">    <span class="key">def</span> <span class="nam">test_import_gtfs_ember</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t136" href="#t136">136</a></span><span class="t">        <span class="key">with</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t137" href="#t137">137</a></span><span class="t">            <span class="nam">patch</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
@@ -269,7 +269,8 @@
     <p class="run"><span class="n"><a id="t187" href="#t187">187</a></span><span class="t">        <span class="nam">journey</span> <span class="op">=</span> <span class="nam">service</span><span class="op">.</span><span class="nam">vehiclejourney_set</span><span class="op">.</span><span class="nam">first</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t188" href="#t188">188</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertEqual</span><span class="op">(</span><span class="nam">str</span><span class="op">(</span><span class="nam">journey</span><span class="op">.</span><span class="nam">trip</span><span class="op">)</span><span class="op">,</span> <span class="str">"15:35"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t189" href="#t189">189</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertEqual</span><span class="op">(</span><span class="nam">str</span><span class="op">(</span><span class="nam">journey</span><span class="op">.</span><span class="nam">datetime</span><span class="op">)</span><span class="op">,</span> <span class="str">"2024-01-18 15:35:00+00:00"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t190" href="#t190">190</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertEqual</span><span class="op">(</span><span class="nam">journey</span><span class="op">.</span><span class="nam">code</span><span class="op">,</span> <span class="str">"5WGNCip"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t190" href="#t190">190</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertEqual</span><span class="op">(</span><span class="nam">str</span><span class="op">(</span><span class="nam">journey</span><span class="op">.</span><span class="nam">date</span><span class="op">)</span><span class="op">,</span> <span class="str">"2024-01-18"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t191" href="#t191">191</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertEqual</span><span class="op">(</span><span class="nam">journey</span><span class="op">.</span><span class="nam">code</span><span class="op">,</span> <span class="str">"5WGNCip"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -279,7 +280,7 @@
             <a class="nav" href="z_06bcf2d2e74f1893_test_import_ni_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-10 10:42 +0000
+            created at 2026-05-12 01:19 +0000
         </p>
     </div>
 </footer>
