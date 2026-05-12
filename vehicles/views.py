@@ -413,7 +413,10 @@ def vehicles_json(request) -> JsonResponse:
     if set_names:
         vehicle_ids = list(redis_client.sunion(set_names))
 
-    vehicle_ids = [int(vehicle_id) for vehicle_id in vehicle_ids]
+    try:
+        vehicle_ids = [int(vehicle_id) for vehicle_id in vehicle_ids]
+    except ValueError:
+        raise BadRequest
 
     vehicle_ids.sort()  # for etag stableness
 
