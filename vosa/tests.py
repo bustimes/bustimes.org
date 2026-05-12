@@ -25,7 +25,7 @@ class VosaTest(TestCase):
         )
 
         Licence.objects.create(
-            traffic_area="F",
+            traffic_area="",
             licence_number="PF0000705",
             address="10 King Road, Ipswich",
             discs=0,
@@ -65,6 +65,7 @@ Simonds Countrylink""",
         )
         self.assertEqual(licence.discs, 44)
         self.assertEqual(licence.authorised_discs, 50)
+        self.assertEqual(licence.traffic_area, "F")
 
         # linked operator
         self.operator.licences.add(licence)

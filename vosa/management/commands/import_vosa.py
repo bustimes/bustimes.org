@@ -4,6 +4,7 @@ from datetime import datetime
 
 from django.conf import settings
 from django.core.management import BaseCommand
+from django.db.models import Q
 
 from busstops.models import DataSource
 from bustimes import download_utils
@@ -65,7 +66,7 @@ class Command(BaseCommand):
         return variations_dict
 
     def handle_region(self, region: str) -> None:
-        lics = Licence.objects.filter(traffic_area=region)
+        lics = Licence.objects.filter(Q(traffic_area=region) | Q(traffic_area=""))
         lics = lics.in_bulk(field_name="licence_number")
         lics_to_update = set()
         lics_to_create = []
