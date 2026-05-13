@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_06bcf2d2e74f1893_test_import_gtfs_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-13 13:11 +0000
+            created at 2026-05-13 15:28 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -641,7 +641,7 @@
     <p class="run"><span class="n"><a id="t559" href="#t559">559</a></span><span class="t">        <span class="nam">response</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">client</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="fst">f"</span><span class="fst">/api/trips/</span><span class="op">{</span><span class="nam">trip</span><span class="op">.</span><span class="nam">id</span><span class="op">}</span><span class="fst">/</span><span class="fst">"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t560" href="#t560">560</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertTrue</span><span class="op">(</span><span class="nam">response</span><span class="op">.</span><span class="nam">json</span><span class="op">(</span><span class="op">)</span><span class="op">[</span><span class="str">"times"</span><span class="op">]</span><span class="op">[</span><span class="num">8</span><span class="op">]</span><span class="op">[</span><span class="str">"track"</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t561" href="#t561">561</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t562" href="#t562">562</a></span><span class="t">        <span class="key">with</span> <span class="nam">self</span><span class="op">.</span><span class="nam">assertNumQueries</span><span class="op">(</span><span class="num">19</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t562" href="#t562">562</a></span><span class="t">        <span class="key">with</span> <span class="nam">self</span><span class="op">.</span><span class="nam">assertNumQueries</span><span class="op">(</span><span class="num">21</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t563" href="#t563">563</a></span><span class="t">            <span class="nam">response</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">client</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">"/services/904-huntingdon-peterborough"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t564" href="#t564">564</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertContains</span><span class="op">(</span><span class="nam">response</span><span class="op">,</span> <span class="str">"Possibly similar services"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t565" href="#t565">565</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertContains</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
@@ -659,7 +659,7 @@
     <p class="run"><span class="n"><a id="t577" href="#t577">577</a></span><span class="t">        <span class="nam">BankHolidayDate</span><span class="op">.</span><span class="nam">objects</span><span class="op">.</span><span class="nam">create</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t578" href="#t578">578</a></span><span class="t">            <span class="nam">bank_holiday</span><span class="op">=</span><span class="nam">BankHoliday</span><span class="op">.</span><span class="nam">objects</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">name</span><span class="op">=</span><span class="str">"ChristmasDay"</span><span class="op">)</span><span class="op">,</span> <span class="nam">date</span><span class="op">=</span><span class="str">"2020-12-25"</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t579" href="#t579">579</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t580" href="#t580">580</a></span><span class="t">        <span class="key">with</span> <span class="nam">self</span><span class="op">.</span><span class="nam">assertNumQueries</span><span class="op">(</span><span class="num">17</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t580" href="#t580">580</a></span><span class="t">        <span class="key">with</span> <span class="nam">self</span><span class="op">.</span><span class="nam">assertNumQueries</span><span class="op">(</span><span class="num">19</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t581" href="#t581">581</a></span><span class="t">            <span class="nam">response</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">client</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t582" href="#t582">582</a></span><span class="t">                <span class="str">"/services/904-huntingdon-peterborough?date=2020-12-25"</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t583" href="#t583">583</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -673,7 +673,7 @@
             <a class="nav" href="z_06bcf2d2e74f1893_test_import_gtfs_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-13 13:11 +0000
+            created at 2026-05-13 15:28 +0000
         </p>
     </div>
 </footer>

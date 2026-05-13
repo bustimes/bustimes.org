@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_a23ebd71efc9294f_popular_pages_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-13 13:11 +0000
+            created at 2026-05-13 15:28 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -1055,14 +1055,14 @@
     <p class="pln"><span class="n"><a id="t973" href="#t973">973</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t974" href="#t974">974</a></span><span class="t">        <span class="nam">cache_key</span> <span class="op">=</span> <span class="op">[</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t975" href="#t975">975</a></span><span class="t">            <span class="nam">str</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">id</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t976" href="#t976">976</a></span><span class="t">            <span class="nam">str</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">modified_at</span><span class="op">.</span><span class="nam">timestamp</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t976" href="#t976">976</a></span><span class="t">            <span class="nam">str</span><span class="op">(</span><span class="nam">int</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">modified_at</span><span class="op">.</span><span class="nam">timestamp</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t977" href="#t977">977</a></span><span class="t">            <span class="nam">str</span><span class="op">(</span><span class="nam">detailed</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t978" href="#t978">978</a></span><span class="t">        <span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t979" href="#t979">979</a></span><span class="t">        <span class="key">if</span> <span class="nam">line_names</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t980" href="#t980">980</a></span><span class="t">            <span class="nam">cache_key</span> <span class="op">+=</span> <span class="nam">line_names</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t981" href="#t981">981</a></span><span class="t">        <span class="key">if</span> <span class="nam">also_services</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t982" href="#t982">982</a></span><span class="t">            <span class="nam">cache_key</span> <span class="op">+=</span> <span class="op">[</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t983" href="#t983">983</a></span><span class="t">                <span class="fst">f"</span><span class="op">{</span><span class="nam">s</span><span class="op">.</span><span class="nam">id</span><span class="op">}</span><span class="fst">:</span><span class="op">{</span><span class="nam">self</span><span class="op">.</span><span class="nam">modified_at</span><span class="op">.</span><span class="nam">timestamp</span><span class="op">(</span><span class="op">)</span><span class="op">}</span><span class="fst">"</span> <span class="key">for</span> <span class="nam">s</span> <span class="key">in</span> <span class="nam">also_services</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t983" href="#t983">983</a></span><span class="t">                <span class="fst">f"</span><span class="op">{</span><span class="nam">s</span><span class="op">.</span><span class="nam">id</span><span class="op">}</span><span class="fst">:</span><span class="op">{</span><span class="nam">int</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">modified_at</span><span class="op">.</span><span class="nam">timestamp</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">}</span><span class="fst">"</span> <span class="key">for</span> <span class="nam">s</span> <span class="key">in</span> <span class="nam">also_services</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t984" href="#t984">984</a></span><span class="t">            <span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t985" href="#t985">985</a></span><span class="t">        <span class="nam">cache_key</span> <span class="op">+=</span> <span class="op">[</span><span class="nam">str</span><span class="op">(</span><span class="nam">r</span><span class="op">.</span><span class="nam">id</span><span class="op">)</span> <span class="key">for</span> <span class="nam">r</span> <span class="key">in</span> <span class="nam">timetable</span><span class="op">.</span><span class="nam">current_routes</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t986" href="#t986">986</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -1250,7 +1250,7 @@
             <a class="nav" href="z_a23ebd71efc9294f_popular_pages_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-13 13:11 +0000
+            created at 2026-05-13 15:28 +0000
         </p>
     </div>
 </footer>
