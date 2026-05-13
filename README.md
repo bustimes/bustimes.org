@@ -21,7 +21,7 @@
 | buses/asgi.py                                                   |        4 |        0 |    100% |           |
 | buses/context\_processors.py                                    |        5 |        0 |    100% |           |
 | buses/jinja2.py                                                 |       36 |        1 |     97% |        40 |
-| buses/settings.py                                               |      122 |       33 |     73% |99-109, 129, 143-151, 220, 239-247, 264-282, 343 |
+| buses/settings.py                                               |      122 |       33 |     73% |99-109, 129, 143-151, 222, 241-249, 266-284, 345 |
 | buses/tests.py                                                  |       12 |        0 |    100% |           |
 | buses/urls.py                                                   |        5 |        0 |    100% |           |
 | buses/utils.py                                                  |       11 |        4 |     64% |     13-16 |
@@ -47,7 +47,7 @@
 | busstops/management/tests/test\_import\_naptan.py               |       73 |        0 |    100% |           |
 | busstops/management/tests/test\_import\_nptg.py                 |       31 |        0 |    100% |           |
 | busstops/management/tests/test\_import\_operators.py            |       70 |        0 |    100% |           |
-| busstops/middleware.py                                          |       31 |        0 |    100% |           |
+| busstops/middleware.py                                          |       31 |        1 |     97% |        29 |
 | busstops/models.py                                              |      629 |       22 |     97% |273, 298, 324, 448, 485, 535, 619, 622, 656, 694, 844, 877, 956, 968-972, 1054, 1063, 1103, 1118, 1155 |
 | busstops/popular\_pages.py                                      |       12 |        0 |    100% |           |
 | busstops/tasks.py                                               |       11 |        0 |    100% |           |
@@ -92,7 +92,7 @@
 | bustimes/management/tests/test\_import\_passenger.py            |       23 |        0 |    100% |           |
 | bustimes/management/tests/test\_import\_transxchange.py         |      781 |        0 |    100% |           |
 | bustimes/management/tests/test\_tnds.py                         |       19 |        0 |    100% |           |
-| bustimes/models.py                                              |      349 |        7 |     98% |126, 232, 439, 484-487, 530 |
+| bustimes/models.py                                              |      349 |        6 |     98% |126, 439, 484-487, 530 |
 | bustimes/test\_get\_trip.py                                     |       31 |        0 |    100% |           |
 | bustimes/tests.py                                               |      134 |        0 |    100% |           |
 | bustimes/timetables.py                                          |      673 |       52 |     92% |39-52, 171-182, 204, 208, 232-233, 333, 347-352, 365, 384, 459, 462, 478-481, 483, 510, 622-637, 788-789, 860, 1006-1008, 1057 |
