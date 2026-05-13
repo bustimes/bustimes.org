@@ -18,6 +18,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='vehiclejourney',
-            index=models.Index(fields=['vehicle', '-id'], name='vehiclejourney_vehicle_id_id_desc'),
+            index=models.Index(fields=['vehicle', '-id'], name='vehiclejourney_vehicle_id_desc'),
         ),
     ]

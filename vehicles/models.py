@@ -703,7 +703,7 @@ class VehicleJourney(models.Model):
             ),
             models.Index(fields=["service", "-id"], name="vehiclejourney_service_id"),
             models.Index(
-                fields=["vehicle", "-id"], name="vehiclejourney_vehicle_id_id_desc"
+                fields=["vehicle", "-id"], name="vehiclejourney_vehicle_id_desc"
             ),
         ]
 

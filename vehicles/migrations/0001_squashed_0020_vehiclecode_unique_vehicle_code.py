@@ -187,10 +187,10 @@ class Migration(migrations.Migration):
                 ('destination', models.CharField(blank=True, max_length=255)),
                 ('direction', models.CharField(blank=True, max_length=8)),
                 ('uuid', models.UUIDField(default=uuid.uuid4, editable=False)),
-                ('service', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='busstops.service')),
+                ('service', models.ForeignKey(blank=True, db_index=False, null=True, on_delete=django.db.models.deletion.SET_NULL, to='busstops.service')),
                 ('source', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='busstops.datasource')),
-                ('trip', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='bustimes.trip')),
-                ('vehicle', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='vehicles.vehicle')),
+                ('trip', models.ForeignKey(blank=True, db_index=False, null=True, on_delete=django.db.models.deletion.SET_NULL, to='bustimes.trip')),
+                ('vehicle', models.ForeignKey(blank=True, db_index=False, null=True, on_delete=django.db.models.deletion.CASCADE, to='vehicles.vehicle')),
             ],
             options={
                 'ordering': ('id',),
@@ -648,51 +648,6 @@ class Migration(migrations.Migration):
         migrations.RemoveIndex(
             model_name='vehiclejourney',
             name='vehicle_date',
-        ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunSQL(
-                    sql='DROP INDEX IF EXISTS vehicles_vehiclejourney_service_id_b5ad5fe9',
-                    reverse_sql='CREATE INDEX vehicles_vehiclejourney_service_id_b5ad5fe9 ON "vehicles_vehiclejourney" ("service_id")',
-                ),
-            ],
-            state_operations=[
-                migrations.AlterField(
-                    model_name='vehiclejourney',
-                    name='service',
-                    field=models.ForeignKey(blank=True, db_index=False, null=True, on_delete=django.db.models.deletion.SET_NULL, to='busstops.service'),
-                ),
-            ],
-        ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunSQL(
-                    sql='DROP INDEX IF EXISTS vehicles_vehiclejourney_trip_id_f6cf407e',
-                    reverse_sql='CREATE INDEX vehicles_vehiclejourney_trip_id_f6cf407e ON "vehicles_vehiclejourney" ("trip_id")',
-                ),
-            ],
-            state_operations=[
-                migrations.AlterField(
-                    model_name='vehiclejourney',
-                    name='trip',
-                    field=models.ForeignKey(blank=True, db_index=False, null=True, on_delete=django.db.models.deletion.SET_NULL, to='bustimes.trip'),
-                ),
-            ],
-        ),
-        migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunSQL(
-                    sql='DROP INDEX IF EXISTS vehicles_vehiclejourney_vehicle_id_41154c8a',
-                    reverse_sql='CREATE INDEX vehicles_vehiclejourney_vehicle_id_41154c8a ON "vehicles_vehiclejourney" ("vehicle_id")',
-                ),
-            ],
-            state_operations=[
-                migrations.AlterField(
-                    model_name='vehiclejourney',
-                    name='vehicle',
-                    field=models.ForeignKey(blank=True, db_index=False, null=True, on_delete=django.db.models.deletion.CASCADE, to='vehicles.vehicle'),
-                ),
-            ],
         ),
         migrations.AlterUniqueTogether(
             name='vehiclejourney',
