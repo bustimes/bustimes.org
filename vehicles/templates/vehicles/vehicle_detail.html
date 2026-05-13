@@ -82,7 +82,12 @@
     {% endif %}
 
     <ul class="tabs">
-        {% if object.id %}<li><a href="{{ object.get_absolute_url }}">Timetable</a></li>{% endif %}
+        {% if object.id %}
+            <li><a href="{{ object.get_absolute_url }}">Timetable</a></li>
+            {% if object.geometry %}
+                <li><a href="{{ object.get_absolute_url }}#map">Map</a></li>
+            {% endif %}
+        {% endif %}
         <li>Vehicles</li>
     </ul>
 {% endif %}
