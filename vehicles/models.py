@@ -701,6 +701,10 @@ class VehicleJourney(models.Model):
                 name="route_name__date",
                 condition=Q(service__isnull=True),
             ),
+            models.Index(fields=["service", "-id"], name="vehiclejourney_service_id"),
+            models.Index(
+                fields=["vehicle", "-id"], name="vehiclejourney_vehicle_id_id_desc"
+            ),
         ]
 
     def get_redis_key(self):
