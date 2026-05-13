@@ -61,6 +61,8 @@ class Timetable:
         routes = list(routes.order_by("id").select_related("source"))
         self.routes = self.current_routes = routes
         # self.current_routes is a subset of self.routes
+        self.yesterday = None
+        self.yesterday_routes = []
 
         self.date = date
         self.detailed = detailed
@@ -135,6 +137,8 @@ class Timetable:
         # consider revision numbers:
         if self.date:
             self.current_routes = get_routes(routes, self.date)
+            self.yesterday = self.date - datetime.timedelta(days=1)
+            self.yesterday_routes = get_routes(routes, self.yesterday)
 
         if not self.calendar:
             if self.calendars:
@@ -142,6 +146,11 @@ class Timetable:
                 self.calendar_ids = list(
                     get_calendars(
                         self.date, calendar_ids, scotland=scotland
+                    ).values_list("id", flat=True)
+                )
+                self.yesterday_calendar_ids = list(
+                    get_calendars(
+                        self.yesterday, calendar_ids, scotland=scotland
                     ).values_list("id", flat=True)
                 )
 
@@ -173,16 +182,43 @@ class Timetable:
                         trip.inbound = not trip.inbound
 
     def render(self):
-        trips = Trip.objects.filter(route__in=self.current_routes)
+        one_day = datetime.timedelta(days=1)
+        current_route_ids = frozenset(r.id for r in self.current_routes)
+
+        today_q = Q(route__in=self.current_routes)
+        yesterday_q = Q(route__in=self.yesterday_routes, start__gte=one_day)
+
+        today_calendar_ids = None  # None = no calendar restriction in today_q
+
         if not self.calendar:
             if self.calendars:
-                trips = trips.filter(
-                    Q(calendar__in=self.calendar_ids) | Q(calendar=None)
+                today_q &= Q(calendar__in=self.calendar_ids) | Q(calendar=None)
+                yesterday_q &= Q(calendar__in=self.yesterday_calendar_ids) | Q(
+                    calendar=None
                 )
+                today_calendar_ids = set(self.calendar_ids) | {None}
             else:
-                trips = trips.filter(calendar=None)
+                today_q &= Q(calendar=None)
+                yesterday_q &= Q(calendar=None)
+                today_calendar_ids = {None}
         elif self.calendar_options:
-            trips = trips.filter(calendar=self.calendar)
+            today_q &= Q(calendar=self.calendar)
+            today_calendar_ids = {self.calendar.id}
+            if self.yesterday and self.calendar.allows(self.yesterday):
+                yesterday_q &= Q(calendar=self.calendar)
+            else:
+                yesterday_q = Q(pk__in=[])
+        elif self.yesterday and not self.calendar.allows(self.yesterday):
+            yesterday_q = Q(pk__in=[])
+
+        def is_today_trip(trip):
+            if trip.route_id not in current_route_ids:
+                return False
+            if today_calendar_ids is not None:
+                return trip.calendar_id in today_calendar_ids
+            return True
+
+        trips = Trip.objects.filter(today_q | yesterday_q)
 
         trips = trips.prefetch_related(
             Prefetch(
@@ -205,9 +241,21 @@ class Timetable:
             return
 
         routes = {route.id: route for route in self.current_routes}
+        for route in self.yesterday_routes:
+            routes.setdefault(route.id, route)
 
         for trip in trips:
             trip.route = routes[trip.route_id]
+            if not is_today_trip(trip):
+                # yesterday's after-midnight trip: shift back 24h so it
+                # appears at its actual real-world time today
+                trip.start -= one_day
+                trip.end -= one_day
+                for stoptime in trip.times:
+                    if stoptime.arrival is not None:
+                        stoptime.arrival -= one_day
+                    if stoptime.departure is not None:
+                        stoptime.departure -= one_day
 
         if len(self.current_routes) > 1:
             self.correct_directions(trips)

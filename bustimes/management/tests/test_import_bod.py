@@ -559,7 +559,7 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
         response = self.client.get(f"/api/trips/{trip.id}/")
         self.assertTrue(response.json()["times"][8]["track"])
 
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(21):
             response = self.client.get("/services/904-huntingdon-peterborough")
         self.assertContains(response, "Possibly similar services")
         self.assertContains(
@@ -577,7 +577,7 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
         BankHolidayDate.objects.create(
             bank_holiday=BankHoliday.objects.get(name="ChristmasDay"), date="2020-12-25"
         )
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(19):
             response = self.client.get(
                 "/services/904-huntingdon-peterborough?date=2020-12-25"
             )
