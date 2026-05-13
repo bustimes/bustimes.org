@@ -69,12 +69,33 @@ class ImportTransXChangeTest(TestCase):
 
         cls.nocs = DataSource.objects.create(name="National Operator Codes")
         london = DataSource.objects.create(name="L")
-        OperatorCode.objects.create(operator=cls.megabus, source=cls.nocs, code="MEGA")
-        OperatorCode.objects.create(operator=cls.fabd, source=cls.nocs, code="FABD")
-        OperatorCode.objects.create(operator=cls.fabd, source=cls.nocs, code="SDVN")
-        OperatorCode.objects.create(operator=cls.fabd, source=cls.nocs, code="CBNL")
-        OperatorCode.objects.create(operator=cls.fabd, source=london, code="LC")
-        OperatorCode.objects.create(operator=cls.fabd, source=london, code="BE")
+        OperatorCode.objects.bulk_create(
+            [
+                OperatorCode(operator=cls.megabus, source=cls.nocs, code="MEGA"),
+                OperatorCode(operator=cls.fabd, source=cls.nocs, code="FABD"),
+                OperatorCode(operator=cls.fabd, source=cls.nocs, code="SDVN"),
+                OperatorCode(operator=cls.fabd, source=cls.nocs, code="CBNL"),
+                OperatorCode(operator=cls.fabd, source=london, code="LC"),
+                OperatorCode(operator=cls.fabd, source=london, code="BE"),
+            ]
+        )
+
+        Operator.objects.bulk_create(
+            [
+                Operator(noc="MWLM", name="Mid Wales Motorways"),
+                Operator(noc="WHIP", name="Whippet Coaches"),
+                Operator(noc="GRYC", name="Grayscroft Coaches"),
+                Operator(noc="MHCO", name="M & H Coaches"),
+                Operator(noc="FSRV", name="Faresaver"),
+                Operator(noc="FESX", name="First in Essex"),
+                Operator(noc="SCMY", name="Stagecoach in Lancashire"),
+                Operator(noc="ADER", name="Arriva Derby"),
+                Operator(noc="EYMS", name="EYMS"),
+                Operator(noc="DAGC", name="D&G Bus"),
+                Operator(noc="PLYC", name="Plymouth Citybus"),
+                Operator(noc="FCWL", name="First Kernow"),
+            ]
+        )
 
         StopPoint.objects.bulk_create(
             StopPoint(
