@@ -297,6 +297,16 @@ class SourceDetailView(DetailView):
 @require_GET
 @login_required
 def route_xml(request, source, code=""):
+    """A way of viewing the TransXChange document* behind a route,
+    for debugging purposes
+
+    Ideally should work by downloading the file from bustimes.org's archive on
+    S3 (or an S3-compatible object storage service), rather than repeatedly
+    downloading from the original source.
+
+    * in theory also works for ATCO-CIF. but not GTFS
+    """
+
     source = get_object_or_404(DataSource, id=source)
 
     if not source.datetime:
@@ -338,13 +348,15 @@ def route_xml(request, source, code=""):
         if source.url.startswith("https://opendata.ticketer.com/uk/"):
             path = source.url.split("/")[4]
             path = settings.DATA_DIR / "ticketer" / f"{path}.zip"
-        elif "bus-data.dft.gov.uk" in source.url:
+        elif source.url.startswith(
+            "https://data.bus-data.dft.gov.uk/timetable/dataset/"
+        ):
             path = settings.DATA_DIR / "bod" / str(source.id)
         elif "data.discoverpassenger" in source.url and "/" in code:
             path, code = code.split("/", 1)
             url = f"https://s3-eu-west-1.amazonaws.com/passenger-sources/{path.split('_')[0]}/txc/{path}"
             path = settings.DATA_DIR / path
-        elif "opendatani.gov.uk" in source.url:
+        elif source.url.startswith("https://www.opendatani.gov.uk/"):
             path = settings.DATA_DIR / f"{source.id}.zip"
             url = None
             content_type = "text/plain"

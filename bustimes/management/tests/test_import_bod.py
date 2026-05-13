@@ -136,7 +136,7 @@ class ImportBusOpenDataTest(TestCase):
         self.assertEqual(route.source.name, "Lynx_Clenchwarton_54_20200330")
         self.assertEqual(
             route.source.url,
-            "https://data.bus-data.dft.gov.uk/category/dataset/35/download/",
+            "https://data.bus-data.dft.gov.uk/timetable/dataset/35/download/",
         )
         self.assertEqual(route.source.sha1, "ed6f5e835884781ea314bc13cc9054592a4c4f96")
 
@@ -177,7 +177,7 @@ class ImportBusOpenDataTest(TestCase):
         self.assertContains(
             response,
             """Timetable data from \
-<a href="https://data.bus-data.dft.gov.uk/category/dataset/35/" rel="nofollow">\
+<a href="https://data.bus-data.dft.gov.uk/timetable/dataset/35/" rel="nofollow">\
 Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020</time>""",
         )
 

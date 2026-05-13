@@ -16,7 +16,7 @@ interactions:
     body:
       string: '{"count":1,"next":null,"previous":null,"results":[{"id":35,"created":"2020-02-14T11:01:53.572735Z","modified":"2020-04-01T15:14:24.912585+01:00","operatorName":"Lynx","noc":["LYNX"],"name":"Lynx_Clenchwarton_54_20200330","description":"Service
         54 (King''s Lynn to The Walpoles)","comment":"Revised timetable due to COVID-19
-        outbreak","status":"published","url":"https://data.bus-data.dft.gov.uk/category/dataset/35/download/","lines":["54"],"firstStartDate":"2020-03-30T00:00:00+01:00","firstEndDate":null,"lastEndDate":null,"adminAreas":[{"atco_code":"290","name":"Norfolk"}],"localities":[{"gazetteer_id":"E0048538","name":"Clenchwarton"},{"gazetteer_id":"E0017891","name":"Hay
+        outbreak","status":"published","url":"https://data.bus-data.dft.gov.uk/timetable/dataset/35/download/","lines":["54"],"firstStartDate":"2020-03-30T00:00:00+01:00","firstEndDate":null,"lastEndDate":null,"adminAreas":[{"atco_code":"290","name":"Norfolk"}],"localities":[{"gazetteer_id":"E0048538","name":"Clenchwarton"},{"gazetteer_id":"E0017891","name":"Hay
         Green"},{"gazetteer_id":"E0017902","name":"Kings Lynn"},{"gazetteer_id":"E0017942","name":"Shepherds
         Gate"},{"gazetteer_id":"E0017948","name":"South Lynn"},{"gazetteer_id":"E0048602","name":"Tilney
         All Saints"},{"gazetteer_id":"E0048608","name":"Walpole Cross Keys"},{"gazetteer_id":"E0017987","name":"Walpole
@@ -56,7 +56,7 @@ interactions:
       User-Agent:
       - python-requests/2.23.0
     method: GET
-    uri: https://data.bus-data.dft.gov.uk/category/dataset/35/download/
+    uri: https://data.bus-data.dft.gov.uk/timetable/dataset/35/download/
   response:
     body:
       string: |
@@ -9302,7 +9302,7 @@ interactions:
     body:
       string: '{"count":1,"next":null,"previous":null,"results":[{"id":35,"created":"2020-02-14T11:01:53.572735Z","modified":"2020-04-01T15:14:24.912585+01:00","operatorName":"Lynx","noc":["LYNX"],"name":"Lynx_Clenchwarton_54_20200330","description":"Service
         54 (King''s Lynn to The Walpoles)","comment":"Revised timetable due to COVID-19
-        outbreak","status":"published","url":"https://data.bus-data.dft.gov.uk/category/dataset/35/download/","lines":["54"],"firstStartDate":"2020-03-30T00:00:00+01:00","firstEndDate":null,"lastEndDate":null,"adminAreas":[{"atco_code":"290","name":"Norfolk"}],"localities":[{"gazetteer_id":"E0048538","name":"Clenchwarton"},{"gazetteer_id":"E0017891","name":"Hay
+        outbreak","status":"published","url":"https://data.bus-data.dft.gov.uk/timetable/dataset/35/download/","lines":["54"],"firstStartDate":"2020-03-30T00:00:00+01:00","firstEndDate":null,"lastEndDate":null,"adminAreas":[{"atco_code":"290","name":"Norfolk"}],"localities":[{"gazetteer_id":"E0048538","name":"Clenchwarton"},{"gazetteer_id":"E0017891","name":"Hay
         Green"},{"gazetteer_id":"E0017902","name":"Kings Lynn"},{"gazetteer_id":"E0017942","name":"Shepherds
         Gate"},{"gazetteer_id":"E0017948","name":"South Lynn"},{"gazetteer_id":"E0048602","name":"Tilney
         All Saints"},{"gazetteer_id":"E0048608","name":"Walpole Cross Keys"},{"gazetteer_id":"E0017987","name":"Walpole
