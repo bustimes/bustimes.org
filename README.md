@@ -90,7 +90,7 @@
 | bustimes/management/tests/test\_import\_gtfs\_ember\_flixbus.py |       81 |        0 |    100% |           |
 | bustimes/management/tests/test\_import\_ni.py                   |       21 |        0 |    100% |           |
 | bustimes/management/tests/test\_import\_passenger.py            |       23 |        0 |    100% |           |
-| bustimes/management/tests/test\_import\_transxchange.py         |      785 |        0 |    100% |           |
+| bustimes/management/tests/test\_import\_transxchange.py         |      781 |        0 |    100% |           |
 | bustimes/management/tests/test\_tnds.py                         |       19 |        0 |    100% |           |
 | bustimes/models.py                                              |      349 |        7 |     98% |126, 232, 439, 484-487, 530 |
 | bustimes/test\_get\_trip.py                                     |       31 |        0 |    100% |           |
@@ -196,7 +196,7 @@
 | vosa/tests.py                                                   |       61 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
 | vosa/views.py                                                   |       59 |        0 |    100% |           |
-| **TOTAL**                                                       | **17022** | **1269** | **93%** |           |
+| **TOTAL**                                                       | **17018** | **1269** | **93%** |           |
 
 
 ## Setup coverage badge
