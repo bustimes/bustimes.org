@@ -16,7 +16,7 @@ from functools import cache
 
 from tqdm import tqdm
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.contrib.gis.geos import GEOSGeometry, Point
 from django.db import IntegrityError
 from django.db.models import Count, Exists, OuterRef, Q
@@ -582,6 +582,58 @@ class Command(BaseCommand):
                 elif filename.endswith(".zip"):
                     self.handle_sub_archive(sub_archive, filename)
 
+    def maybe_flatten(self, archive_path: Path) -> Path:
+        """If the zip contains nested zips, rebuild it as a single flat zip.
+
+        Errors if two inner XMLs would share a basename. Returns the path
+        to use for the rest of the import (and the S3 upload).
+        """
+        try:
+            archive = zipfile.ZipFile(archive_path)
+        except zipfile.BadZipFile:
+            return archive_path
+
+        with archive:
+            namelist = archive.namelist()
+            if not any(
+                name.endswith(".zip") and not name.startswith("__MACOSX")
+                for name in namelist
+            ):
+                return archive_path
+
+            flat_path = archive_path.with_name(archive_path.stem + "-flat.zip")
+            seen: dict[str, str] = {}
+
+            def add(base: str, origin: str, data: bytes) -> None:
+                if base in seen:
+                    raise CommandError(
+                        f"duplicate basename {base!r}: {seen[base]} and {origin}"
+                    )
+                seen[base] = origin
+                flat.writestr(base, data)
+
+            with zipfile.ZipFile(flat_path, "w", zipfile.ZIP_DEFLATED) as flat:
+                for name in namelist:
+                    if name.startswith("__MACOSX"):
+                        continue
+                    if name.endswith(".zip"):
+                        with (
+                            archive.open(name) as f,
+                            zipfile.ZipFile(f) as sub,
+                        ):
+                            for inner in sub.namelist():
+                                if inner.startswith("__MACOSX") or not inner.endswith(
+                                    ".xml"
+                                ):
+                                    continue
+                                with sub.open(inner) as src:
+                                    add(Path(inner).name, f"{name}/{inner}", src.read())
+                    elif name.endswith(".xml"):
+                        with archive.open(name) as src:
+                            add(Path(name).name, name, src.read())
+
+        return flat_path
+
     def handle_archive(self, archive_path: Path, filenames):
         self.service_ids = set()
         self.route_ids = set()
@@ -593,6 +645,9 @@ class Command(BaseCommand):
         self.source.datetime = datetime.datetime.fromtimestamp(
             os.path.getmtime(archive_path), datetime.timezone.utc
         )
+
+        if not filenames:
+            archive_path = self.maybe_flatten(archive_path)
 
         try:
             with zipfile.ZipFile(archive_path) as archive:
