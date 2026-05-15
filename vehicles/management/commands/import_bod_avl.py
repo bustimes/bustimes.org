@@ -1,8 +1,10 @@
 import functools
 import io
+import logging
 import zipfile
 from datetime import datetime, timedelta
 
+import requests
 import sentry_sdk
 from lxml import etree
 from django.conf import settings
@@ -26,6 +28,8 @@ from bustimes.models import Route, Trip
 from ...models import Vehicle, VehicleJourney, VehicleLocation
 from ..import_live_vehicles import ImportLiveVehiclesCommand, Status
 
+
+logger = logging.getLogger(__name__)
 
 _SIRI_NS = "http://www.siri.org.uk/siri"
 
@@ -683,13 +687,19 @@ class Command(ImportLiveVehiclesCommand):
             now = timezone.now()
 
             with sentry_sdk.start_span(name="get changed items"):
-                (
-                    changed_items,
-                    changed_journey_items,
-                    changed_item_identities,
-                    changed_journey_identities,
-                    total_items,
-                ) = self.get_changed_items()
+                try:
+                    (
+                        changed_items,
+                        changed_journey_items,
+                        changed_item_identities,
+                        changed_journey_identities,
+                        total_items,
+                    ) = self.get_changed_items()
+                except requests.exceptions.RequestException as e:
+                    logger.exception(e)
+                    self.session.close()
+                    self.session = requests.Session()
+                    return 30
 
             age = int((now - self.source.datetime).total_seconds())
             if age > 0:

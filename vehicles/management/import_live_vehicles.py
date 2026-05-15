@@ -515,7 +515,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     ) = self.get_changed_items()
                 except requests.exceptions.RequestException as e:
                     logger.exception(e)
-                    return 120
+                    return self.wait
 
             with sentry_sdk.start_span(name="handle quick items") as span:
                 span.set_data("count", len(changed_items))
@@ -525,6 +525,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 self.handle_items(changed_journey_items, changed_journey_identities)
 
         if not total_items:
+            # perhaps it's night time?
             return 120
 
         time_taken = (timezone.now() - now).total_seconds()
