@@ -243,8 +243,11 @@ if REDIS_URL and not TEST:
         "LOCATION": REDIS_URL,
         "KEY_PREFIX": os.environ.get("CACHE_KEY_PREFIX", ""),
         "OPTIONS": {
-            "socket_timeout": 1,
-            "socket_connect_timeout": 1,
+            "socket_timeout": 3,
+            "socket_connect_timeout": 2,
+            "socket_keepalive": True,
+            "health_check_interval": 30,
+            "retry_on_timeout": True,
         },
     }
     if "default" not in CACHES:
