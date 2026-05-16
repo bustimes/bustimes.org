@@ -742,7 +742,9 @@ def get_departures_context(stop, services, form_data, stops=None) -> dict:
     return context
 
 
-stop_line_names = ArrayAgg("stopusage__line_name", distinct=True, default=None)
+stop_line_names = ArrayAgg(
+    "stopusage__line_name", distinct=True, ordering="stopusage__line_name", default=None
+)
 operator_names = ArrayAgg("operator__name", distinct=True, default=None)
 
 

@@ -548,7 +548,7 @@ class StopPoint(models.Model):
                 return parts[-1]
 
     def get_line_names(self):
-        return sorted(filter(None, self.line_names), key=Service.get_line_name_order)
+        return list(filter(None, self.line_names))
 
 
 class OperatorGroup(models.Model):
