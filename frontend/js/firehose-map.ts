@@ -45,7 +45,8 @@ map.on("load", () => {
   });
 });
 
-const ws = new WebSocket("ws://localhost:8000/vehicles/34");
+const wsProtocol = window.location.protocol === "http:" ? "ws" : "wss";
+const ws = new WebSocket(`${wsProtocol}://${window.location.host}/firehose`);
 
 const statusBar = document.getElementById("skew");
 

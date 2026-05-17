@@ -15,7 +15,7 @@ application = ProtocolTypeRouter(
         "http": django_asgi_app,
         "websocket": URLRouter(
             [
-                path("vehicles/<int:id>", VehicleLocationConsumer.as_asgi()),
+                path("firehose", VehicleLocationConsumer.as_asgi()),
             ]
         ),
     }
