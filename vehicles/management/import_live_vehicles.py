@@ -6,6 +6,8 @@ from time import sleep
 
 import requests
 import sentry_sdk
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
@@ -375,6 +377,18 @@ class ImportLiveVehiclesCommand(BaseCommand):
             pipeline.execute()
         except ConnectionError as e:
             logger.exception(e)
+
+        channel_layer = get_channel_layer()
+        group_send = async_to_sync(channel_layer.group_send)
+        # TODO: use redis_json or suttin?
+        # but this will suffice as a proof of concept
+        group_send(
+            "vehicle_locations",
+            {
+                "type": "move_vehicles",
+                "items": geoadd,
+            },
+        )
 
         self.to_save = []
 
