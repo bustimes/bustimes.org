@@ -66,6 +66,7 @@ map.on("load", () => {
       "icon-allow-overlap": true,
       "icon-ignore-placement": true,
       "text-field": ["get", "line_name"],
+      "text-font": ["Noto Sans Regular"],
       "text-size": 12,
       "text-allow-overlap": true,
       "text-ignore-placement": true,
