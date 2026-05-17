@@ -37,9 +37,30 @@ map.on("load", () => {
       "circle-opacity": 0.8,
     },
   });
+
+  map.on("click", "vehicle-circles", (e) => {
+    map.flyTo({
+      center: e.features[0].geometry.coordinates,
+    });
+  });
 });
 
 const ws = new WebSocket("ws://localhost:8000/vehicles/34");
+
+const statusBar = document.getElementById("skew");
+
+ws.onopen = (event) => {
+  if (statusBar) {
+    statusBar.innerText = "connected";
+  }
+};
+
+ws.onclose = (event) => {
+  if (statusBar) {
+    statusBar.innerText = "disconnected";
+  }
+};
+
 const vehicles = new Map(); // Track all vehicles by id
 
 ws.onmessage = (event) => {
