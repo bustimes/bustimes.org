@@ -49,7 +49,7 @@ map.on("load", () => {
   busImage.src = busIconUrl;
   busImage.onload = () => {
     if (!map.hasImage("vehicle-marker")) {
-      map.addImage("vehicle-marker", busImage, { pixelRatio: 2 });
+      map.addImage("vehicle-marker", busImage, { pixelRatio: 2, sdf: true });
     }
   };
 
@@ -72,6 +72,7 @@ map.on("load", () => {
     },
     paint: {
       "text-color": "#fff",
+      "icon-color": ["coalesce", ["get", "colour"], "#000"],
     },
   });
 
@@ -124,6 +125,11 @@ const vehicles = new Map(); // Track all vehicles by id
 let openPopup: maplibregl.Popup | null = null;
 let openPopupId: number | null = null;
 
+const randomColour = () =>
+  `#${Math.floor(Math.random() * 0xffffff)
+    .toString(16)
+    .padStart(6, "0")}`;
+
 type VehicleItem = {
   id: number;
   coordinates: [number, number];
@@ -172,6 +178,7 @@ ws.onmessage = (event) => {
         datetime: item.datetime,
         destination: item.destination,
         line_name: item.service?.line_name,
+        colour: randomColour(),
       },
     });
 
