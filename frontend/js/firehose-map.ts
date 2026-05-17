@@ -65,6 +65,13 @@ map.on("load", () => {
       "icon-rotation-alignment": "map",
       "icon-allow-overlap": true,
       "icon-ignore-placement": true,
+      "text-field": ["get", "line_name"],
+      "text-size": 12,
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#fff",
     },
   });
 
@@ -81,8 +88,9 @@ map.on("load", () => {
     if (!feature || feature.geometry.type !== "Point") return;
 
     const id = Number((feature.properties as { id: number | string }).id);
-    openPopup = new maplibregl.Popup()
-      .setLngLat(feature.geometry.coordinates as [number, number])
+    const coords = feature.geometry.coordinates as [number, number];
+    openPopup = new maplibregl.Popup({ offset: [0, -6] })
+      .setLngLat(coords)
       .setHTML(popupHTML(feature.properties as VehicleProps))
       .addTo(map);
     openPopupId = id;
@@ -90,6 +98,7 @@ map.on("load", () => {
       openPopup = null;
       openPopupId = null;
     });
+    map.panTo(coords);
   });
 });
 
@@ -176,6 +185,7 @@ ws.onmessage = (event) => {
           line_name: item.service?.line_name,
         }),
       );
+      map.panTo(item.coordinates);
     }
   }
 
