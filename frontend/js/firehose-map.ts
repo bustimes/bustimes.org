@@ -1,6 +1,7 @@
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
+import busIconUrl from "data-url:../bus-droplet.png";
 import maplibreWorkerUrl from "url:maplibre-gl/dist/maplibre-gl-worker.mjs";
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl);
@@ -19,7 +20,7 @@ const initialView = parseVehicleMap(localStorage.getItem("vehicleMap"));
 
 const map = new maplibregl.Map({
   container: "hugemap",
-  style: "https://tiles.bustimes.org.uk/styles/night/style.json",
+  style: "https://tiles.openfreemap.org/styles/positron",
   center: initialView?.center ?? [-2.9, 54],
   zoom: initialView?.zoom ?? 5,
   attributionControl: {
@@ -44,24 +45,26 @@ map.on("load", () => {
     },
   });
 
-  // Render each vehicle as a rotated route-name label
+  const busImage = new Image();
+  busImage.src = busIconUrl;
+  busImage.onload = () => {
+    if (!map.hasImage("vehicle-marker")) {
+      map.addImage("vehicle-marker", busImage, { pixelRatio: 2 });
+    }
+  };
+
   map.addLayer({
     id: "vehicle-labels",
     type: "symbol",
     source: "vehicles",
     layout: {
-      "text-field": ["get", "line_name"],
-      "text-rotate": ["coalesce", ["get", "heading"], 0],
-      "text-rotation-alignment": "map",
-      "text-size": 13,
-      "text-allow-overlap": true,
-      "text-ignore-placement": true,
-      "text-keep-upright": false,
-    },
-    paint: {
-      "text-color": "#fff",
-      "text-halo-color": "#000",
-      "text-halo-width": 1.5,
+      "icon-image": "vehicle-marker",
+      // arrow points to the bottom-left of the icon (compass 225° when
+      // un-rotated), so subtract 225 to align with heading
+      "icon-rotate": ["-", ["coalesce", ["get", "heading"], 0], 225],
+      "icon-rotation-alignment": "map",
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
     },
   });
 
@@ -77,7 +80,7 @@ map.on("load", () => {
     const feature = e.features?.[0];
     if (!feature || feature.geometry.type !== "Point") return;
 
-    const id = (feature.properties as { id: number }).id;
+    const id = Number((feature.properties as { id: number | string }).id);
     openPopup = new maplibregl.Popup()
       .setLngLat(feature.geometry.coordinates as [number, number])
       .setHTML(popupHTML(feature.properties as VehicleProps))
