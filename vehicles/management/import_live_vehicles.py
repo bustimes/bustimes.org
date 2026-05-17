@@ -379,16 +379,17 @@ class ImportLiveVehiclesCommand(BaseCommand):
             logger.exception(e)
 
         channel_layer = get_channel_layer()
-        group_send = async_to_sync(channel_layer.group_send)
-        # TODO: use redis_json or suttin?
-        # but this will suffice as a proof of concept
-        group_send(
-            "vehicle_locations",
-            {
-                "type": "move_vehicles",
-                "items": geoadd,
-            },
-        )
+        if channel_layer is not None:
+            group_send = async_to_sync(channel_layer.group_send)
+            # TODO: use redis_json or suttin?
+            # but this will suffice as a proof of concept
+            group_send(
+                "vehicle_locations",
+                {
+                    "type": "move_vehicles",
+                    "items": geoadd,
+                },
+            )
 
         self.to_save = []
 
