@@ -42,6 +42,6 @@ class WSGITest(TestCase):
         resolver_match_1 = wsgi.application.resolve_request(rf.get("/"))
         self.assertEqual(resolver_match_1.url_name, "index")
 
-        resolver_match_2 = asgi.application.resolve_request(rf.get("/"))
+        resolver_match_2 = asgi.django_asgi_app.resolve_request(rf.get("/"))
 
         self.assertEqual(str(resolver_match_1), str(resolver_match_2))
