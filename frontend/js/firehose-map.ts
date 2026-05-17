@@ -5,15 +5,33 @@ import maplibreWorkerUrl from "url:maplibre-gl/dist/maplibre-gl-worker.mjs";
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
+type View = { zoom: number; center: [number, number] };
+
+const parseVehicleMap = (raw: string | null): View | null => {
+  if (!raw) return null;
+  const [zoom, lat, lng] = raw.split("/").map(Number);
+  if (!Number.isFinite(zoom) || !Number.isFinite(lat) || !Number.isFinite(lng))
+    return null;
+  return { zoom, center: [lng, lat] };
+};
+
+const initialView = parseVehicleMap(localStorage.getItem("vehicleMap"));
+
 const map = new maplibregl.Map({
   container: "hugemap",
   style: "https://tiles.bustimes.org.uk/styles/night/style.json",
-  center: [-2.9, 54],
-  zoom: 5,
+  center: initialView?.center ?? [-2.9, 54],
+  zoom: initialView?.zoom ?? 5,
   attributionControl: {
     compact: false,
     customAttribution: "",
   },
+});
+
+window.addEventListener("storage", (e) => {
+  if (e.key !== "vehicleMap") return;
+  const view = parseVehicleMap(e.newValue);
+  if (view) map.easeTo(view);
 });
 
 map.on("load", () => {
