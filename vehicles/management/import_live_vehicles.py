@@ -318,6 +318,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
 
         geoadd = []
         sadd = {}
+        items = []
 
         for location, vehicle in self.to_save:
             if not location.latlong or (
@@ -356,10 +357,11 @@ class ImportLiveVehiclesCommand(BaseCommand):
             except Trip.DoesNotExist:
                 location.journey.trip = None
 
-            redis_json = location.get_redis_json()
-            redis_json = json.dumps(redis_json, cls=DjangoJSONEncoder)
+            redis_json = json.dumps(location.get_redis_json(), cls=DjangoJSONEncoder)
             pipeline.set(f"vehicle{vehicle.id}", redis_json, ex=900)
             # can't use 'mset' cos it doesn't let us specify an expiry (900 secs = 15 min)
+
+            items.append(json.loads(redis_json))
 
         if geoadd:
             pipeline.geoadd("vehicle_location_locations", geoadd)
@@ -379,15 +381,13 @@ class ImportLiveVehiclesCommand(BaseCommand):
             logger.exception(e)
 
         channel_layer = get_channel_layer()
-        if channel_layer is not None:
+        if channel_layer is not None and items:
             group_send = async_to_sync(channel_layer.group_send)
-            # TODO: use redis_json or suttin?
-            # but this will suffice as a proof of concept
             group_send(
                 "vehicle_locations",
                 {
                     "type": "move_vehicles",
-                    "items": geoadd,
+                    "items": items,
                 },
             )
 

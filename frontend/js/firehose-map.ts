@@ -26,21 +26,48 @@ map.on("load", () => {
     },
   });
 
-  // Add circle layer
+  // Render each vehicle as a rotated route-name label
   map.addLayer({
-    id: "vehicle-circles",
-    type: "circle",
+    id: "vehicle-labels",
+    type: "symbol",
     source: "vehicles",
+    layout: {
+      "text-field": ["get", "line_name"],
+      "text-rotate": ["coalesce", ["get", "heading"], 0],
+      "text-rotation-alignment": "map",
+      "text-size": 13,
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+      "text-keep-upright": false,
+    },
     paint: {
-      "circle-radius": 6,
-      "circle-color": "#007cbf",
-      "circle-opacity": 0.8,
+      "text-color": "#fff",
+      "text-halo-color": "#000",
+      "text-halo-width": 1.5,
     },
   });
 
-  map.on("click", "vehicle-circles", (e) => {
-    map.flyTo({
-      center: e.features[0].geometry.coordinates,
+  map.on("mouseenter", "vehicle-labels", () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+
+  map.on("mouseleave", "vehicle-labels", () => {
+    map.getCanvas().style.cursor = "";
+  });
+
+  map.on("click", "vehicle-labels", (e) => {
+    const feature = e.features?.[0];
+    if (!feature || feature.geometry.type !== "Point") return;
+
+    const id = (feature.properties as { id: number }).id;
+    openPopup = new maplibregl.Popup()
+      .setLngLat(feature.geometry.coordinates as [number, number])
+      .setHTML(popupHTML(feature.properties as VehicleProps))
+      .addTo(map);
+    openPopupId = id;
+    openPopup.on("close", () => {
+      openPopup = null;
+      openPopupId = null;
     });
   });
 });
@@ -64,23 +91,73 @@ ws.onclose = (event) => {
 
 const vehicles = new Map(); // Track all vehicles by id
 
+let openPopup: maplibregl.Popup | null = null;
+let openPopupId: number | null = null;
+
+type VehicleItem = {
+  id: number;
+  coordinates: [number, number];
+  heading?: number;
+  datetime?: string;
+  destination?: string;
+  service?: { line_name?: string };
+};
+
+type VehicleProps = {
+  id: number;
+  heading: number;
+  datetime?: string;
+  destination?: string;
+  line_name?: string;
+};
+
+const popupHTML = (props: VehicleProps) => {
+  const when = props.datetime
+    ? new Date(props.datetime).toLocaleTimeString()
+    : "";
+  return [
+    props.line_name &&
+      `<strong>${props.line_name}</strong>${props.destination ? ` to ${props.destination}` : ""}`,
+    when,
+    `<a href="/vehicles/${props.id}">vehicle ${props.id}</a>`,
+  ]
+    .filter(Boolean)
+    .join("<br>");
+};
+
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data);
-  const items = message.items || []; // items is now [[lng, lat, id], [lng, lat, id], ...]
+  const items: VehicleItem[] = message.items || [];
 
-  // Update vehicles map with new positions
-  for (const [lng, lat, id] of items) {
-    vehicles.set(id, {
+  for (const item of items) {
+    vehicles.set(item.id, {
       type: "Feature",
       geometry: {
         type: "Point",
-        coordinates: [lng, lat],
+        coordinates: item.coordinates,
       },
-      properties: { id },
+      properties: {
+        id: item.id,
+        heading: item.heading ?? 0,
+        datetime: item.datetime,
+        destination: item.destination,
+        line_name: item.service?.line_name,
+      },
     });
+
+    if (openPopup && openPopupId === item.id) {
+      openPopup.setLngLat(item.coordinates).setHTML(
+        popupHTML({
+          id: item.id,
+          heading: item.heading ?? 0,
+          datetime: item.datetime,
+          destination: item.destination,
+          line_name: item.service?.line_name,
+        }),
+      );
+    }
   }
 
-  // Update the data source with all vehicles
   const source = map.getSource("vehicles");
   if (source && source.type === "geojson") {
     source.setData({
