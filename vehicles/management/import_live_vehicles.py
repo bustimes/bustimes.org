@@ -46,14 +46,14 @@ def same_journey(journey, last_journey, now):
         journey.code,
         journey.direction,
         # journey.trip_id,
-        now.date(),
+        timezone.localdate(now),
     ) == (
         last_journey.service_id,
         last_journey.route_name,
         last_journey.code,
         last_journey.direction,
         # last_journey.trip_id or journey.trip_id,
-        last_journey.datetime.date(),
+        timezone.localdate(last_journey.datetime),
     )
 
 
