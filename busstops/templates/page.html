@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#ffff9e" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#222" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="dark light">
 <meta name="format-detection" content="telephone=no">
 {% block canonical %}
     {% if object.get_absolute_url %}
@@ -26,29 +27,22 @@
 {% block fuse %}
 {% if ad %}
 <script src="{% static 'consent.js' %}"></script>
-<script>if(window.top===window.self&&window.location.host==="bustimes.org"&&typeof Array.prototype.includes!=="undefined"){s=document.getElementsByTagName('script')[0];var sc=document.createElement('script');sc.async=true;sc.src='https://cdn.adfirst.media/hb/bustimes.js?v'+Math.floor(new Date().getTime()/600000);s.parentNode.insertBefore(sc,s);}</script>
+<script>if(typeof Array.prototype.includes!=="undefined"){s=document.getElementsByTagName('script')[0];var sc=document.createElement('script');sc.type='text/javascript';sc.async=true;sc.src='https://cdn.adfirst.media/hb/bustimes.js?v'+Math.floor(new Date().getTime()/600000);s.parentNode.insertBefore(sc,s);}</script>
 {% endif %}
 {% endblock fuse %}
-
-<script async src="https://umami.bustimes.org.uk/script.js" data-website-id="62fea6ac-a287-4ede-962b-5cf0029a8a7b" data-exclude-hash="true"></script>
+<script src="https://analytics.ahrefs.com/analytics.js" data-key="JnhFOzy1izIU9JV+msWPhA" async></script>
 
 </head>
 <body class="{% block bodyclass %}wide{% endblock %}{% if ad is False %} no-ads{% endif %}">
 <script>
-(function () {
-    var a = localStorage && localStorage["map-style"];
-    var m = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if ((!a || a === "alidade_satellite") && m || a && a.indexOf("_dark") !== -1) {
-        document.body.classList.add("dark-mode")
-    }
-})();
+!function(){var a=localStorage&&localStorage["map-style"];!a&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches&&(a="_dark"),a&&-1!==a.indexOf("_dark")&&document.body.classList.add("dark-mode")}();
 </script>
 
 <a href="#content" class="skip">Skip to main content</a>
 {% block header %}
 <header class="site-header">
     <div>
-        <a href="/" class="site-name">bustimes.org</a>
+        <a href="/" class="site-name{% if object.mode == 'ferry' %} ferry{% endif %}">{% if object.mode == 'ferry' %}Ferry Times{% else %}bustimes.org{% endif %}</a>
         <ul>
             <li><a href="/map{% if object.latlong %}#16/{{ object.latlong.y|floatformat:4 }}/{{ object.latlong.x|floatformat:4 }}{% endif %}">Map</a></li>
         </ul>
@@ -74,14 +68,11 @@
     {% if user.is_authenticated %}
         <form action="{% url 'logout' %}" method="POST">
             <ul class="user">
-                <li><a href="{% url 'user_detail' user.id %}">user {{ user.id }}</a></li>
+                <li><a href="/accounts/users/{{ user.id }}">user {{ user.id }}</a></li>
                 <li>
                     {% csrf_token %}
                     <button type="submit" class="button">Log out</button>
                 </li>
-                {% if user.trusted %}
-                    <li><a href="/vehicles/edits?status=pending">Pending edits</a></li>
-                {% endif %}
                 <li><a href="/rules">Rules & FAQ</a></li>
                 <li><a href="https://discord.com/invite/gY4PdDFau7">Discord</a></li>
             </ul>
@@ -90,14 +81,65 @@
     <ul>
         <li><a href="/contact">Contact</a></li>
         <li><a href="/data">Data sources</a></li>
-        <li><a href="https://status.bustimes.org">Status</a></li>
         <li><a href="/privacy">Privacy policy</a></li>
         {% if ad %}<li><a href="javascript:window.__tcfapi('displayConsentUi',2,function(){})">Privacy settings</a></li>{% endif %}
     </ul>
+
+    <!-- Detailed view toggle -->
+    <div style="margin-top:1em; text-align:center;">
+        <label>
+            <input type="checkbox" id="detailedToggle">
+            Detailed view
+        </label>
+    </div>
 </footer>
 {% endblock footer %}
 
-{% block foot %}{% endblock %}
+{% block foot %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const toggle = document.getElementById('detailedToggle');
+    if (!toggle) return;
+
+    const enabled = localStorage.getItem('detailed') === 'true';
+    toggle.checked = enabled;
+
+    if (enabled && !location.search.includes('detailed=1')) {
+        const sep = location.search ? '&' : '?';
+        location.replace(
+            location.pathname +
+            location.search +
+            sep +
+            'detailed=1' +
+            location.hash
+        );
+    }
+
+    toggle.addEventListener('change', function () {
+        localStorage.setItem('detailed', toggle.checked);
+
+        if (toggle.checked) {
+            if (!location.search.includes('detailed=1')) {
+                const sep = location.search ? '&' : '?';
+                location.search += sep + 'detailed=1';
+            }
+        } else {
+            const newSearch = location.search
+                .replace(/(\?|&)detailed=1(&|$)/, function (_, p1, p2) {
+                    return p2 ? p1 : '';
+                })
+                .replace(/^&/, '?');
+
+            location.replace(
+                location.pathname +
+                (newSearch === '?' ? '' : newSearch) +
+                location.hash
+            );
+        }
+    });
+});
+</script>
+{% endblock foot %}
 
 </body>
 </html>
