@@ -335,9 +335,6 @@ ALLOW_VEHICLE_NOTES_OPERATORS = (
     "ie-1178",  # Dublin Express
 )
 
-UMAMI_TOKEN = os.environ.get("UMAMI_TOKEN")
-UMAMI_WEBSITE_ID = os.environ.get("UMAMI_WEBSITE_ID")
-
 NEW_VEHICLE_WEBHOOK_URL = os.environ.get("NEW_VEHICLE_WEBHOOK_URL")
 
 DATA_DIR = os.environ.get("DATA_DIR")
