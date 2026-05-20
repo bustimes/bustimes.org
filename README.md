@@ -21,7 +21,7 @@
 | buses/asgi.py                                                   |        4 |        0 |    100% |           |
 | buses/context\_processors.py                                    |        5 |        0 |    100% |           |
 | buses/jinja2.py                                                 |       36 |        1 |     97% |        40 |
-| buses/settings.py                                               |      122 |       33 |     73% |99-109, 129, 143-151, 222, 241-249, 266-284, 345 |
+| buses/settings.py                                               |      120 |       33 |     72% |99-109, 129, 143-151, 222, 241-249, 266-284, 342 |
 | buses/tests.py                                                  |       12 |        0 |    100% |           |
 | buses/urls.py                                                   |        5 |        0 |    100% |           |
 | buses/utils.py                                                  |       11 |        4 |     64% |     13-16 |
@@ -49,8 +49,6 @@
 | busstops/management/tests/test\_import\_operators.py            |       70 |        0 |    100% |           |
 | busstops/middleware.py                                          |       31 |        1 |     97% |        29 |
 | busstops/models.py                                              |      629 |       22 |     97% |273, 298, 324, 448, 485, 535, 619, 622, 656, 694, 844, 877, 956, 968-972, 1054, 1063, 1103, 1118, 1155 |
-| busstops/popular\_pages.py                                      |       12 |        0 |    100% |           |
-| busstops/tasks.py                                               |       11 |        0 |    100% |           |
 | busstops/templatetags/\_\_init\_\_.py                           |        0 |        0 |    100% |           |
 | busstops/templatetags/date\_range.py                            |       25 |        3 |     88% | 9, 22, 28 |
 | busstops/templatetags/test\_urlise.py                           |        8 |        0 |    100% |           |
@@ -58,11 +56,10 @@
 | busstops/test\_admin.py                                         |       69 |        0 |    100% |           |
 | busstops/test\_middleware.py                                    |       25 |        0 |    100% |           |
 | busstops/test\_models.py                                        |      137 |        0 |    100% |           |
-| busstops/test\_popular\_pages.py                                |       21 |        0 |    100% |           |
 | busstops/test\_views.py                                         |      295 |        0 |    100% |           |
 | busstops/urls.py                                                |       19 |        2 |     89% |   134-136 |
 | busstops/utils.py                                               |       11 |        0 |    100% |           |
-| busstops/views.py                                               |      676 |       49 |     93% |101, 147, 594, 620, 658, 731-733, 735, 823, 841, 1018, 1038-1043, 1056, 1135, 1163-1164, 1169-1170, 1178-1187, 1249, 1346, 1362-1369, 1376, 1378, 1456, 1512, 1552-1553, 1556-1560, 1710, 1722-1723, 1728, 1740-1741 |
+| busstops/views.py                                               |      674 |       49 |     93% |101, 144, 591, 617, 655, 728-730, 732, 820, 838, 1015, 1035-1040, 1053, 1132, 1160-1161, 1166-1167, 1175-1184, 1246, 1343, 1359-1366, 1373, 1375, 1453, 1509, 1549-1550, 1553-1557, 1707, 1719-1720, 1725, 1737-1738 |
 | bustimes/\_\_init\_\_.py                                        |        0 |        0 |    100% |           |
 | bustimes/admin.py                                               |      142 |       14 |     90% |92, 95-96, 107-109, 112-114, 171-175, 198, 219, 222 |
 | bustimes/download\_utils.py                                     |       32 |        0 |    100% |           |
@@ -196,7 +193,7 @@
 | vosa/tests.py                                                   |       61 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
 | vosa/views.py                                                   |       59 |        0 |    100% |           |
-| **TOTAL**                                                       | **17089** | **1298** | **92%** |           |
+| **TOTAL**                                                       | **17041** | **1298** | **92%** |           |
 
 
 ## Setup coverage badge
