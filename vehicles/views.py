@@ -12,17 +12,21 @@ from django.contrib.auth.models import Permission
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.gis.geos import GEOSException
 from django.core.cache import cache
-from django.core.exceptions import PermissionDenied, BadRequest
+from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import IntegrityError, OperationalError, connection, transaction
 from django.db.models import Case, F, Max, OuterRef, Q, When, Value
 from django.db.models.aggregates import StringAgg
 from django.db.models.functions import Coalesce, Now
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.cache import get_conditional_response, set_response_etag
+from django.utils.cache import (
+    get_conditional_response,
+    set_response_etag,
+    patch_cache_control,
+)
 from django.views.decorators.cache import cache_control
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_safe
@@ -358,6 +362,12 @@ def respond_conditionally(request, response):
     )
 
 
+def cachable_400():
+    response = HttpResponseBadRequest()
+    patch_cache_control(response, max_age=3600)
+    return response
+
+
 @require_safe
 def vehicles_json(request) -> JsonResponse:
     try:
@@ -365,7 +375,7 @@ def vehicles_json(request) -> JsonResponse:
     except KeyError:
         bounds = None
     except (GEOSException, ValueError):
-        raise BadRequest
+        return cachable_400()
 
     vehicle_ids = None
     set_names = None
@@ -381,7 +391,7 @@ def vehicles_json(request) -> JsonResponse:
             width = haversine((ymin, xmax), (ymin, xmin))
             height = haversine((ymin, xmax), (ymax, xmax))
         except ValueError:
-            raise BadRequest
+            return cachable_400()
 
         vehicle_ids = redis_client.geosearch(
             "vehicle_location_locations",
@@ -398,7 +408,7 @@ def vehicles_json(request) -> JsonResponse:
                 int(service_id) for service_id in request.GET["service"].split(",")
             ]
         except ValueError:
-            raise BadRequest
+            return cachable_400()
         set_names = [f"service{service_id}vehicles" for service_id in service_ids]
     elif "operator" in request.GET:
         operator_ids = request.GET["operator"].split(",")
@@ -416,7 +426,7 @@ def vehicles_json(request) -> JsonResponse:
     try:
         vehicle_ids = [int(vehicle_id) for vehicle_id in vehicle_ids]
     except ValueError:
-        raise BadRequest
+        return cachable_400()
 
     vehicle_ids.sort()  # for etag stableness
 
