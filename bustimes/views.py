@@ -77,7 +77,7 @@ class ServiceDebugView(DetailView):
         )
 
         routes = (
-            self.object.route_set.select_related("source")
+            self.object.route_set.select_related("source", "version")
             .prefetch_related(Prefetch("trip_set", queryset=trips))
             .order_by("service_code", "revision_number", "start_date", "line_name")
         )
@@ -284,7 +284,7 @@ class SourceDetailView(DetailView):
             .annotate(
                 trips=Count("trip"),
             )
-            .select_related("service")
+            .select_related("service", "version")
         )
 
         context["breadcrumb"] = [
