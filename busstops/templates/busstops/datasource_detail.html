@@ -49,6 +49,7 @@
     <thead>
         <th scope="col" class="shortish">service code</th>
         <th scope="col" class="short">line name</th>
+        {% if routes.0.version %}<th scope="col" class="shortish">version</th>{% endif %}
         <th scope="col" class="short">revision №</th>
         <th scope="col" class="shortish">start</th>
         <th scope="col" class="shortish">end</th>
@@ -60,9 +61,18 @@
     {% for route in routes %}
         <tr>
             <td>{% ifchanged route.service_code %}{{ route.service_code }}{% endifchanged %}</td>
-            <td>{% ifchanged route.line_name %}
-                {% if route.service_id %}<a href="{{ route.service.get_absolute_url }}/debug">{{ route.line_name }}</a>{% else %}{{ route.line_name }}{% endif %}
-            {% endifchanged %}</td>
+            <td>
+                {% ifchanged route.line_name %}
+                    {% if route.service_id %}
+                        <a href="{{ route.service.get_absolute_url }}/debug">{{ route.line_name }}</a>
+                    {% else %}
+                        {{ route.line_name }}
+                    {% endif %}
+                {% endifchanged %}
+            </td>
+            {% if routes.0.version %}
+                <td>{{ route.version.start_date }}</td>
+            {% endif %}
             <td>{{ route.revision_number }}</td>
             <td>{{ route.start_date|date }}</td>
             <td>{{ route.end_date|date }}</td>
