@@ -246,7 +246,8 @@ def route_link_is_dodgy(point: Point, stop: StopPoint, context: str) -> bool:
         if stop.latlong.srid and stop.latlong.srid != 4326:
             stop.latlong.transform(4326)
         distance = stop.latlong.distance(point)
-        if distance > 0.1:
+        if distance > 0.02:
+            # stop location roughly more than 1 km start/end of RouteLink
             logger.warning(f"{context}: {stop.atco_code} is {distance} from {point}")
             return True
     return False
