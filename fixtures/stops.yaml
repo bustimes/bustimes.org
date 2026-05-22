@@ -135,3 +135,9 @@
     latlong: POINT(-0.561243 52.395469)
 305000427P:
     latlong: POINT(-0.561426 52.395265)
+
+# Corby
+305000593TW:
+    latlong: POINT (-0.65996 52.49389)
+305000594CB:
+    latlong: POINT (-0.66558 52.50342)
