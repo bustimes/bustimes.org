@@ -794,6 +794,9 @@ export default function BigMap(
   );
 
   React.useEffect(() => {
+    if (vehiclesTimeout.current) {
+      clearTimeout(vehiclesTimeout.current);
+    }
     setAppendedLocations([]);
     if (props.tripId) {
       // trip mode
@@ -840,14 +843,10 @@ export default function BigMap(
       setTrip(undefined);
       // slippy mode
       document.title = "Map \u2013 bustimes.org";
+      loadVehicles();
     } else {
       loadVehicles();
     }
-    return () => {
-      if (vehiclesTimeout.current) {
-        clearTimeout(vehiclesTimeout.current);
-      }
-    };
   }, [
     props.tripId,
     trip,
@@ -860,6 +859,10 @@ export default function BigMap(
 
   const handleMoveEnd = React.useCallback(
     (evt: ViewStateChangeEvent) => {
+      if (!evt.originalEvent) {
+        return;
+      }
+
       if (vehiclesTimeout.current) {
         clearTimeout(vehiclesTimeout.current);
         setLoadingBuses(false);
