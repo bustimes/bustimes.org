@@ -34,46 +34,17 @@ export const Route = React.memo(function Route({ times }: RouteProps) {
     type: "line",
     paint: {
       "line-color": darkMode ? "#ddd" : "#666",
-      "line-width": 2,
-      "line-dasharray": [1, 2],
+      "line-width": 3,
+      // "line-dasharray": [1, 2],
     },
   };
 
-  const lineStyle: LayerProps = {
-    type: "line",
-    paint: {
-      "line-color": darkMode ? "#eee" : "#666",
-      "line-width": 1,
-      "line-dasharray": [2, 2],
-    },
-  };
-
-  const lines = [];
   const lineStrings = [];
-  let prevTime: TripTime | undefined;
-  let prevLocation: [number, number] | undefined;
-  let i = null;
 
   for (const time of times) {
-    if (time.call_condition === "notStopping") {
-      continue;
-    }
     if (time.track) {
       // wiggly line from previous stop to this one
       lineStrings.push(time.track);
-    } else if (prevTime && prevLocation && time.stop.location) {
-      // straight line from last stop with coordinates to this one
-      if (prevTime.track || i === null) {
-        lines.push([prevLocation, time.stop.location]);
-        i = lines.length - 1;
-      } else {
-        lines[i].push(time.stop.location);
-      }
-    }
-
-    prevTime = time;
-    if (time.stop.location) {
-      prevLocation = time.stop.location;
     }
   }
 
@@ -96,25 +67,6 @@ export const Route = React.memo(function Route({ times }: RouteProps) {
         }}
       >
         <Layer {...routeStyle} />
-      </Source>
-
-      <Source
-        type="geojson"
-        data={{
-          type: "FeatureCollection",
-          features: lines.map((line) => {
-            return {
-              type: "Feature",
-              geometry: {
-                type: "LineString",
-                coordinates: line,
-              },
-              properties: null,
-            };
-          }),
-        }}
-      >
-        <Layer {...lineStyle} />
       </Source>
 
       <Source

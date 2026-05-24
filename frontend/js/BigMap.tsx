@@ -471,7 +471,7 @@ function JourneySidebar(props: {
           highlightedStop={props.highlightedStop}
         />
       ) : null}
-      {journey.trip?.block ? (
+      {journey.vehicle || journey.trip?.block ? (
         <dl className="contact-details">
           {journey.vehicle ? (
             <div>
@@ -486,14 +486,16 @@ function JourneySidebar(props: {
               </dd>
             </div>
           ) : null}
-          <div>
-            <dt>Block</dt>
-            <dd>
-              <a href={`/trips/${journey.trip.id}/block`}>
-                {journey.trip.block}
-              </a>
-            </dd>
-          </div>
+          {journey.trip?.block ? (
+            <div>
+              <dt>Block</dt>
+              <dd>
+                <a href={`/trips/${journey.trip.id}/block`}>
+                  {journey.trip.block}
+                </a>
+              </dd>
+            </div>
+          ) : null}
         </dl>
       ) : null}
     </div>
