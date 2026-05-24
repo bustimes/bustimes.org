@@ -743,6 +743,13 @@ table {
     margin-right: .75em;
 }
 
+#skew {
+    font-size: 10px;
+    position: absolute;
+    top: 0;
+    left: 50%;
+}
+
 #hugemap {
     position: absolute;
     top: 56px;  /* header */
@@ -910,8 +917,8 @@ th a,
     padding: .25em .5em;
 }
 
-.stop-name[rowspan="2"] a {
-    padding: 1.25em 0;
+.stop-name[rowspan="2"] {
+    white-space: normal;
 }
 
 .stop-name .note {
@@ -1381,6 +1388,11 @@ input:not(:checked) + label {
 .aside td,
 .trip-timetable td {
     font-variant-numeric: tabular-nums;
+}
+
+.stop-popup-times td {
+    border: 0;
+    padding: 0;
 }
 
 .message {

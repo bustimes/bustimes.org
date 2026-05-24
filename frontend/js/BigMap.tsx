@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 
 import { Hash, type LngLatBounds, type Map as MapGL } from "maplibre-gl";
@@ -11,6 +12,7 @@ import {
   Layer,
   type MapLayerMouseEvent,
   type MapProps,
+  Popup,
   Source,
   type ViewStateChangeEvent,
   useMap,
@@ -24,17 +26,21 @@ import VehicleMarker, {
   getClickedVehicleMarkerId,
 } from "./VehicleMarker";
 
-import { JourneyStops, Locations, type VehicleJourney } from "./JourneyMap";
+import {
+  Locations,
+  type VehicleJourney,
+  type VehicleJourneyLocation,
+  getUtcOffsetSeconds,
+  locationsFromPolyline,
+} from "./JourneyMap";
 import LoadingSorry from "./LoadingSorry";
 import BusTimesMap, { ThemeContext } from "./Map";
 import StopPopup, { type Stop } from "./StopPopup";
 import { Route } from "./TripMap";
-import TripTimetable, { type Trip, tripFromJourney } from "./TripTimetable";
+import TripTimetable, { type Trip } from "./TripTimetable";
 import VehiclePopup from "./VehiclePopup";
 import { recordSkew } from "./clockSkew";
 import { getBounds, getFont } from "./utils";
-
-import { decodeTimeAwarePolyline } from "./time-aware-polyline";
 
 const apiRoot = process.env.API_ROOT;
 
@@ -104,26 +110,6 @@ export enum MapMode {
   Journey = 3,
 }
 
-type Journey = {
-  id: number;
-  datetime: string | number;
-  vehicle: {
-    id: number;
-    slug: string;
-    fleet_code: string;
-    reg: string;
-  };
-  trip_id: number | null;
-  times: Trip["times"];
-  route_name: string;
-  destination: string;
-  time_aware_polyline: string;
-  service: {
-    id: number;
-    slug: string;
-  };
-};
-
 function SlippyMapHash() {
   const mapRef = useMap();
 
@@ -162,8 +148,17 @@ function Stops({
           const url = `/stops/${time.stop.atco_code}`;
           return {
             [url]: {
-              properties: { url, name: time.stop.name },
-              geometry: { coordinates: time.stop.location },
+              type: "Feature",
+              geometry: { type: "Point", coordinates: time.stop.location },
+              properties: {
+                url,
+                name: time.stop.name,
+                aimed_arrival_time: time.aimed_arrival_time,
+                aimed_departure_time: time.aimed_departure_time,
+                expected_arrival_time: time.expected_arrival_time,
+                expected_departure_time: time.expected_departure_time,
+                actual_departure_time: time.actual_departure_time,
+              },
             },
           };
         }),
@@ -333,11 +328,9 @@ const Vehicles = memo(function Vehicles({
         <VehiclePopup
           item={clickedVehicle}
           activeLink={
-            tripId
-              ? clickedVehicle.trip_id?.toString() === tripId
-              : journeyId
-                ? clickedVehicle.journey_id?.toString() === journeyId
-                : false
+            journeyId
+              ? clickedVehicle.journey_id?.toString() === journeyId
+              : false
           }
           onClose={() => setClickedVehicleMarker()}
           snazzyTripLink
@@ -397,9 +390,32 @@ function TripSidebar(props: {
         vehicle={props.vehicle}
         highlightedStop={props.highlightedStop}
       />
+      <dl className="contact-details">
+        {trip.block ? (
+          <div>
+            <dt>Block</dt>
+            <dd>
+              <a href={`/trips/${trip.id}/block`}>{trip.block}</a>
+            </dd>
+          </div>
+        ) : null}
+      </dl>
     </div>
   );
 }
+
+const cameFromVehiclesPage = (() => {
+  if (typeof document === "undefined" || !document.referrer) return false;
+  try {
+    const url = new URL(document.referrer);
+    return (
+      url.origin === window.location.origin &&
+      url.pathname.startsWith("/vehicles/")
+    );
+  } catch {
+    return false;
+  }
+})();
 
 function JourneySidebar(props: {
   journey: VehicleJourney;
@@ -411,17 +427,43 @@ function JourneySidebar(props: {
 
   const journey = props.journey;
 
-  const trip = React.useMemo(() => {
-    return tripFromJourney(journey);
-  }, [journey]);
+  const showNavigation =
+    cameFromVehiclesPage && (journey.previous || journey.next);
 
-  let service: string | ReactElement =
-    `${journey.route_name} to ${journey.destination}`;
-  if (props.vehicle?.service?.url) {
-    service = <a href={props.vehicle.service.url}>{service}</a>;
+  const _operator = journey.operator || journey.trip?.operator;
+  let operator: ReactElement | undefined;
+  if (_operator) {
+    operator = (
+      <li>
+        <a href={`/operators/${_operator.slug}`}>{_operator.name}</a>
+      </li>
+    );
   }
 
-  if (!trip) {
+  let service: ReactElement | undefined;
+  if (journey.service) {
+    service = (
+      <li>
+        <a
+          href={`/services/${journey.service.slug}/vehicles?date=${journey.date}#journey-${journey.id}`}
+        >
+          {journey.route_name}
+        </a>
+      </li>
+    );
+  } else if (journey.operator) {
+    service = (
+      <li>
+        <a
+          href={`/services/${journey.operator.noc}:${journey.route_name}/vehicles?date=${journey.date}#journey-${journey.id}`}
+        >
+          {journey.route_name}
+        </a>
+      </li>
+    );
+  }
+
+  if (!journey.trip_id) {
     className += " no-stops";
   }
 
@@ -431,24 +473,64 @@ function JourneySidebar(props: {
 
   return (
     <div className={className}>
-      <p>{service}</p>
-      {/* {journey.vehicle ? (
-        <p>
-          <a
-            href={`/vehicles/${journey.vehicle.slug}`}
-            className="vehicle-link"
-          >
-            {journey.vehicle.fleet_code}{" "}
-            <span className="reg">{journey.vehicle.reg}</span>
-          </a>
-        </p>
-      ) : null} */}
-      {trip ? (
+      {operator || service ? (
+        <ul className="breadcrumb">
+          {operator}
+          {service}
+        </ul>
+      ) : null}
+      {showNavigation ? (
+        <div className="navigation">
+          {journey.previous ? (
+            <p className="previous">
+              <Link href={`/journeys/${journey.previous.id}`}>
+                &larr; {journey.previous.datetime.slice(11, 16)}
+              </Link>
+            </p>
+          ) : null}
+          {journey.next ? (
+            <p className="next">
+              <Link href={`/journeys/${journey.next.id}`}>
+                {journey.next.datetime.slice(11, 16)} &rarr;
+              </Link>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {journey.trip ? null : <p>To {journey.destination}</p>}
+      {journey.trip?.times ? (
         <TripTimetable
-          trip={trip}
+          trip={{ times: journey.trip.times }}
           vehicle={props.vehicle}
           highlightedStop={props.highlightedStop}
         />
+      ) : null}
+      {journey.vehicle || journey.trip?.block ? (
+        <dl className="contact-details">
+          {journey.vehicle ? (
+            <div>
+              <dt>Vehicle</dt>
+              <dd>
+                <a
+                  href={`/vehicles/${journey.vehicle.slug}?date=${journey.date}#journey-${journey.id}`}
+                >
+                  {journey.vehicle.fleet_code}{" "}
+                  <span className="reg">{journey.vehicle.reg}</span>
+                </a>
+              </dd>
+            </div>
+          ) : null}
+          {journey.trip?.block ? (
+            <div>
+              <dt>Block</dt>
+              <dd>
+                <a href={`/trips/${journey.trip.id}/block`}>
+                  {journey.trip.block}
+                </a>
+              </dd>
+            </div>
+          ) : null}
+        </dl>
       ) : null}
     </div>
   );
@@ -524,16 +606,57 @@ export default function BigMap(
 
   const initialViewState = useRef(window.INITIAL_VIEW_STATE);
 
+  const polylineLocations = useMemo(() => {
+    if (journey?.time_aware_polyline) {
+      return locationsFromPolyline(
+        journey.time_aware_polyline,
+        getUtcOffsetSeconds(journey.datetime),
+      );
+    }
+    return [];
+  }, [journey?.time_aware_polyline, journey?.datetime]);
+
+  const [appendedLocations, setAppendedLocations] = useState<
+    VehicleJourneyLocation[]
+  >([]);
+
+  const journeyLocations = useMemo(
+    () => polylineLocations.concat(appendedLocations),
+    [polylineLocations, appendedLocations],
+  );
+
+  // extend the trail as the bus moves
+  useEffect(() => {
+    if (props.mode !== MapMode.Journey || !tripVehicle) return;
+    setAppendedLocations((appended) => {
+      const lastTs = appended.length
+        ? appended[appended.length - 1].datetime
+        : polylineLocations.length
+          ? polylineLocations[polylineLocations.length - 1].datetime
+          : 0;
+      if (tripVehicle.datetime <= lastTs) return appended;
+      return appended.concat([
+        {
+          coordinates: tripVehicle.coordinates,
+          datetime: tripVehicle.datetime,
+          direction: tripVehicle.heading,
+        },
+      ]);
+    });
+  }, [tripVehicle, props.mode, polylineLocations]);
+
   const bounds = useMemo(() => {
     if (trip) {
       return getBounds(trip.times, (time) => time.stop.location);
     }
     if (journey) {
-      const _bounds = getBounds(journey.stops, (item) => item.coordinates);
-      // maybe extend bounds
-      return getBounds(journey.locations, (item) => item.coordinates, _bounds);
+      const _bounds = getBounds(
+        journey.trip?.times,
+        (item) => item.stop.location,
+      );
+      return getBounds(polylineLocations, (item) => item.coordinates, _bounds);
     }
-  }, [trip, journey]);
+  }, [trip, journey, polylineLocations]);
 
   const fitBoundsOptions = useMemo(() => {
     if (props.mode === MapMode.Slippy || props.mode === MapMode.Operator) {
@@ -593,19 +716,48 @@ export default function BigMap(
           }
           break;
         case MapMode.Journey:
-          if (journey?.service_id) {
-            url = `?service=${journey?.service_id}`;
-            if (journey.trip_id) {
-              url += `&trip=${journey.trip_id}`;
-            }
-          } else if (journey?.vehicle_id) {
-            url = `?id=${journey.vehicle_id}`;
+          if (journey?.live && journey.vehicle?.id) {
+            url = `?id=${journey.vehicle.id}`;
           }
           break;
       }
       if (!url) {
         return;
       }
+
+      const handleItems = (items: VehicleLocation[]) => {
+        vehiclesHighWaterMark.current = _bounds;
+
+        if (props.mode === MapMode.Operator && !initialViewState.current) {
+          const bounds = getBounds(items, (item) => item.coordinates);
+          if (bounds) {
+            initialViewState.current = {
+              bounds,
+              fitBoundsOptions: {
+                padding: { top: 50, bottom: 150, left: 50, right: 50 },
+              },
+            };
+          }
+        }
+
+        if (items.length || vehiclesLength.current || first) {
+          if (trip || journey?.vehicle?.id) {
+            for (const item of items) {
+              if (
+                (trip && trip.id === item.trip_id) ||
+                journey?.vehicle?.id === item.id
+              ) {
+                if (first) setClickedVehicleMarker(item.id);
+                setTripVehicle(item);
+                break;
+              }
+            }
+          }
+
+          vehiclesLength.current = items.length;
+          setVehicles(items);
+        }
+      };
 
       setLoadingBuses(true);
 
@@ -619,42 +771,7 @@ export default function BigMap(
           (response) => {
             recordSkew(response);
             if (response.ok || response.status === 404) {
-              response.json().then((items: VehicleLocation[]) => {
-                vehiclesHighWaterMark.current = _bounds;
-
-                if (
-                  props.mode === MapMode.Operator &&
-                  !initialViewState.current
-                ) {
-                  const bounds = getBounds(items, (item) => item.coordinates);
-                  if (bounds) {
-                    initialViewState.current = {
-                      bounds,
-                      fitBoundsOptions: {
-                        padding: { top: 50, bottom: 150, left: 50, right: 50 },
-                      },
-                    };
-                  }
-                }
-
-                if (items.length || vehiclesLength.current || first) {
-                  if (trip || journey?.vehicle_id) {
-                    for (const item of items) {
-                      if (
-                        (trip && trip.id === item.trip_id) ||
-                        journey?.vehicle_id === item.id
-                      ) {
-                        if (first) setClickedVehicleMarker(item.id);
-                        setTripVehicle(item);
-                        break;
-                      }
-                    }
-                  }
-
-                  vehiclesLength.current = items.length;
-                  setVehicles(items);
-                }
-              });
+              response.json().then(handleItems);
 
               setLoadingBuses(false);
             }
@@ -677,6 +794,10 @@ export default function BigMap(
   );
 
   React.useEffect(() => {
+    if (vehiclesTimeout.current) {
+      clearTimeout(vehiclesTimeout.current);
+    }
+    setAppendedLocations([]);
     if (props.tripId) {
       // trip mode
       if (trip?.id?.toString() === props.tripId) {
@@ -684,7 +805,6 @@ export default function BigMap(
         document.title = `${trip.service?.line_name} \u2013 ${trip.operator?.name} \u2013 bustimes.org`;
       } else {
         setJourney(undefined);
-        setTrip(undefined);
         fetchJson(`api/trips/${props.tripId}/`).then(setTrip);
       }
     } else if (props.noc) {
@@ -698,15 +818,23 @@ export default function BigMap(
     } else if (props.journeyId) {
       // journey mode
       if (journey?.id?.toString() === props.journeyId) {
-        if (journey.current) {
-          loadVehicles(true);
+        if (!document.hidden) {
+          vehiclesTimeout.current = window.setTimeout(loadVehicles, 12000); // 12 seconds
         }
       } else {
-        setJourney(undefined);
         setTrip(undefined);
-        fetchJson(`journeys/${props.journeyId}.json`).then(
+        fetchJson(`api/vehiclejourneys/${props.journeyId}/details/`).then(
           (journey: VehicleJourney) => {
-            setJourney({ ...journey, id: props.journeyId });
+            setJourney(journey);
+            if (journey.live?.length) {
+              // sort of duplicating `handleItems`
+              vehiclesHighWaterMark.current = null;
+              const item = journey.live[0];
+              setVehicles(journey.live);
+              vehiclesLength.current = journey.live.length;
+              setClickedVehicleMarker(item.id);
+              setTripVehicle(item);
+            }
           },
         );
       }
@@ -848,7 +976,10 @@ export default function BigMap(
 
   const [cursor, setCursor] = React.useState<string>();
 
-  const hoveredLocation = React.useRef<number | null>(null);
+  const [hoveredLocation, setHoveredLocation] = React.useState<{
+    coordinates: [number, number];
+    time: string;
+  } | null>(null);
 
   const onMouseEnter = React.useCallback((e: MapLayerMouseEvent) => {
     const vehicleId = getClickedVehicleMarkerId(e);
@@ -858,28 +989,28 @@ export default function BigMap(
 
     if (e.features?.length) {
       setCursor("pointer");
-      // journey map
       for (const feature of e.features) {
         if (feature.layer.id === "locations") {
-          if (hoveredLocation.current) {
-            e.target.setFeatureState(
-              { source: "locations", id: hoveredLocation.current },
-              { hover: false },
-            );
-          }
-          e.target.setFeatureState(
-            { source: "locations", id: feature.id },
-            { hover: true },
-          );
-          hoveredLocation.current = feature.id as number;
+          const geom = feature.geometry as {
+            type: "Point";
+            coordinates: [number, number];
+          };
+          setHoveredLocation({
+            coordinates: geom.coordinates,
+            time: feature.properties?.time,
+          });
           return;
         }
       }
+      setHoveredLocation(null);
+    } else {
+      setHoveredLocation(null);
     }
   }, []);
 
   const onMouseLeave = React.useCallback(() => {
     setCursor(undefined);
+    setHoveredLocation(null);
   }, []);
 
   const showStops = shouldShowStops(zoom);
@@ -941,49 +1072,8 @@ export default function BigMap(
           onMapInit={handleMapInit}
           interactiveLayerIds={["stops", "vehicles", "locations"]}
         >
-          {/* bounds on the map for debugging */}
-          {/* bounds ? (
-            <Source
-              type="geojson"
-              data={{
-                type: "Feature",
-                geometry: {
-                  type: "Polygon",
-                  coordinates: [
-                    [
-                      [bounds.getWest(), bounds.getNorth()],
-                      [bounds.getEast(), bounds.getNorth()],
-                      [bounds.getEast(), bounds.getSouth()],
-                      [bounds.getWest(), bounds.getSouth()],
-                      [bounds.getWest(), bounds.getNorth()],
-                    ],
-                  ],
-                },
-              }}
-            >
-              <Layer
-                {...{
-                  id: "bounds",
-                  type: "line",
-                  paint: {
-                    "line-color": "#000",
-                    "line-width": 2,
-                  },
-                }}
-              />
-            </Source>
-          ) : null*/}
-
           {props.mode === MapMode.Trip && trip ? (
             <Route times={trip.times} />
-          ) : null}
-
-          {props.mode === MapMode.Journey && journey?.stops ? (
-            <JourneyStops
-              stops={journey.stops}
-              clickedStopUrl={clickedStopUrl}
-              setClickedStop={setClickedStopURL}
-            />
           ) : null}
 
           {/* props.mode === MapMode.Slippy ? <SlippyMapHash /> : null */}
@@ -1002,6 +1092,20 @@ export default function BigMap(
               clickedStopUrl={clickedStopUrl}
               setClickedStop={setClickedStopURL}
             />
+          ) : props.mode === MapMode.Journey && journey?.trip?.times ? (
+            <Stops
+              times={journey.trip.times}
+              clickedStopUrl={clickedStopUrl}
+              setClickedStop={setClickedStopURL}
+            />
+          ) : null}
+
+          {props.mode === MapMode.Journey && journeyLocations.length ? (
+            <Locations locations={journeyLocations} />
+          ) : null}
+
+          {props.mode === MapMode.Journey && journey?.trip?.times ? (
+            <Route times={journey.trip.times} />
           ) : null}
 
           {vehicles && showBuses ? (
@@ -1025,9 +1129,19 @@ export default function BigMap(
             </div>
           ) : null}
 
-          {props.mode === MapMode.Journey && journey?.locations && (
-            <Locations locations={journey.locations} />
-          )}
+          {hoveredLocation ? (
+            <Popup
+              longitude={hoveredLocation.coordinates[0]}
+              latitude={hoveredLocation.coordinates[1]}
+              closeButton={false}
+              closeOnClick={false}
+              // offset={8}
+              focusAfterOpen={false}
+              className="location-popup"
+            >
+              {hoveredLocation.time}
+            </Popup>
+          ) : null}
         </BusTimesMap>
       </div>
 

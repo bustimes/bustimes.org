@@ -373,9 +373,15 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
             )
 
             # newer API
-            response = self.client.get(f"/api/vehiclejourneys/{journey.id}/")
+            response = self.client.get(f"/api/vehiclejourneys/{journey.id}/details/")
             json = response.json()
             self.assertEqual(json["time_aware_polyline"], "o|k@gsy`Ikpyx|{A")
+            stop = next(
+                t
+                for t in json["trip"]["times"]
+                if t["stop"]["atco_code"] == "2900W0314"
+            )
+            self.assertEqual(stop["actual_departure_time"], "2019-05-29T13:03:34+01:00")
 
     def test_ticketer(self):
         source = TimetableDataSource.objects.create(

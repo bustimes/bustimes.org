@@ -89,14 +89,16 @@ def get_delay(progress, date, when) -> int:
     return int((when - expected_time).total_seconds())
 
 
-def get_progress(item: dict, stop_time=None) -> Progress | None:
+def get_progress(item: dict, stop_time=None, stop_times=None) -> Progress | None:
     when = datetime.datetime.fromisoformat(item["datetime"])
     date = datetime.date.fromisoformat(item["date"])
 
     point = Point(*item["coordinates"], srid=4326)
     point_3857 = point.transform(3857, clone=True)
 
-    if stop_time:
+    if stop_times is not None:
+        stop_times = [st for st in stop_times if st.stop_id and st.stop.latlong]
+    elif stop_time:
         stop_times = [
             st
             for st in stop_time.trip.stoptime_set.all()  # prefetched earlier
@@ -197,8 +199,8 @@ def get_progress(item: dict, stop_time=None) -> Progress | None:
     return progress
 
 
-def add_progress_and_delay(item, stop_time=None):
-    progress = get_progress(item, stop_time)
+def add_progress_and_delay(item, stop_time=None, stop_times=None):
+    progress = get_progress(item, stop_time, stop_times)
     if not progress:
         return
 

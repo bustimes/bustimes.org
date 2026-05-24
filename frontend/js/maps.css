@@ -64,6 +64,10 @@
   z-index: 1;
 }
 
+.maplibregl-popup.location-popup {
+  pointer-events: none;
+}
+
 body .maplibregl-popup-content {
   border-radius: 6px;
 }

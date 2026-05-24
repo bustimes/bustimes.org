@@ -267,6 +267,7 @@ class TimetableDepartures(Departures):
             for journey in time["stop_time"].trip.vehicle_journeys:
                 if journey.date == trip_date:
                     time["vehicle"] = journey.vehicle
+                    time["link"] = f"/journeys/{journey.id}"
                     break
 
         # # add tomorrow's times until there are 10, or the next day until there more than 0

@@ -11,59 +11,97 @@ import BusTimesMap, { ThemeContext } from "./Map";
 
 import type { Map as MapGL } from "maplibre-gl";
 import LoadingSorry from "./LoadingSorry";
-import StopPopup, { type Stop } from "./StopPopup";
-import TripTimetable, { type TripTime, tripFromJourney } from "./TripTimetable";
+import StopPopup from "./StopPopup";
+import { Route } from "./TripMap";
+import TripTimetable, { type Trip, type TripTime } from "./TripTimetable";
 import VehicleMarker, {
   type Vehicle,
   getClickedVehicleMarkerId,
 } from "./VehicleMarker";
 import VehiclePopup from "./VehiclePopup";
 import { recordSkew } from "./clockSkew";
-import { getBounds, getFont } from "./utils";
+import { decodeTimeAwarePolyline } from "./time-aware-polyline";
+import { getBounds } from "./utils";
 
-type VehicleJourneyLocation = {
-  id: number;
+export type VehicleJourneyLocation = {
   coordinates: [number, number];
-  // delta: number | null;
   direction?: number | null;
   datetime: string;
 };
 
-export type StopTime = {
-  id: number;
-  atco_code: string;
-  name: string;
-  aimed_arrival_time: string;
-  aimed_departure_time: string | null;
-  minor: boolean;
-  heading: number;
-  coordinates?: [number, number] | null;
-  actual_departure_time: string;
+export type VehicleJourney = {
+  id?: string | number;
+  date: string;
+  datetime: string;
+  vehicle?: {
+    id: number;
+    slug: string;
+    fleet_code: string;
+    reg: string;
+  };
+  route_name?: string;
+  destination?: string;
+  trip_id?: number | null;
+  trip?: Trip;
+  times?: TripTime[];
+  time_aware_polyline?: string;
+  service?: {
+    id: number;
+    slug: string;
+  };
+  operator?: {
+    noc: string;
+    slug: string;
+    name: string;
+  };
+  live?: Vehicle[];
+  next?: { id: number; datetime: string };
+  previous?: { id: number; datetime: string };
 };
 
-export type VehicleJourney = {
-  id?: string;
-  vehicle_id?: number;
-  service_id?: number;
-  trip_id?: number;
-  datetime: string;
-  route_name?: string;
-  code: string;
-  destination: string;
-  direction: string;
-  stops?: StopTime[];
-  locations?: VehicleJourneyLocation[];
-  vehicle?: string;
-  current: boolean;
-  next: {
-    id: number;
-    datetime: string;
-  };
-  previous: {
-    id: number;
-    datetime: string;
-  };
-};
+function calcBearing(
+  [lng1, lat1]: [number, number],
+  [lng2, lat2]: [number, number],
+): number {
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δλ = ((lng2 - lng1) * Math.PI) / 180;
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x =
+    Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
+// Parse "+HH:MM" / "-HH:MM" / "Z" offset from an ISO datetime string.
+// Used so the client doesn't need to trust the browser's local time zone
+// (some privacy-focused browsers force UTC).
+export function getUtcOffsetSeconds(isoStr: string): number {
+  const m = isoStr.match(/([+-])(\d{2}):?(\d{2})$/);
+  if (!m) return 0;
+  const sign = m[1] === "-" ? -1 : 1;
+  return (
+    sign * (Number.parseInt(m[2], 10) * 3600 + Number.parseInt(m[3], 10) * 60)
+  );
+}
+
+export function locationsFromPolyline(
+  polyline: string,
+  utcOffsetSeconds = 0,
+): VehicleJourneyLocation[] {
+  const points = decodeTimeAwarePolyline(polyline);
+  const offsetMs = utcOffsetSeconds * 1000;
+  return points.map(([lat, lng, ts], i) => {
+    const coordinates: [number, number] = [lng, lat];
+    const prev = points[i - 1] || [lat, lng];
+    const next = points[i + 1] || [lat, lng];
+    const direction = calcBearing([prev[1], prev[0]], [next[1], next[0]]);
+    return {
+      coordinates: [lng, lat],
+      datetime: new Date(ts + offsetMs).toISOString(),
+      direction,
+    };
+  });
+}
 
 export const Locations = React.memo(function Locations({
   locations,
@@ -76,40 +114,22 @@ export const Locations = React.memo(function Locations({
   const routeStyle: LayerProps = {
     type: "line",
     paint: {
-      "line-color": darkMode ? "#eee" : "#666",
-      "line-width": 2,
-      "line-dasharray": [2, 2],
+      "line-color": "#54c",
+      "line-width": 4,
     },
   };
-
-  const font = getFont(theme);
 
   const locationsStyle: LayerProps = {
     id: "locations",
     type: "symbol",
     layout: {
-      "text-field": ["get", "time"],
-      "text-size": 12,
-      "text-font": font,
-
       "icon-rotate": ["+", 45, ["get", "heading"]],
       "icon-image": "history-arrow",
       "icon-allow-overlap": true,
       "icon-ignore-placement": true,
       "icon-anchor": "top-left",
-
-      "text-allow-overlap": true,
-    },
-    paint: {
-      "text-opacity": [
-        "case",
-        ["boolean", ["feature-state", "hover"], false],
-        1,
-        0,
-      ],
-      "text-color": darkMode ? "#fff" : "#333",
-      "text-halo-color": darkMode ? "#333" : "#fff",
-      "text-halo-width": 3,
+      "icon-padding": [4],
+      "icon-offset": [-4, -4],
     },
   };
 
@@ -124,7 +144,6 @@ export const Locations = React.memo(function Locations({
       >
         <Layer {...routeStyle} />
       </Source>
-
       <Source
         type="geojson"
         id="locations"
@@ -133,15 +152,13 @@ export const Locations = React.memo(function Locations({
           features: locations.map((l) => {
             return {
               type: "Feature",
-              id: l.id,
+              id: l.datetime,
               geometry: {
                 type: "Point",
                 coordinates: l.coordinates,
               },
               properties: {
-                // delta: l.delta,
                 heading: l.direction,
-                // datetime: l.datetime,
                 time: l.datetime.slice(11, 19),
               },
             };
@@ -153,444 +170,3 @@ export const Locations = React.memo(function Locations({
     </React.Fragment>
   );
 });
-
-export const JourneyStops = React.memo(function Stops({
-  stops,
-  clickedStopUrl,
-  setClickedStop,
-}: {
-  stops: StopTime[];
-  clickedStopUrl: string | undefined;
-  setClickedStop: (s: string | undefined) => void;
-}) {
-  const theme = React.useContext(ThemeContext);
-  const darkMode = theme.endsWith("_dark") || theme.endsWith("_satellite");
-
-  const features = React.useMemo(() => {
-    return stops
-      .filter((s) => s.coordinates)
-      .map((s) => {
-        return {
-          type: "Feature" as const,
-          geometry: {
-            type: "Point" as const,
-            coordinates: s.coordinates as [number, number],
-          },
-          properties: {
-            url: `/stops/${s.atco_code}`,
-            name: s.name,
-            heading: s.heading,
-          },
-        };
-      });
-  }, [stops]);
-
-  const featuresByUrl = React.useMemo<
-    { [url: string]: Stop } | undefined
-  >(() => {
-    return Object.assign(
-      {},
-      ...features.map((stop) => ({ [stop.properties.url]: stop })),
-    );
-  }, [features]);
-
-  const clickedStop =
-    featuresByUrl && clickedStopUrl && featuresByUrl[clickedStopUrl];
-
-  return (
-    <React.Fragment>
-      <Source
-        type="geojson"
-        data={{
-          type: "FeatureCollection",
-          features: features,
-        }}
-      >
-        <Layer
-          {...{
-            id: "stops",
-            type: "symbol",
-            layout: {
-              // "symbol-sort-key": ["get", "priority"],
-              "icon-rotate": ["+", 45, ["get", "heading"]],
-              "icon-image": [
-                "case",
-                ["==", ["get", "heading"], ["literal", null]],
-                darkMode
-                  ? "route-stop-marker-dark-circle"
-                  : "route-stop-marker-circle",
-                darkMode ? "route-stop-marker-dark" : "route-stop-marker",
-              ],
-              // "icon-padding": 0,
-              "icon-allow-overlap": true,
-              "icon-ignore-placement": true,
-            },
-          }}
-        />
-      </Source>
-      {clickedStop && (
-        <StopPopup
-          item={clickedStop}
-          onClose={() => setClickedStop(undefined)}
-        />
-      )}
-    </React.Fragment>
-  );
-});
-
-function formatDatetime(datetime: string, contextDate?: string) {
-  if (contextDate && datetime.startsWith(contextDate)) {
-    return datetime.slice(11, 16); // just the time
-  }
-  return datetime.slice(0, 16).replace("T", " ");
-}
-
-function Sidebar({
-  journey,
-  loading,
-  onMouseEnter,
-  vehicle,
-}: {
-  journey: VehicleJourney;
-  loading: boolean;
-  onMouseEnter: (t: TripTime) => void;
-  vehicle?: Vehicle;
-}) {
-  let className = "trip-timetable map-sidebar";
-  if (loading) {
-    className += " loading";
-  }
-
-  const trip = React.useMemo(() => {
-    return tripFromJourney(journey);
-  }, [journey]);
-
-  let previousLink: React.ReactElement | string | undefined;
-  let nextLink: React.ReactElement | string | undefined;
-  const date = journey.datetime.slice(0, 10);
-
-  if (journey) {
-    if (journey.previous) {
-      previousLink = formatDatetime(journey.previous.datetime, date);
-
-      previousLink = (
-        <p className="previous">
-          <a href={`#journeys/${journey.previous.id}`}>&larr; {previousLink}</a>
-        </p>
-      );
-    }
-    if (journey.next) {
-      nextLink = formatDatetime(journey.next.datetime, date);
-      nextLink = (
-        <p className="next">
-          <a href={`#journeys/${journey.next.id}`}>{nextLink} &rarr;</a>
-        </p>
-      );
-    }
-  }
-
-  let text = formatDatetime(journey.datetime);
-  let reg = null;
-  if (journey.vehicle) {
-    reg = journey.vehicle;
-    if (journey.vehicle.includes(" ")) {
-      if (journey.vehicle.includes(" - ")) {
-        const parts = journey.vehicle.split(" - ", 2);
-        text += ` ${parts[0]}`;
-        reg = <span className="reg">{parts[1]}</span>;
-      }
-    }
-  } else {
-    text += ` ${journey.route_name}`;
-    if (journey.destination) {
-      text += ` to ${journey.destination}`;
-    }
-  }
-
-  return (
-    <div className={className}>
-      <div className="navigation">
-        {previousLink}
-        {nextLink}
-      </div>
-      <p>
-        {text} {reg}
-      </p>
-      {trip ? (
-        <TripTimetable
-          onMouseEnter={onMouseEnter}
-          trip={trip}
-          vehicle={vehicle}
-        />
-      ) : (
-        <p>{journey.code}</p>
-      )}
-    </div>
-  );
-}
-
-function JourneyVehicle({
-  vehicleId,
-  // journey,
-  onVehicleMove,
-  clickedVehicleMarker,
-  setClickedVehicleMarker,
-}: {
-  vehicleId: number;
-  // journey: VehicleJourney;
-  onVehicleMove: (v: Vehicle) => void;
-  clickedVehicleMarker: boolean;
-  setClickedVehicleMarker: (b: boolean) => void;
-}) {
-  const [vehicle, setVehicle] = React.useState<Vehicle>();
-
-  React.useEffect(() => {
-    if (vehicle) {
-      onVehicleMove(vehicle);
-    }
-  }, [vehicle, onVehicleMove]);
-
-  React.useEffect(() => {
-    if (!vehicleId) {
-      return;
-    }
-
-    let timeout: number;
-    let current = true;
-
-    const loadVehicle = () => {
-      fetch(`/vehicles.json?id=${vehicleId}`).then((response) => {
-        recordSkew(response);
-        response.json().then((data: Vehicle[]) => {
-          if (current && data && data.length) {
-            setVehicle(data[0]);
-            timeout = window.setTimeout(loadVehicle, 12000); // 12 seconds
-          }
-        });
-      });
-    };
-
-    loadVehicle();
-
-    return () => {
-      current = false;
-      clearTimeout(timeout);
-    };
-  }, [vehicleId]);
-
-  if (!vehicle) {
-    return null;
-  }
-
-  return (
-    <React.Fragment>
-      <VehicleMarker selected={clickedVehicleMarker} vehicle={vehicle} />
-      {clickedVehicleMarker ? (
-        <VehiclePopup
-          item={vehicle}
-          onClose={() => setClickedVehicleMarker(false)}
-        />
-      ) : null}
-    </React.Fragment>
-  );
-}
-
-export default function JourneyMap({
-  journey,
-  loading = false,
-}: {
-  journey?: VehicleJourney;
-  loading: boolean;
-}) {
-  const [cursor, setCursor] = React.useState<string>();
-
-  const hoveredLocation = React.useRef<number | null>(null);
-
-  const onMouseEnter = React.useCallback((e: MapLayerMouseEvent) => {
-    const vehicleId = getClickedVehicleMarkerId(e);
-    if (vehicleId) {
-      return;
-    }
-
-    if (e.features?.length) {
-      setCursor("pointer");
-
-      for (const feature of e.features) {
-        if (feature.layer.id === "locations") {
-          if (hoveredLocation.current) {
-            e.target.setFeatureState(
-              { source: "locations", id: hoveredLocation.current },
-              { hover: false },
-            );
-          }
-          e.target.setFeatureState(
-            { source: "locations", id: feature.id },
-            { hover: true },
-          );
-          hoveredLocation.current = feature.id as number;
-          return;
-        }
-      }
-    }
-  }, []);
-
-  const onMouseLeave = React.useCallback(() => {
-    setCursor(undefined);
-    // setClickedLocation(undefined);
-  }, []);
-
-  const [clickedStopUrl, setClickedStop] = React.useState<string>();
-
-  const [clickedVehicleMarker, setClickedVehicleMarker] =
-    React.useState<boolean>(true);
-
-  const [locations, setLocations] = React.useState<VehicleJourneyLocation[]>(
-    [],
-  );
-
-  const [vehicle, setVehicle] = React.useState<Vehicle>();
-
-  const handleVehicleMove = React.useCallback(
-    (vehicle: Vehicle) => {
-      if (
-        !locations.length ||
-        locations[locations.length - 1].datetime < vehicle.datetime
-      ) {
-        setLocations(
-          locations.concat([
-            {
-              id: new Date(vehicle.datetime).getTime(),
-              coordinates: vehicle.coordinates,
-              datetime: vehicle.datetime,
-              direction: vehicle.heading,
-            },
-          ]),
-        );
-        setVehicle(vehicle);
-      }
-    },
-    [locations],
-  );
-
-  const handleMapClick = React.useCallback((e: MapLayerMouseEvent) => {
-    const vehicleId = getClickedVehicleMarkerId(e);
-    if (vehicleId) {
-      setClickedVehicleMarker(true);
-      setClickedStop(undefined);
-      return;
-    }
-
-    setClickedVehicleMarker(false);
-
-    if (e.features?.length) {
-      for (const feature of e.features) {
-        if (feature.layer.id === "stops") {
-          setClickedStop(feature.properties.url);
-          break;
-        }
-      }
-    } else {
-      setClickedStop(undefined);
-    }
-  }, []);
-
-  const handleRowHover = React.useCallback((a: TripTime) => {
-    if (a.stop.location && a.stop.atco_code) {
-      setClickedStop(`/stops/${a.stop.atco_code}`);
-    }
-  }, []);
-
-  const mapRef = React.useRef<MapGL | null>(null);
-
-  const bounds = React.useMemo(() => {
-    if (journey) {
-      const bounds = getBounds(journey.stops, (item) => item.coordinates);
-      return getBounds(journey.locations, (item) => item.coordinates, bounds);
-    }
-  }, [journey]);
-
-  const onMapInit = React.useCallback((map: MapGL) => {
-    // debugger;
-    mapRef.current = map;
-
-    // if (bounds) {
-    //   map.fitBounds(bounds, {
-    //     padding: 50,
-    //   });
-    // }
-  }, []);
-
-  React.useEffect(() => {
-    if (bounds && mapRef.current) {
-      mapRef.current.fitBounds(bounds, {
-        padding: 50,
-      });
-    }
-  }, [bounds]);
-
-  if (!journey) {
-    return <LoadingSorry />;
-  }
-
-  let className = "journey-map has-sidebar";
-  if (!journey.stops) {
-    className += " no-stops";
-  }
-
-  return (
-    <React.Fragment>
-      <div className={className}>
-        {bounds ? (
-          <BusTimesMap
-            initialViewState={{
-              bounds: bounds,
-              fitBoundsOptions: {
-                padding: 50,
-              },
-            }}
-            cursor={cursor}
-            onMouseEnter={onMouseEnter}
-            onMouseMove={onMouseEnter}
-            onMouseLeave={onMouseLeave}
-            onClick={handleMapClick}
-            onMapInit={onMapInit}
-            interactiveLayerIds={["stops", "locations"]}
-          >
-            {journey.stops ? (
-              <JourneyStops
-                stops={journey.stops}
-                clickedStopUrl={clickedStopUrl}
-                setClickedStop={setClickedStop}
-              />
-            ) : null}
-
-            {journey.locations ? (
-              <Locations
-                locations={
-                  journey.current
-                    ? journey.locations.concat(locations)
-                    : journey.locations
-                }
-              />
-            ) : null}
-            {journey.locations && journey.current ? (
-              <JourneyVehicle
-                vehicleId={window.VEHICLE_ID}
-                // journey={journey}
-                onVehicleMove={handleVehicleMove}
-                clickedVehicleMarker={clickedVehicleMarker}
-                setClickedVehicleMarker={setClickedVehicleMarker}
-              />
-            ) : null}
-          </BusTimesMap>
-        ) : null}
-      </div>
-      <Sidebar
-        loading={loading}
-        journey={journey}
-        onMouseEnter={handleRowHover}
-        vehicle={vehicle}
-      />
-    </React.Fragment>
-  );
-}

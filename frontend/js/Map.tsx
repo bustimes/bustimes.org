@@ -16,6 +16,7 @@ import MapGL, {
 } from "react-map-gl/maplibre";
 
 import arrow from "data-url:../history-arrow.png";
+import linePattern from "data-url:../line-pattern.png";
 import routeStopMarkerCircle from "data-url:../route-stop-marker-circle.png";
 import routeStopMarkerDarkCircle from "data-url:../route-stop-marker-dark-circle.png";
 import routeStopMarkerDark from "data-url:../route-stop-marker-dark.png";
@@ -23,11 +24,15 @@ import routeStopMarker from "data-url:../route-stop-marker.png";
 import stopMarkerCircle from "data-url:../stop-marker-circle.png";
 import stopMarker from "data-url:../stop-marker.png";
 import osmBright from "url:../osm_bright.json";
+// import maplibreWorkerUrl from "url:maplibre-gl/dist/maplibre-gl-worker.mjs";
 import type {
   Map as MapLibreMap,
   MapStyleImageMissingEvent,
+  // setWorkerUrl,
 } from "maplibre-gl";
 import { ErrorFallback } from "./LoadingSorry";
+
+// setWorkerUrl(maplibreWorkerUrl);
 
 const imagesByName: { [imageName: string]: string } = {
   "stop-marker": stopMarker,
@@ -37,6 +42,7 @@ const imagesByName: { [imageName: string]: string } = {
   "route-stop-marker-dark": routeStopMarkerDark,
   "route-stop-marker-dark-circle": routeStopMarkerDarkCircle,
   "history-arrow": arrow,
+  "line-pattern": linePattern,
 };
 
 const mapStyles: { [key: string]: string } = {

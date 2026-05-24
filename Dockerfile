@@ -2,7 +2,7 @@ FROM node:20-slim
 
 WORKDIR /app/
 
-COPY package.json package-lock.json /app/
+COPY package.json package-lock.json .npmrc /app/
 RUN npm ci
 
 COPY frontend /app/frontend

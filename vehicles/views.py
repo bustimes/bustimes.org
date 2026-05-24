@@ -12,7 +12,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.gis.geos import GEOSException
 from django.core.cache import cache
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, BadRequest
 from django.core.paginator import Paginator
 from django.db import IntegrityError, OperationalError, connection, transaction
 from django.db.models import Case, F, Max, OuterRef, Q, When, Value
@@ -362,63 +362,26 @@ def respond_conditionally(request, response):
     )
 
 
-def cachable_400():
-    response = HttpResponseBadRequest()
-    patch_cache_control(response, max_age=3600)
-    return response
+def get_vehicle_locations(
+    *,
+    vehicle_ids=None,
+    service_ids=None,
+    operator_ids=None,
+    trip_id=None,
+    stop_times=None,
+):
+    """Fetch live vehicle locations from Redis (and enrich with cached/db journey info).
 
+    Provide exactly one of vehicle_ids, service_ids, or operator_ids.
 
-@require_safe
-def vehicles_json(request) -> JsonResponse:
-    try:
-        bounds = get_bounding_box(request)
-    except KeyError:
-        bounds = None
-    except (GEOSException, ValueError):
-        return cachable_400()
-
-    vehicle_ids = None
+    `stop_times` (optional) is a pre-fetched list of StopTime objects for `trip_id`,
+    reused when computing progress/delay for the matching live vehicle.
+    """
     set_names = None
-    service_ids = None
-    operator_ids = None
-
-    if bounds is not None:
-        # ids of vehicles within box
-        xmin, ymin, xmax, ymax = bounds.extent
-
-        try:
-            # convert to kilometres (only for Redis to convert back to degrees)
-            width = haversine((ymin, xmax), (ymin, xmin))
-            height = haversine((ymin, xmax), (ymax, xmax))
-        except ValueError:
-            return cachable_400()
-
-        vehicle_ids = redis_client.geosearch(
-            "vehicle_location_locations",
-            longitude=str((xmax + xmin) / 2),
-            latitude=str((ymax + ymin) / 2),
-            unit="km",
-            width=str(width),
-            height=str(height),
-        )
-
-    elif "service" in request.GET:
-        try:
-            service_ids = [
-                int(service_id) for service_id in request.GET["service"].split(",")
-            ]
-        except ValueError:
-            return cachable_400()
+    if service_ids:
         set_names = [f"service{service_id}vehicles" for service_id in service_ids]
-    elif "operator" in request.GET:
-        operator_ids = request.GET["operator"].split(",")
+    elif operator_ids:
         set_names = [f"operator{operator_id}vehicles" for operator_id in operator_ids]
-    elif "id" in request.GET:
-        # specified vehicle ids
-        vehicle_ids = request.GET["id"].split(",")
-    else:
-        # ids of all vehicles
-        vehicle_ids = redis_client.zrange("vehicle_location_locations", 0, -1)
 
     if set_names:
         vehicle_ids = list(redis_client.sunion(set_names))
@@ -426,7 +389,7 @@ def vehicles_json(request) -> JsonResponse:
     try:
         vehicle_ids = [int(vehicle_id) for vehicle_id in vehicle_ids]
     except ValueError:
-        return cachable_400()
+        raise BadRequest
 
     vehicle_ids.sort()  # for etag stableness
 
@@ -473,13 +436,6 @@ def vehicles_json(request) -> JsonResponse:
         vehicles = {}
 
     locations = []
-
-    if trip := request.GET.get("trip"):
-        try:
-            trip = int(trip)
-        except ValueError:
-            return cachable_400()
-
     journeys_to_cache_later = {}
 
     for vehicle_id, item in zip(vehicle_ids, vehicle_locations):
@@ -510,12 +466,16 @@ def vehicles_json(request) -> JsonResponse:
                         )
                     item.update(journey)
 
+            matching_trip = trip_id is not None and item.get("trip_id") == trip_id
             if (
                 "progress" not in item
                 and "trip_id" in item
-                and (len(vehicle_ids) == 1 or trip and item["trip_id"] == trip)
+                and (len(vehicle_ids) == 1 or matching_trip)
             ):
-                add_progress_and_delay(item)
+                add_progress_and_delay(
+                    item,
+                    stop_times=stop_times if matching_trip else None,
+                )
 
         if (
             service_ids
@@ -530,6 +490,80 @@ def vehicles_json(request) -> JsonResponse:
 
     if journeys_to_cache_later:
         cache.set_many(journeys_to_cache_later, 3600)  # an hour
+
+    return locations
+
+
+def cachable_400():
+    response = HttpResponseBadRequest()
+    patch_cache_control(response, max_age=3600)
+    return response
+
+
+@require_safe
+def vehicles_json(request) -> JsonResponse:
+    try:
+        bounds = get_bounding_box(request)
+    except KeyError:
+        bounds = None
+    except (GEOSException, ValueError):
+        return cachable_400()
+
+    vehicle_ids = None
+    service_ids = None
+    operator_ids = None
+
+    if bounds is not None:
+        # ids of vehicles within box
+        xmin, ymin, xmax, ymax = bounds.extent
+
+        try:
+            # convert to kilometres (only for Redis to convert back to degrees)
+            width = haversine((ymin, xmax), (ymin, xmin))
+            height = haversine((ymin, xmax), (ymax, xmax))
+        except ValueError:
+            return cachable_400()
+
+        vehicle_ids = redis_client.geosearch(
+            "vehicle_location_locations",
+            longitude=str((xmax + xmin) / 2),
+            latitude=str((ymax + ymin) / 2),
+            unit="km",
+            width=str(width),
+            height=str(height),
+        )
+
+    elif "service" in request.GET:
+        try:
+            service_ids = [
+                int(service_id) for service_id in request.GET["service"].split(",")
+            ]
+        except ValueError:
+            return cachable_400()
+    elif "operator" in request.GET:
+        operator_ids = request.GET["operator"].split(",")
+    elif "id" in request.GET:
+        # specified vehicle ids
+        vehicle_ids = request.GET["id"].split(",")
+    else:
+        # ids of all vehicles
+        vehicle_ids = redis_client.zrange("vehicle_location_locations", 0, -1)
+
+    if trip_id := request.GET.get("trip"):
+        try:
+            trip_id = int(trip_id)
+        except ValueError:
+            return cachable_400()
+
+    try:
+        locations = get_vehicle_locations(
+            vehicle_ids=vehicle_ids,
+            service_ids=service_ids,
+            operator_ids=operator_ids,
+            trip_id=trip_id,
+        )
+    except BadRequest:
+        return cachable_400()
 
     response = JsonResponse(locations, safe=False)
 
@@ -623,7 +657,7 @@ def journeys_list(request, journeys, service=None, vehicle=None) -> dict:
     # "Track this bus" button
     if vehicle and vehicle.latest_journey_id:
         if redis_client and redis_client.get(f"vehicle{vehicle.id}"):
-            context["tracking"] = f"#journeys/{vehicle.latest_journey_id}"
+            context["tracking"] = f"/journeys/{vehicle.latest_journey_id}"
 
         # predict next workings
         if vehicle.latest_journey_id == journeys[-1].pk:

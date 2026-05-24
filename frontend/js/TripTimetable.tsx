@@ -1,5 +1,4 @@
 import React, { type ReactElement } from "react";
-import type { StopTime, VehicleJourney } from "./JourneyMap";
 import type { Vehicle } from "./VehicleMarker";
 
 export type TripTime = {
@@ -8,7 +7,6 @@ export type TripTime = {
     name: string;
     atco_code?: string;
     location?: [number, number];
-    icon?: string | null;
     bearing?: number | null;
   };
   track?: [number, number][] | null;
@@ -79,9 +77,6 @@ function Row({
   let className: string | undefined;
 
   let stopName: string | ReactElement = stop.stop.name;
-  if (stop.stop.icon) {
-    stopName = `${stopName} (${stop.stop.icon})`;
-  }
   if (stop.stop.atco_code) {
     const url = `/stops/${stop.stop.atco_code}`;
     if (url === highlightedStop) {
@@ -172,27 +167,6 @@ function Row({
     </React.Fragment>
   );
 }
-
-export const tripFromJourney = (journey: VehicleJourney): Trip | undefined => {
-  if (journey.stops) {
-    return {
-      times: journey.stops.map((stop, i: number) => {
-        return {
-          id: stop.id,
-          stop: {
-            atco_code: stop.atco_code,
-            name: stop.name,
-            location: stop.coordinates || undefined,
-          },
-          timing_status: stop.minor ? "OTH" : "PTP",
-          aimed_arrival_time: stop.aimed_arrival_time,
-          aimed_departure_time: stop.aimed_departure_time,
-          actual_departure_time: stop.actual_departure_time,
-        };
-      }),
-    };
-  }
-};
 
 const TripTimetable = React.memo(function TripTimetable({
   trip,
