@@ -616,7 +616,10 @@ export default function BigMap(
       return getBounds(trip.times, (time) => time.stop.location);
     }
     if (journey) {
-      const _bounds = getBounds(journey.times, (item) => item.stop.location);
+      const _bounds = getBounds(
+        journey.trip?.times,
+        (item) => item.stop.location,
+      );
       return getBounds(polylineLocations, (item) => item.coordinates, _bounds);
     }
   }, [trip, journey, polylineLocations]);
@@ -681,8 +684,6 @@ export default function BigMap(
         case MapMode.Journey:
           if (journey?.live && journey.vehicle?.id) {
             url = `?id=${journey.vehicle.id}`;
-          } else {
-            return;
           }
           break;
       }
@@ -759,6 +760,9 @@ export default function BigMap(
   );
 
   React.useEffect(() => {
+    if (vehiclesTimeout.current) {
+      clearTimeout(vehiclesTimeout.current);
+    }
     setAppendedLocations([]);
     if (props.tripId) {
       // trip mode
@@ -790,6 +794,7 @@ export default function BigMap(
             setJourney(journey);
             if (journey.live?.length) {
               // sort of duplicating `handleItems`
+              vehiclesHighWaterMark.current = null;
               const item = journey.live[0];
               setVehicles(journey.live);
               vehiclesLength.current = journey.live.length;
