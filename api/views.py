@@ -283,15 +283,15 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                 "id": instance.service_id,
                 "slug": instance.service.slug,
             }
-            if (
-                locations
-                and instance.vehicle_id
-                and instance.id == instance.vehicle.latest_journey_id
-            ):
-                extra_data["live"] = get_vehicle_locations(
-                    vehicle_ids=[instance.vehicle_id],
-                    stop_times=(instance.trip.stops if instance.trip else None),
-                )
+        if (
+            locations
+            and instance.vehicle_id
+            and instance.id == instance.vehicle.latest_journey_id
+        ):
+            extra_data["live"] = get_vehicle_locations(
+                vehicle_ids=[instance.vehicle_id],
+                stop_times=(instance.trip.stops if instance.trip else None),
+            )
 
         if not instance.trip and instance.vehicle.operator:
             extra_data["operator"] = {
