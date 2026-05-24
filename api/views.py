@@ -261,7 +261,6 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
             if locations and instance.vehicle_id:
                 extra_data["live"] = get_vehicle_locations(
                     vehicle_ids=[instance.vehicle_id],
-                    trip_id=instance.trip_id,
                     stop_times=(instance.trip.stops if instance.trip else None),
                 )
 

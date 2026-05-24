@@ -591,11 +591,6 @@ export default function BigMap(
     [polylineLocations, appendedLocations],
   );
 
-  const journeyIsCurrent = useMemo(() => {
-    if (!journey) return false;
-    return Date.now() - new Date(journey.datetime).getTime() < 4 * 3600 * 1000;
-  }, [journey]);
-
   // extend the trail as the bus moves
   useEffect(() => {
     if (props.mode !== MapMode.Journey || !tripVehicle) return;
@@ -651,7 +646,7 @@ export default function BigMap(
   const [loadingBuses, setLoadingBuses] = React.useState(true);
 
   const loadVehicles = React.useCallback(
-    (first = false, prefetched?: VehicleLocation[]) => {
+    (first = false) => {
       if (!first && document.hidden) {
         return;
       }
@@ -684,17 +679,10 @@ export default function BigMap(
           }
           break;
         case MapMode.Journey:
-          if (!journeyIsCurrent) {
-            // historic journey — don't poll for live vehicles
-            return;
-          }
-          if (journey?.service?.id) {
-            url = `?service=${journey.service.id}`;
-            if (journey.trip_id) {
-              url += `&trip=${journey.trip_id}`;
-            }
-          } else if (journey?.vehicle?.id) {
+          if (journey?.live && journey.vehicle?.id) {
             url = `?id=${journey.vehicle.id}`;
+          } else {
+            return;
           }
           break;
       }
@@ -736,14 +724,6 @@ export default function BigMap(
         }
       };
 
-      if (prefetched) {
-        handleItems(prefetched);
-        if (!document.hidden) {
-          vehiclesTimeout.current = window.setTimeout(loadVehicles, 12000);
-        }
-        return;
-      }
-
       setLoadingBuses(true);
 
       vehiclesAbortController.current = new AbortController();
@@ -775,7 +755,7 @@ export default function BigMap(
           // setLoadingBuses(false);
         });
     },
-    [props.mode, props.noc, trip, journey, journeyIsCurrent, props.vehicleId],
+    [props.mode, props.noc, trip, journey, props.vehicleId],
   );
 
   React.useEffect(() => {
@@ -800,14 +780,22 @@ export default function BigMap(
     } else if (props.journeyId) {
       // journey mode
       if (journey?.id?.toString() === props.journeyId) {
-        if (journeyIsCurrent) {
-          loadVehicles(true, journey.live);
+        if (!document.hidden) {
+          vehiclesTimeout.current = window.setTimeout(loadVehicles, 12000); // 12 seconds
         }
       } else {
         setTrip(undefined);
         fetchJson(`api/vehiclejourneys/${props.journeyId}/details/`).then(
           (journey: VehicleJourney) => {
-            setJourney({ ...journey, id: props.journeyId });
+            setJourney(journey);
+            if (journey.live?.length) {
+              // sort of duplicating `handleItems`
+              const item = journey.live[0];
+              setVehicles(journey.live);
+              vehiclesLength.current = journey.live.length;
+              setClickedVehicleMarker(item.id);
+              setTripVehicle(item);
+            }
           },
         );
       }
@@ -826,7 +814,6 @@ export default function BigMap(
     props.vehicleId,
     props.journeyId,
     journey,
-    journeyIsCurrent,
     loadVehicles,
   ]);
 

@@ -112,7 +112,7 @@ export const Locations = React.memo(function Locations({
   const routeStyle: LayerProps = {
     type: "line",
     paint: {
-      "line-color": darkMode ? "#eee" : "#54c",
+      "line-color": "#54c",
       "line-width": 4,
     },
   };
