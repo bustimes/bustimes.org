@@ -404,19 +404,6 @@ function TripSidebar(props: {
   );
 }
 
-const cameFromVehiclesPage = (() => {
-  if (typeof document === "undefined" || !document.referrer) return false;
-  try {
-    const url = new URL(document.referrer);
-    return (
-      url.origin === window.location.origin &&
-      url.pathname.startsWith("/vehicles/")
-    );
-  } catch {
-    return false;
-  }
-})();
-
 function JourneySidebar(props: {
   journey: VehicleJourney;
   journeyId: string;
@@ -427,8 +414,7 @@ function JourneySidebar(props: {
 
   const journey = props.journey;
 
-  const showNavigation =
-    cameFromVehiclesPage && (journey.previous || journey.next);
+  const showNavigation = journey.previous || journey.next;
 
   const _operator = journey.operator || journey.trip?.operator;
   let operator: ReactElement | undefined;
