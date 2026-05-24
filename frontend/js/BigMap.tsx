@@ -812,15 +812,15 @@ export default function BigMap(
         fetchJson(`api/vehiclejourneys/${props.journeyId}/details/`).then(
           (journey: VehicleJourney) => {
             setJourney(journey);
-            if (journey.live?.length) {
-              // sort of duplicating `handleItems`
-              vehiclesHighWaterMark.current = null;
-              const item = journey.live[0];
-              setVehicles(journey.live);
-              vehiclesLength.current = journey.live.length;
-              setClickedVehicleMarker(item.id);
-              setTripVehicle(item);
+            const item = journey.live?.length ? journey.live[0] : null;
+            // sort of duplicating `handleItems`
+            vehiclesHighWaterMark.current = null;
+            setVehicles(journey.live);
+            vehiclesLength.current = journey.live?.length || 0;
+            if (item) {
+              setClickedVehicleMarker(item?.id);
             }
+            setTripVehicle(item);
           },
         );
       }
