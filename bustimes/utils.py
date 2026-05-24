@@ -74,7 +74,10 @@ def get_routes(routes, when):
             ),
         ).order_by("id")
 
-    # complicated way of working out which Passenger .zip applies
+    # complicated way of working out which Passenger .zip applies.
+    # When multiple versions share the same start_date, prefer the one with the
+    # greater name - filenames are like 'lynxbus_<unix-timestamp>.zip' so this
+    # picks the most recently published.
     routes = routes.filter(
         Q(version=None)
         | Q(
@@ -83,7 +86,12 @@ def get_routes(routes, when):
                     source=OuterRef("version__source"),
                     start_date__lte=when,
                     end_date__gte=when,
-                    start_date__gt=OuterRef("version__start_date"),
+                ).filter(
+                    Q(start_date__gt=OuterRef("version__start_date"))
+                    | Q(
+                        start_date=OuterRef("version__start_date"),
+                        name__gt=OuterRef("version__name"),
+                    )
                 )
             ),
             version__start_date__lte=when,

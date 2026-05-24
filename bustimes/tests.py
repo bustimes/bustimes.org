@@ -441,6 +441,32 @@ class BusTimesTest(TestCase):
         self.assertQuerySetEqual(get_routes(routes, date(2024, 5, 6)), [routes[0]])
         self.assertQuerySetEqual(get_routes(routes, date(2024, 5, 14)), [routes[1]])
 
+        # two versions covering the same dates - the one with the higher
+        # timestamp in its name wins (most recently published .zip)
+        extra_versions = Version.objects.bulk_create(
+            [
+                Version(
+                    source=tds,
+                    name="mcgills_1714389999.zip",
+                    start_date=date(2024, 4, 29),
+                    end_date=date(2025, 4, 30),
+                ),
+            ]
+        )
+        extra_routes = Route.objects.bulk_create(
+            [
+                Route(
+                    version=extra_versions[0],
+                    code="mcgills_1714389999.zip/foo.xml",
+                    source=ds,
+                    line_name="3",
+                ),
+            ]
+        )
+        self.assertQuerySetEqual(
+            get_routes(routes + extra_routes, date(2024, 4, 29)), [extra_routes[0]]
+        )
+
     def test_garage(self):
         garage = Garage(code="LOW", name="LOWESTOFT TOWN")
         self.assertEqual(str(garage), "Lowestoft Town")
