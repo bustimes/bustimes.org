@@ -56,9 +56,16 @@ class NaptanTest(TestCase):
                     self.assertNumQueries(25),
                     self.assertLogs(
                         "busstops.management.commands.naptan_new", "WARNING"
-                    ),
+                    ) as cm,
                 ):
                     call_command("naptan_new")
+                self.assertEqual(
+                    cm.output,
+                    [
+                        "WARNING:busstops.management.commands.naptan_new:"
+                        "9100BRNYARM locality E0017806 does not exist"
+                    ],
+                )
 
                 source = DataSource.objects.get(name="NaPTAN")
                 self.assertEqual(str(source.datetime), "2022-01-19 12:56:29+00:00")
@@ -81,8 +88,20 @@ class NaptanTest(TestCase):
                 source.datetime = None
                 source.save()
 
-                with self.assertNumQueries(11):
+                with (
+                    self.assertNumQueries(11),
+                    self.assertLogs(
+                        "busstops.management.commands.naptan_new", "WARNING"
+                    ) as cm,
+                ):
                     call_command("naptan_new")
+                self.assertEqual(
+                    cm.output,
+                    [
+                        "WARNING:busstops.management.commands.naptan_new:"
+                        "9100BRNYARM locality E0017806 does not exist"
+                    ],
+                )
 
                 source = DataSource.objects.get(name="NaPTAN")
                 self.assertEqual(str(source.datetime), "2022-01-19 12:56:29+00:00")
