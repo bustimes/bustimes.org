@@ -936,7 +936,7 @@ class Command(BaseCommand):
                     trip.operator
                     and trip.block[:1] == "B"
                     and trip.block < "B99"
-                    and trip.operator.noc in ("SNDR", "OBUS")
+                    and trip.operator.noc in ("SNDR", "OBUS", "LYNX")
                 ):
                     trip.block = None
             elif (
