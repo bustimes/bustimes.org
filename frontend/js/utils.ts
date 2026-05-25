@@ -63,4 +63,5 @@ export function getBounds<T>(
     }, bounds);
     return bounds;
   }
+  return initialBounds;
 }
