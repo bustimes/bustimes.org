@@ -429,13 +429,18 @@ function JourneySidebar(props: {
   let service: ReactElement | undefined;
   if (journey.service) {
     service = (
-      <li>
-        <a
-          href={`/services/${journey.service.slug}/vehicles?date=${journey.date}#journey-${journey.id}`}
-        >
-          {journey.route_name}
-        </a>
-      </li>
+      <>
+        <li>
+          <a href={`/services/${journey.service.slug}?date=${journey.date}`}>
+            {journey.route_name}
+          </a>
+        </li>
+        {journey.trip_id ? (
+          <li>
+            <Link to={`/trips/${journey.trip_id}`}>Map</Link>
+          </li>
+        ) : null}
+      </>
     );
   } else if (journey.operator) {
     service = (
