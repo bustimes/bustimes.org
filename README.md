@@ -44,7 +44,7 @@
 | busstops/management/commands/update\_slugs.py                   |       20 |       20 |      0% |      1-29 |
 | busstops/management/tests/\_\_init\_\_.py                       |        0 |        0 |    100% |           |
 | busstops/management/tests/test\_import\_ie.py                   |       63 |        0 |    100% |           |
-| busstops/management/tests/test\_import\_naptan.py               |       73 |        0 |    100% |           |
+| busstops/management/tests/test\_import\_naptan.py               |       75 |        0 |    100% |           |
 | busstops/management/tests/test\_import\_nptg.py                 |       31 |        0 |    100% |           |
 | busstops/management/tests/test\_import\_operators.py            |       70 |        0 |    100% |           |
 | busstops/middleware.py                                          |       31 |        1 |     97% |        29 |
@@ -137,7 +137,7 @@
 | photos/models.py                                                |       19 |        1 |     95% |        38 |
 | photos/utils.py                                                 |       25 |       18 |     28% |10-12, 16-43 |
 | vehicles/\_\_init\_\_.py                                        |        0 |        0 |    100% |           |
-| vehicles/admin.py                                               |      258 |       14 |     95% |34, 194-195, 294, 300, 302, 304, 307, 352, 358, 462, 522-524 |
+| vehicles/admin.py                                               |      263 |       14 |     95% |35, 205-206, 305, 311, 313, 315, 318, 363, 369, 473, 533-535 |
 | vehicles/apps.py                                                |        6 |        0 |    100% |           |
 | vehicles/context\_processors.py                                 |       14 |        0 |    100% |           |
 | vehicles/fields.py                                              |       23 |        0 |    100% |           |
@@ -147,7 +147,7 @@
 | vehicles/management/\_\_init\_\_.py                             |        0 |        0 |    100% |           |
 | vehicles/management/commands/\_\_init\_\_.py                    |        0 |        0 |    100% |           |
 | vehicles/management/commands/compute\_blocks.py                 |       27 |       27 |      0% |      1-45 |
-| vehicles/management/commands/import\_bod\_avl.py                |      429 |       64 |     85% |47-49, 149, 165, 175-176, 196, 223-226, 229-232, 275, 291, 306-307, 329-347, 398, 400, 406, 429-430, 437, 459, 501-514, 539-540, 546, 562-563, 578, 631, 644, 698-702, 739, 756 |
+| vehicles/management/commands/import\_bod\_avl.py                |      432 |       64 |     85% |47-49, 149, 165, 175-176, 196, 223-226, 229-232, 275, 291, 306-307, 329-347, 398, 400, 406, 429-430, 437, 461, 503-516, 541-542, 548, 564-565, 580, 633, 646, 700-704, 741, 758 |
 | vehicles/management/commands/import\_bushub.py                  |       83 |       18 |     78% |25-26, 30-31, 34-35, 39, 43, 51, 68, 83-84, 92, 102, 120, 128, 135, 153 |
 | vehicles/management/commands/import\_first.py                   |      123 |       21 |     83% |27, 31, 51, 53, 74-75, 81, 103-104, 113, 135-147, 152, 211-212, 214 |
 | vehicles/management/commands/import\_gtfsr\_ember.py            |       51 |        0 |    100% |           |
@@ -175,12 +175,12 @@
 | vehicles/management/tests/test\_stats.py                        |       24 |        0 |    100% |           |
 | vehicles/management/tests/test\_translink\_avl.py               |       22 |        0 |    100% |           |
 | vehicles/models.py                                              |      518 |       35 |     93% |75, 193, 218, 285, 304, 310, 382, 388, 439, 460, 581-582, 595, 603, 620-622, 630-631, 634-635, 637-642, 647-648, 679, 764-767, 823, 832, 858 |
-| vehicles/rtpi.py                                                |      119 |       12 |     90% |38, 71, 80, 86, 100, 115, 126-127, 133-135, 194 |
+| vehicles/rtpi.py                                                |      119 |       13 |     89% |38, 71, 80, 86, 100, 115, 126-127, 133-135, 194, 197 |
 | vehicles/signals.py                                             |       11 |        0 |    100% |           |
 | vehicles/tasks.py                                               |      163 |       36 |     78% |97, 102, 113, 120-123, 126, 143, 156, 160-161, 183, 208, 216-217, 225, 288-289, 292, 313-333 |
 | vehicles/test\_models.py                                        |       62 |        0 |    100% |           |
 | vehicles/test\_schedule\_adherence.py                           |       80 |        0 |    100% |           |
-| vehicles/tests.py                                               |      481 |        0 |    100% |           |
+| vehicles/tests.py                                               |      484 |        0 |    100% |           |
 | vehicles/time\_aware\_polyline.py                               |       56 |       28 |     50% |18, 36, 49, 54, 57, 87-98, 106-120 |
 | vehicles/urls.py                                                |        4 |        0 |    100% |           |
 | vehicles/utils.py                                               |      128 |        6 |     95% |29, 59, 162, 174-175, 179 |
@@ -193,7 +193,7 @@
 | vosa/tests.py                                                   |       61 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
 | vosa/views.py                                                   |       59 |        0 |    100% |           |
-| **TOTAL**                                                       | **17148** | **1325** | **92%** |           |
+| **TOTAL**                                                       | **17161** | **1326** | **92%** |           |
 
 
 ## Setup coverage badge
