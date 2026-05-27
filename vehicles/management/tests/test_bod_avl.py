@@ -397,7 +397,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
 
             self.assertContains(
                 response,
-                '<a href="/services/u/vehicles?date=2020-10-15" rel="nofollow">UU</a>',
+                '<a href="/services/u/vehicles?date=2020-10-16" rel="nofollow">UU</a>',
             )
             self.assertContains(
                 response, f"""<a href="/journeys/{whippet_journey.id}">09:23</a>"""
@@ -405,7 +405,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             self.assertContains(response, "<p>Great Yarmouth</p>")  # garage
 
             with self.assertNumQueries(5):
-                response = self.client.get("/services/u/vehicles?date=2020-10-15")
+                response = self.client.get("/services/u/vehicles?date=2020-10-16")
             self.assertContains(response, "<p>Great Yarmouth</p>")  # garage
 
             response = self.client.get("/operators/whip/debug")
