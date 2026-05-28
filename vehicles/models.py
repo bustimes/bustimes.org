@@ -119,7 +119,7 @@ class VehicleType(models.Model):
 
 class Livery(models.Model):
     name = models.CharField(max_length=255, db_index=True)
-    show_name = models.BooleanField(default=True)
+    show_name = models.BooleanField(default=True, help_text="If branding is present, show livery name?")
     colour = ColourField(
         max_length=7, help_text="For the most simplified version of the livery"
     )

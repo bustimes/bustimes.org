@@ -220,7 +220,8 @@ def operator_vehicles(request, slug=None, group_slug=None):
         }
 
     vehicles = vehicles.annotate(
-        livery_name=Case(When(livery__show_name=True, then="livery__name")),
+        livery_name=F("livery__name"),
+        show_livery_name=F("livery__show_name"),
         vehicle_type_name=F("vehicle_type__name"),
         garage_name=Case(
             When(garage__name="", then="garage__code"),

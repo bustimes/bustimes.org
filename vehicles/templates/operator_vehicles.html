@@ -107,11 +107,11 @@ ticket machines, a byproduct of the live bus tracking.</p>
                         {{ vehicle.last_seen.when|date:"j M Y" }}
                     {% endif %}
                 </td>{% endif %}
-                <td{% if vehicle.colours or vehicle.livery_id %} class="livery-cell"{% endif %}{% if branding_column %}{% if not vehicle.branding or not vehicle.livery_name %} colspan="2"{% endif %}{% endif %}>
+                <td{% if vehicle.colours or vehicle.livery_id %} class="livery-cell" {% endif %}{% if branding_column %}{% if not vehicle.branding or not vehicle.show_livery_name %} colspan="2"{% endif %}{% endif %}>
                     {% if vehicle.colours or vehicle.livery_id %}<div class="livery{% if vehicle.livery_id %} livery-{{ vehicle.livery_id }}{% else %}" style="background:{{ vehicle.get_livery }}{% endif %}"></div>{% endif %}
-                    {% if vehicle.livery_name %}{{ vehicle.livery_name }}{% else %}{{ vehicle.branding }}{% endif %}
+                    {% if vehicle.livery_name and vehicle.show_livery_name or vehicle.livery_name and not vehicle.branding %}{{ vehicle.livery_name }}{% else %}{{ vehicle.branding }}{% endif %}
                 </td>
-                {% if vehicle.branding and vehicle.livery_name %}<td>{{ vehicle.branding }}</td>{% endif %}
+                {% if vehicle.branding and vehicle.show_livery_name %}<td>{{ vehicle.branding }}</td>{% endif %}
                 <td>{% if vehicle.is_spare_ticket_machine %}{{ vehicle.notes }}{% else %}{{ vehicle.vehicle_type_name|default:"" }}{% endif %}</td>
                 {% if name_column %}<td class="trivia">{{ vehicle.name }}</td>{% endif %}
                 {% if notes_column %}<td class="trivia">{% if not vehicle.is_spare_ticket_machine %}{{ vehicle.notes }}{% endif %}</td>{% endif %}

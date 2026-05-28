@@ -12,7 +12,7 @@
         {% endif %}
         <div class="livery" style="background:{{ vehicle.get_livery }}"></div>
         {% if vehicle.livery and perms.vehicles.change_livery %}</a>{% endif %}
-        {% if vehicle.livery.show_name %}{{ vehicle.livery.name }}{% endif %}
+        {% if vehicle.livery.show_name or not vehicle.branding %}{{ vehicle.livery.name }}{% endif %}
             </dd>
         </div>
     {% endif %}
