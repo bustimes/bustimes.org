@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_a23ebd71efc9294f_middleware_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
-            created at 2026-05-28 14:31 +0000
+            created at 2026-05-28 14:34 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -143,7 +143,7 @@
     <p class="run run2"><span class="n"><a id="t61" href="#t61">61</a></span><span class="t">                <span class="nam">return_value</span><span class="op">=</span><span class="nam">mock_overrides</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t62" href="#t62">62</a></span><span class="t">            <span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t63" href="#t63">63</a></span><span class="t">        <span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t64" href="#t64">64</a></span><span class="t">            <span class="key">with</span> <span class="nam">self</span><span class="op">.</span><span class="nam">assertNumQueries</span><span class="op">(</span><span class="num">3163</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t64" href="#t64">64</a></span><span class="t">            <span class="key">with</span> <span class="nam">self</span><span class="op">.</span><span class="nam">assertNumQueries</span><span class="op">(</span><span class="num">147</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t65" href="#t65">65</a></span><span class="t">                <span class="nam">call_command</span><span class="op">(</span><span class="str">"import_noc"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t66" href="#t66">66</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t67" href="#t67">67</a></span><span class="t">            <span class="nam">cassette</span><span class="op">.</span><span class="nam">rewind</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -164,7 +164,7 @@
     <p class="run"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">            <span class="key">with</span> <span class="nam">self</span><span class="op">.</span><span class="nam">assertNumQueries</span><span class="op">(</span><span class="num">21</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">                <span class="nam">call_command</span><span class="op">(</span><span class="str">"import_noc"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertEqual</span><span class="op">(</span><span class="nam">Operator</span><span class="op">.</span><span class="nam">objects</span><span class="op">.</span><span class="nam">count</span><span class="op">(</span><span class="op">)</span><span class="op">,</span> <span class="num">3105</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertEqual</span><span class="op">(</span><span class="nam">Operator</span><span class="op">.</span><span class="nam">objects</span><span class="op">.</span><span class="nam">count</span><span class="op">(</span><span class="op">)</span><span class="op">,</span> <span class="num">89</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t86" href="#t86">86</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">        <span class="nam">c2c</span> <span class="op">=</span> <span class="nam">Operator</span><span class="op">.</span><span class="nam">objects</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">noc</span><span class="op">=</span><span class="str">"CC"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">assertEqual</span><span class="op">(</span><span class="nam">c2c</span><span class="op">.</span><span class="nam">name</span><span class="op">,</span> <span class="str">"c2c"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -217,7 +217,7 @@
             <a class="nav" href="z_a23ebd71efc9294f_middleware_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
-            created at 2026-05-28 14:31 +0000
+            created at 2026-05-28 14:34 +0000
         </p>
     </div>
 </footer>

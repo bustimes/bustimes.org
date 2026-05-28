@@ -32,7 +32,7 @@
 | busstops/forms.py                                               |       46 |        0 |    100% |           |
 | busstops/management/\_\_init\_\_.py                             |        0 |        0 |    100% |           |
 | busstops/management/commands/\_\_init\_\_.py                    |        0 |        0 |    100% |           |
-| busstops/management/commands/import\_noc.py                     |      131 |        4 |     97% |156, 177, 184, 246 |
+| busstops/management/commands/import\_noc.py                     |      131 |        5 |     96% |34, 156, 177, 184, 246 |
 | busstops/management/commands/import\_tfl.py                     |       67 |       67 |      0% |     1-127 |
 | busstops/management/commands/jersey\_routes.py                  |       14 |        0 |    100% |           |
 | busstops/management/commands/jersey\_stops.py                   |       12 |        0 |    100% |           |
@@ -160,7 +160,7 @@
 | vehicles/management/commands/newport.py                         |       44 |        2 |     95% |    46, 62 |
 | vehicles/management/commands/signalr.py                         |       82 |        0 |    100% |           |
 | vehicles/management/commands/siri\_vm\_subscribe.py             |       43 |        2 |     95% |    41, 49 |
-| vehicles/management/import\_live\_vehicles.py                   |      308 |       33 |     89% |85, 98-116, 128, 138-140, 142, 172, 190, 199-202, 242, 247, 259-260, 309-310, 334, 351, 354-355, 376-377, 479, 517-518, 529, 549 |
+| vehicles/management/import\_live\_vehicles.py                   |      308 |       34 |     89% |85, 98-116, 128, 138-140, 142, 172, 190, 199-202, 242, 247, 259-260, 309-310, 334, 351, 354-355, 376-377, 454, 479, 517-518, 529, 549 |
 | vehicles/management/tests/\_\_init\_\_.py                       |        0 |        0 |    100% |           |
 | vehicles/management/tests/test\_bod\_avl.py                     |      323 |        0 |    100% |           |
 | vehicles/management/tests/test\_bushub.py                       |       48 |        0 |    100% |           |
@@ -193,7 +193,7 @@
 | vosa/tests.py                                                   |       61 |        0 |    100% |           |
 | vosa/urls.py                                                    |        3 |        0 |    100% |           |
 | vosa/views.py                                                   |       59 |        0 |    100% |           |
-| **TOTAL**                                                       | **17161** | **1326** | **92%** |           |
+| **TOTAL**                                                       | **17161** | **1328** | **92%** |           |
 
 
 ## Setup coverage badge
