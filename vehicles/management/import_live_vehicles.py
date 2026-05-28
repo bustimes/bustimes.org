@@ -22,6 +22,7 @@ from tenacity import before_sleep_log, retry, wait_exponential
 from busstops.models import DataSource
 from bustimes.models import Route, Trip
 
+from ..journey_history import append_journey_history
 from ..models import Vehicle, VehicleJourney, VehicleCode
 from ..utils import calculate_bearing, redis_client
 
@@ -368,13 +369,6 @@ class ImportLiveVehiclesCommand(BaseCommand):
         for key in sadd:
             pipeline.sadd(key, *sadd[key])
 
-        if self.history:
-            # add locations to journey history
-
-            for location, vehicle in self.to_save:
-                if location.latlong:
-                    pipeline.rpush(*location.get_appendage())
-
         try:
             pipeline.execute()
         except ConnectionError as e:
@@ -390,6 +384,28 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     "items": items,
                 },
             )
+
+        if self.history:
+            # batch points per journey and APPEND each to its polyline
+            by_journey: dict[bytes, list] = {}
+            for location, vehicle in self.to_save:
+                if not location.latlong:
+                    continue
+                uuid_bytes = location.journey.get_redis_key()
+                by_journey.setdefault(uuid_bytes, []).append(
+                    [
+                        location.latlong.x,
+                        location.latlong.y,
+                        round(location.datetime.timestamp()),
+                    ]
+                )
+            for uuid_bytes, points in by_journey.items():
+                points.sort(key=lambda p: p[2])
+                try:
+                    append_journey_history(redis_client, uuid_bytes, points)
+                except ConnectionError as e:
+                    logger.exception(e)
+                    break
 
         self.to_save = []
 

@@ -486,17 +486,17 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                 "locations": [
                     {
                         "id": 1606568305,
-                        "coordinates": [1.296442985534668, 52.62268829345703],
+                        "coordinates": [1.29644, 52.62269],
                         "datetime": "2020-11-28T12:58:25Z",
                         "delta": None,
                         "direction": None,
                     },
                     {
                         "id": 1606576026,
-                        "coordinates": [1.675892949104309, 52.328399658203125],
+                        "coordinates": [1.67589, 52.3284],
                         "datetime": "2020-11-28T15:07:06Z",
                         "delta": None,
-                        "direction": 142,
+                        "direction": None,
                     },
                 ],
             },

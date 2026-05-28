@@ -11,7 +11,13 @@ from django.utils import timezone
 
 import numpy as np
 
-from vehicles.time_aware_polyline import encode_time_aware_polyline
+import datetime
+
+from vehicles.journey_history import history_key
+from vehicles.time_aware_polyline import (
+    decode_time_aware_polyline,
+    encode_time_aware_polyline,
+)
 
 from busstops.models import Operator, Service, StopPoint
 from bustimes.models import StopTime, Trip
@@ -20,7 +26,6 @@ from vehicles.models import (
     Livery,
     Vehicle,
     VehicleJourney,
-    VehicleLocation,
     VehicleType,
 )
 from vehicles.utils import redis_client
@@ -230,9 +235,22 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
 
         locations = []
         if redis_client:
-            raw_locations = redis_client.lrange(instance.get_redis_key(), 0, -1)
-            locations = [VehicleLocation.decode_appendage(loc) for loc in raw_locations]
-            locations.sort(key=lambda loc: loc["datetime"])
+            raw_polyline = redis_client.get(history_key(instance.get_redis_key()))
+            if raw_polyline:
+                if isinstance(raw_polyline, bytes):
+                    raw_polyline = raw_polyline.decode("ascii")
+                locations = [
+                    {
+                        "id": ts,
+                        "coordinates": [lng, lat],
+                        "datetime": timezone.localtime(
+                            datetime.datetime.fromtimestamp(ts, datetime.timezone.utc)
+                        ),
+                        "direction": None,
+                    }
+                    for lng, lat, ts in decode_time_aware_polyline(raw_polyline)
+                ]
+                locations.sort(key=lambda loc: loc["datetime"])
 
             filtered = []
             stationary = False

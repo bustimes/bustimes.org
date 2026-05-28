@@ -51,7 +51,8 @@ from busstops.models import (
 )
 from departures import avl, gtfsr, live
 from vehicles.forms import DateForm
-from vehicles.models import Vehicle, VehicleJourney, VehicleLocation
+from vehicles.journey_history import read_journey_history
+from vehicles.models import Vehicle, VehicleJourney
 from vehicles.rtpi import add_progress_and_delay
 from vehicles.utils import redis_client
 
@@ -155,20 +156,9 @@ def snap(request, trip_id=None, journey_id=None):
     )
 
     if journey:
-        locations = redis_client.lrange(journey.get_redis_key(), 0, -1)
-
-        locations = [
-            VehicleLocation.decode_appendage(location) for location in locations
-        ]
-        locations.sort(key=lambda location: location["datetime"])
-        points = [
-            {
-                "lon": location["coordinates"][0],
-                "lat": location["coordinates"][1],
-                "time": location["datetime"].timestamp(),
-            }
-            for location in locations
-        ]
+        history = read_journey_history(redis_client, journey.get_redis_key())
+        history.sort(key=lambda p: p[2])
+        points = [{"lon": lng, "lat": lat, "time": ts} for lng, lat, ts in history]
 
     # if not trip - calculate using time and first loca
     else:

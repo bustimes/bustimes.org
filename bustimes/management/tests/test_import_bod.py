@@ -6,7 +6,6 @@ from unittest.mock import patch, ANY
 
 import fakeredis
 import time_machine
-from django.contrib.gis.geos import Point
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from vcr import use_cassette
@@ -23,7 +22,8 @@ from busstops.models import (
     StopArea,
     StopPoint,
 )
-from vehicles.models import VehicleJourney, VehicleLocation
+from vehicles.journey_history import append_journey_history
+from vehicles.models import VehicleJourney
 
 from ...models import (
     BankHoliday,
@@ -347,13 +347,12 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
             self.assertNotIn("locations", json)
 
             # journey locations but no stop locations
-            location = VehicleLocation(Point(0.23, 52.729))
-            location.journey = journey
-            location.datetime = datetime.datetime.fromisoformat(
-                "2019-05-29T13:03:34+01:00"
+            ts = int(
+                datetime.datetime.fromisoformat("2019-05-29T13:03:34+01:00").timestamp()
             )
-
-            fake_redis.rpush(*location.get_appendage())
+            append_journey_history(
+                fake_redis, journey.get_redis_key(), [[0.23, 52.729, ts]]
+            )
 
             response = self.client.get(
                 f"/services/{journey.service_id}/journeys/{journey.id}.json"

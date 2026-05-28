@@ -52,13 +52,13 @@ from photos.forms import PhotoForm
 from photos.utils import add_flickr_photo
 
 from . import filters, forms
+from .journey_history import history_key, read_journey_history
 from .management.commands import import_bod_avl
 from .models import (
     Livery,
     SiriSubscription,
     Vehicle,
     VehicleJourney,
-    VehicleLocation,
     VehicleRevision,
     VehicleRevisionFeature,
 )
@@ -645,7 +645,7 @@ def journeys_list(request, journeys, service=None, vehicle=None) -> dict:
         try:
             pipe = redis_client.pipeline(transaction=False)
             for journey in journeys:
-                pipe.exists(journey.get_redis_key())
+                pipe.exists(history_key(journey.get_redis_key()))
 
             locations = pipe.execute()
         except (ConnectionError, AttributeError):
@@ -1070,13 +1070,22 @@ def journey_json(request, pk, vehicle_id=None, service_id=None):
     }
 
     if redis_client:
-        locations = redis_client and redis_client.lrange(journey.get_redis_key(), 0, -1)
+        polyline_points = read_journey_history(redis_client, journey.get_redis_key())
     else:
-        locations = None
+        polyline_points = None
 
-    if locations:
+    if polyline_points:
         locations = [
-            VehicleLocation.decode_appendage(location) for location in locations
+            {
+                "id": ts,
+                "coordinates": [lng, lat],
+                "delta": None,
+                "direction": None,
+                "datetime": timezone.localtime(
+                    datetime.datetime.fromtimestamp(ts, datetime.timezone.utc)
+                ),
+            }
+            for lng, lat, ts in polyline_points
         ]
         locations.sort(key=lambda location: location["datetime"])
 
