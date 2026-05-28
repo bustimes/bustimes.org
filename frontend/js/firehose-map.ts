@@ -2,9 +2,9 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import busIconUrl from "data-url:../bus-droplet.png";
-import maplibreWorkerUrl from "url:maplibre-gl/dist/maplibre-gl-worker.mjs";
+// import maplibreWorkerUrl from "url:maplibre-gl/dist/maplibre-gl-worker.mjs";
 
-maplibregl.setWorkerUrl(maplibreWorkerUrl);
+// maplibregl.setWorkerUrl(maplibreWorkerUrl);
 
 type View = { zoom: number; center: [number, number] };
 
