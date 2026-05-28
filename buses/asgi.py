@@ -1,8 +1,8 @@
 import os
-from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.routing import ChannelNameRouter, ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
 from django.urls import path
-from vehicles.consumers import VehicleLocationConsumer
+from vehicles.consumers import JourneyHistoryWriter, VehicleLocationConsumer
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "buses.settings")
 
@@ -17,6 +17,11 @@ application = ProtocolTypeRouter(
             [
                 path("firehose", VehicleLocationConsumer.as_asgi()),
             ]
+        ),
+        "channel": ChannelNameRouter(
+            {
+                "history-writer": JourneyHistoryWriter.as_asgi(),
+            }
         ),
     }
 )
