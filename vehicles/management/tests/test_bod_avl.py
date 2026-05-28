@@ -404,7 +404,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             )
             self.assertContains(response, "<p>Great Yarmouth</p>")  # garage
 
-            with self.assertNumQueries(5):
+            with self.assertNumQueries(4):
                 response = self.client.get("/services/u/vehicles?date=2020-10-16")
             self.assertContains(response, "<p>Great Yarmouth</p>")  # garage
 

@@ -1010,11 +1010,11 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
             self.client.get("/vehicles")
 
     def test_service_vehicle_history(self):
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(5):
             response = self.client.get(
                 "/services/spixworth-hunworth-happisburgh/vehicles?date=poop"
             )
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             response = self.client.get(
                 "/services/spixworth-hunworth-happisburgh/vehicles?date=2020-10-20"
             )
