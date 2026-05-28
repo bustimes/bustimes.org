@@ -817,6 +817,12 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
             response = self.client.get("/vehicles/edits?operator=LYNX&status=pending")
         self.assertEqual(len(response.context["revisions"]), 1)
 
+        with self.assertNumQueries(7):
+            response = self.client.get(
+                "/vehicles/edits?operator=lynx&status=pending"
+            )  # test lowercase opcode
+        self.assertEqual(len(response.context["revisions"]), 1)
+
         self.client.force_login(self.staff_user)
 
         revision = VehicleRevision.objects.last()
