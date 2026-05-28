@@ -182,6 +182,7 @@ link to a picture to prove it. Be polite.""",
 
         if vehicle.is_spare_ticket_machine():
             del self.fields["notes"]
+            del self.fields["operator"]
             if not vehicle.fleet_code:
                 del self.fields["fleet_number"]
             if not vehicle.reg:
