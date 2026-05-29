@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_2c17191315bcbf2a_admin_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
-            created at 2026-05-28 14:34 +0000
+            created at 2026-05-29 10:37 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -212,7 +212,7 @@
     <p class="run run2"><span class="n"><a id="t130" href="#t130">130</a></span><span class="t">    <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t131" href="#t131">131</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t132" href="#t132">132</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t133" href="#t133">133</a></span><span class="t"><span class="op">@</span><span class="nam">cache_control</span><span class="op">(</span><span class="nam">max_age</span><span class="op">=</span><span class="num">3600</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t133" href="#t133">133</a></span><span class="t"><span class="op">@</span><span class="nam">cache_control</span><span class="op">(</span><span class="nam">max_age</span><span class="op">=</span><span class="num">31536000</span><span class="op">,</span> <span class="nam">immutable</span><span class="op">=</span><span class="key">True</span><span class="op">,</span> <span class="nam">public</span><span class="op">=</span><span class="key">True</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t134" href="#t134">134</a></span><span class="t"><span class="key">def</span> <span class="nam">liveries_css</span><span class="op">(</span><span class="nam">request</span><span class="op">,</span> <span class="nam">version</span><span class="op">=</span><span class="num">0</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t135" href="#t135">135</a></span><span class="t">    <span class="nam">styles</span> <span class="op">=</span> <span class="op">[</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t136" href="#t136">136</a></span><span class="t">    <span class="nam">liveries</span> <span class="op">=</span> <span class="nam">Livery</span><span class="op">.</span><span class="nam">objects</span><span class="op">.</span><span class="nam">filter</span><span class="op">(</span><span class="nam">published</span><span class="op">=</span><span class="key">True</span><span class="op">)</span><span class="op">.</span><span class="nam">order_by</span><span class="op">(</span><span class="str">"left_css"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -1504,7 +1504,7 @@
             <a class="nav" href="z_2c17191315bcbf2a_admin_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
-            created at 2026-05-28 14:34 +0000
+            created at 2026-05-29 10:37 +0000
         </p>
     </div>
 </footer>
