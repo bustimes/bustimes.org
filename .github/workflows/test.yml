@@ -67,7 +67,7 @@ jobs:
       env:
         DATABASE_URL: postgis://postgres:postgres@postgres/postgres
         SECRET_KEY: secret
-      run: uv run coverage run --parallel-mode --concurrency=multiprocessing ./manage.py test --parallel=4 --keepdb --durations 10
+      run: uv run coverage run --parallel-mode --concurrency=multiprocessing ./manage.py test --parallel=2 --keepdb --durations 10
 
     - name: generate coverage report
       run: uv run coverage combine
