@@ -130,7 +130,7 @@ def vehicles(request):
     )
 
 
-@cache_control(max_age=3600)
+@cache_control(max_age=31536000, immutable=True, public=True)
 def liveries_css(request, version=0):
     styles = []
     liveries = Livery.objects.filter(published=True).order_by("left_css")
