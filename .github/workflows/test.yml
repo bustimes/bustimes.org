@@ -49,9 +49,10 @@ jobs:
         options: >-
           --mount type=tmpfs,destination=/var/lib/postgresql
           --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
+          --health-interval 3s
+          --health-timeout 3s
           --health-retries 5
+          --health-start-period 5s
         ports:
           - 5432:5432
 
@@ -66,12 +67,10 @@ jobs:
       env:
         DATABASE_URL: postgis://postgres:postgres@postgres/postgres
         SECRET_KEY: secret
-      run: uv run coverage run --parallel-mode --concurrency=multiprocessing ./manage.py test --parallel=2 --keepdb --durations 10
+      run: uv run coverage run --parallel-mode --concurrency=multiprocessing ./manage.py test --parallel=4 --keepdb --durations 10
 
     - name: generate coverage report
-      run: |
-        uv run coverage combine && \
-        uv run coverage html
+      run: uv run coverage combine
 
     - name: Coverage comment
       uses: py-cov-action/python-coverage-comment-action@v3
