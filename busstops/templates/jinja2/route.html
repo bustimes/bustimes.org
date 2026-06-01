@@ -12,11 +12,11 @@
             {% endif %}
             <ul class="route">
         {% endif %}
-        {% if not loop.previtem or stopusage != loop.previtem %}{% if not stopusage.suspended %}
+        {% if not loop.previtem or stopusage != loop.previtem %}
             <li{% if not stopusage.timing_point %} class="minor"{% endif %}>
                 <a href="{{ stopusage.stop.get_absolute_url() }}">{% if stopusage.situation %}⚠️&#xfe0f; {% endif %}{{ stopusage.stop.get_qualified_name() }}</a>
             </li>
-        {% endif %}{% endif %}
+        {% endif %}
         {% if loop.last %}
             </ul></div>
         {% endif %}

@@ -76,7 +76,7 @@ class ImportAtcoCifTest(TestCase):
         self.assertEqual("Goldline Express", trip.operator.name)
         self.assertEqual("1700", trip.ticket_machine_code)
 
-        with time_machine.travel("2019-10-01"), self.assertNumQueries(14):
+        with time_machine.travel("2019-10-01"), self.assertNumQueries(15):
             response = self.client.get(
                 f"/services/{service.id}/timetable?date=2019-10-01"
             )
@@ -87,7 +87,7 @@ class ImportAtcoCifTest(TestCase):
         self.assertNotContains(response, "Sunday")
         self.assertContains(response, '<abbr title="pick up only">p</abbr>')
 
-        with time_machine.travel("2019-08-12"), self.assertNumQueries(10):
+        with time_machine.travel("2019-08-12"), self.assertNumQueries(11):
             response = self.client.get(
                 f"/services/{service.id}/timetable?date=2019-08-12"
             )
@@ -98,7 +98,7 @@ class ImportAtcoCifTest(TestCase):
         self.assertNotContains(response, "Sunday")
         self.assertContains(response, "Sorry, no journeys found")
 
-        with time_machine.travel("2019-08-12"), self.assertNumQueries(14):
+        with time_machine.travel("2019-08-12"), self.assertNumQueries(15):
             response = self.client.get(
                 f"/services/{service.id}/timetable?date=2019-12-25"
             )
@@ -108,7 +108,7 @@ class ImportAtcoCifTest(TestCase):
         )
         self.assertNotContains(response, "Sunday")
 
-        with time_machine.travel("2019-08-12"), self.assertNumQueries(14):
+        with time_machine.travel("2019-08-12"), self.assertNumQueries(15):
             response = self.client.get(
                 f"/services/{service.id}/timetable?date=2019-12-25"
             )

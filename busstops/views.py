@@ -80,6 +80,51 @@ def get_colours(services):
         return ServiceColour.objects.filter(id__in=colours)
 
 
+def get_service_situations(service, operators):
+    """Currently-published situations affecting a service (or its operators)."""
+    consequences = Consequence.objects.filter(
+        Q(services=service) | (Q(operators__in=operators, services=None))
+    )
+    return (
+        Situation.objects.filter(
+            Exists(consequences.filter(situation=OuterRef("id"))),
+            publication_window__contains=Now(),
+            current=True,
+        )
+        .order_by("publication_window")
+        .prefetch_related(
+            Prefetch(
+                "consequence_set",
+                queryset=consequences.prefetch_related("stops"),
+                to_attr="consequences",
+            ),
+            "validityperiod_set",
+        )
+    )
+
+
+def build_stop_situations(situations, when=None):
+    """Map atco_code → Situation for stops affected (on the given date)."""
+    stop_situations = {}
+    for situation in situations:
+        if when and not situation.applies_on(when):
+            continue
+        for consequence in situation.consequences:
+            for stop in consequence.stops.all():
+                stop_situations[stop.atco_code] = situation
+    return stop_situations
+
+
+def apply_stop_situations(timetable, stop_situations):
+    """Mark disrupted stops in a timetable (applied lazily when rendered)."""
+    if timetable and stop_situations:
+        timetable.stop_situations = stop_situations
+        # situations affect the rendered (and cached) timetable html
+        timetable.cache_key += ":" + ":".join(
+            sorted(str(s.id) for s in set(stop_situations.values()))
+        )
+
+
 def version(request):
     if commit_hash := os.environ.get("COMMIT_HASH"):
         return HttpResponse(
@@ -1249,52 +1294,38 @@ class ServiceDetailView(DetailView):
 
         # disruptions
 
-        consequences = Consequence.objects.filter(
-            Q(services=self.object) | (Q(operators__in=operators, services=None))
-        )
         context["situations"] = (
-            Situation.objects.filter(
-                Exists(consequences.filter(situation=OuterRef("id"))),
-                publication_window__contains=Now(),
-                current=True,
-            )
-            .order_by("publication_window")
-            .prefetch_related(
-                Prefetch(
-                    "consequence_set",
-                    queryset=consequences.prefetch_related("stops"),
-                    to_attr="consequences",
-                ),
-                "link_set",
-                "validityperiod_set",
-            )
+            get_service_situations(self.object, operators)
+            .prefetch_related("link_set")
             .defer("data")
         )
-        # stop_situations = {}
-        # for situation in context["situations"]:
-        #     for consequence in situation.consequences:
-        #         for stop in consequence.stops.all():
-        #             stop_situations[stop.atco_code] = situation
+        stop_situations = build_stop_situations(
+            context["situations"], when=date or timezone.localdate()
+        )
 
-        context["stopusages"] = self.object.stopusage_set.select_related(
-            "stop__locality"
-        ).defer("stop__latlong", "stop__locality__latlong")
+        # mark disrupted stops in the timetable (applied lazily when rendered)
+        apply_stop_situations(context.get("timetable"), stop_situations)
+
+        def get_stopusages():
+            stopusages = list(
+                self.object.stopusage_set.select_related("stop__locality").defer(
+                    "stop__latlong", "stop__locality__latlong"
+                )
+            )
+            # don't bother marking individual stops if they're all disrupted
+            if stop_situations and len(stop_situations) < len(stopusages):
+                for stop_usage in stopusages:
+                    situation = stop_situations.get(stop_usage.stop_id)
+                    if situation:
+                        stop_usage.situation = True
+            return stopusages
+
+        context["stopusages"] = SimpleLazyObject(get_stopusages)
         context["has_minor_stops"] = SimpleLazyObject(
             lambda: (
                 not all(stop_usage.timing_point for stop_usage in context["stopusages"])
             )
         )
-
-        #     if len(stop_situations) < len(context["stopusages"]):
-        #         for stop_usage in context["stopusages"]:
-        #             if stop_usage.stop_id in stop_situations:
-        #                 if (
-        #                     stop_situations[stop_usage.stop_id].summary
-        #                     == "Does not stop here"
-        #                 ):
-        #                     stop_usage.suspended = True
-        #                 else:
-        #                     stop_usage.situation = True
 
         try:
             context["breadcrumb"] = [
@@ -1416,9 +1447,19 @@ def service_timetable(request, service_id):
     related_options = service.get_similar_services()
     form = forms.TimetableForm(request.GET, service=service, related=related_options)
 
+    timetable = form.get_timetable(service)
+
+    # mark disrupted stops, for the day being shown
+    when = form.cleaned_data.get("date") if form.is_valid() else None
+    situations = get_service_situations(service, service.operator.all())
+    stop_situations = build_stop_situations(
+        situations, when=when or timezone.localdate()
+    )
+    apply_stop_situations(timetable, stop_situations)
+
     context = {
         "object": service,
-        "timetable": form.get_timetable(service),
+        "timetable": timetable,
         "related": related_options,
         "form": form,
     }
@@ -1473,13 +1514,6 @@ def service_last_modified(request, service_id):
 def service_map_data(request, service_id):
     service = request.service
     stops = service.stops.filter(
-        #     ~Exists(
-        #         Situation.objects.filter(
-        #             summary="Does not stop here",
-        #             consequence__stops=OuterRef("pk"),
-        #             consequence__services=service,
-        #         )
-        #     ),
         latlong__isnull=False,
     ).annotate(line_names=stop_line_names)
     stops = stops.distinct().order_by().select_related("locality").in_bulk()

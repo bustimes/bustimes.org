@@ -60,6 +60,24 @@ class Situation(models.Model):
             models.Index(fields=["source", "situation_number"]),
         ]
 
+    def applies_on(self, date) -> bool:
+        """Whether this situation is in effect on the given (local) date.
+
+        If there are no validity periods, assume it applies — the
+        publication window has already been checked when querying.
+        """
+        periods = self.validityperiod_set.all()
+        if not periods:
+            return True
+        for period in periods:
+            lower = period.period.lower
+            upper = period.period.upper
+            if (lower is None or timezone.localtime(lower).date() <= date) and (
+                upper is None or timezone.localtime(upper).date() >= date
+            ):
+                return True
+        return False
+
     def list_validity_periods(self) -> list[str]:
         validity_periods = list(self.validityperiod_set.all())
         if not validity_periods:

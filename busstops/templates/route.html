@@ -6,11 +6,11 @@
         <h2>{% if stopusage.inbound %}In{% else %}Out{% endif %}bound</h2>
         <ul class="route">
     {% endifchanged %}
-    {% ifchanged stopusage.stop stopusage.inbound %}{% if not stopusage.suspended %}
+    {% ifchanged stopusage.stop stopusage.inbound %}
         <li{% if not stopusage.timing_point %} class="minor"{% endif %}>
             <a href="{{ stopusage.stop.get_absolute_url }}">{% if stopusage.situation %}⚠️&#xfe0f; {% endif %}{{ stopusage.stop.get_qualified_name }}</a>
         </li>
-    {% endif %}{% endifchanged %}
+    {% endifchanged %}
     {% if forloop.last %}
         </ul></div>
     {% endif %}

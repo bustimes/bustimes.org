@@ -70,6 +70,7 @@ class Timetable:
 
         self.groupings = [Grouping(False, self), Grouping(True, self)]
         self.calendar_options = None
+        self.stop_situations = None
 
         self.calendar = None
         # self.start_date = None
@@ -301,7 +302,7 @@ class Timetable:
             for grouping in self.groupings:
                 del grouping.routes
 
-        self.apply_stops()
+        self.apply_stops(self.stop_situations)
 
         # correct origin and destination/inbound and outbound descriptions being the wrong way round
         # if self.groupings and len(self.origins_and_destinations) == 1:
@@ -351,10 +352,7 @@ class Timetable:
         if stop_situations and len(stop_situations) < len(stops):
             for atco_code in stops:
                 if atco_code in stop_situations:
-                    if stop_situations[atco_code].summary == "Does not stop here":
-                        stops[atco_code].suspended = True
-                    else:
-                        stops[atco_code].situation = True
+                    stops[atco_code].situation = True
 
         for grouping in self.groupings:
             grouping.apply_stops(stops)
@@ -1001,7 +999,6 @@ class Grouping:
     def apply_stops(self, stops):
         for row in self.rows:
             row.stop = stops.get(row.stop.atco_code, row.stop)
-        self.rows = [row for row in self.rows if not row.permanently_suspended()]
         min_height = self.min_height()
         rowspan = self.rowspan()
         for cell in self.rows[0].times:
@@ -1072,9 +1069,6 @@ class Row:
         return any(cell.first or cell.last for cell in self.times if type(cell) is Cell)
 
     is_minor = StopTime.is_minor
-
-    def permanently_suspended(self):
-        return hasattr(self.stop, "suspended") and self.stop.suspended
 
 
 class Stop:
