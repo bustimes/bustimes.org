@@ -17,11 +17,17 @@ class Invitation(models.Model):
     def get_absolute_url(self):
         return reverse("register") + f"?invite_code={self.uuid}"
 
+    def __str__(self):
+        return str(self.uuid)
+
 
 class OperatorUser(models.Model):
     operator = models.ForeignKey("busstops.Operator", models.CASCADE)
     user = models.ForeignKey("User", models.CASCADE)
     staff = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.operator_id}: {self.user_id}"
 
 
 class User(AbstractUser):
