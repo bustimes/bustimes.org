@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -1188,3 +1189,116 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         self.assertEqual(journey.route_name, "T3")
         self.assertEqual(journey.source, bods)
         self.assertEqual(journey.code, "0732")
+
+    def test_vehicle_in_two_places_at_once(self):
+        # The same vehicle (a globally-unique registration) is reported by two
+        # ticket machines at once: a spare/handheld one left switched on and
+        # stationary at the bus station, and the one on the bus that's actually
+        # out on the road. They resolve to the same Vehicle, so the stationary
+        # one mustn't be allowed to drag the vehicle back to the bus station.
+        command = import_bod_avl.Command()
+        command.source = self.source
+
+        Vehicle.objects.create(code="2427_-_BF62UXX", reg="BF62UXX", fleet_code="2427")
+
+        def handheld(recorded_at, item_identifier):
+            # stationary "Handheld" ticket machine at Harrogate Bus Station
+            return {
+                "RecordedAtTime": recorded_at,
+                "ItemIdentifier": item_identifier,
+                "MonitoredVehicleJourney": {
+                    "LineRef": "Harrogate_Bus_Station",
+                    "DirectionRef": "outbound",
+                    "FramedVehicleJourneyRef": {
+                        "DataFrameRef": "2026-06-05",
+                        "DatedVehicleJourneyRef": "0415",
+                    },
+                    "PublishedLineName": "Harrogate_Bus_Station",
+                    "OperatorRef": "HRGT",
+                    "OriginRef": "Harrogate_Bus_Station",
+                    "OriginName": "Handheld",
+                    "DestinationRef": "Harrogate_Bus_Station",
+                    "DestinationName": "Machine",
+                    "VehicleLocation": {
+                        "Longitude": "-1.538119",
+                        "Latitude": "53.993554",
+                    },
+                    "BlockRef": "0",
+                    "VehicleRef": "2427_-_BF62UXX",
+                },
+                "Extensions": {
+                    "VehicleJourney": {
+                        "Operational": {
+                            "TicketMachine": {
+                                "TicketMachineServiceCode": "S_HGT",
+                                "JourneyCode": "0415",
+                            }
+                        },
+                        "VehicleUniqueId": "2427",
+                    }
+                },
+            }
+
+        # the bus actually out on the road, working the 840
+        actual = {
+            "RecordedAtTime": "2026-06-05T11:10:51+00:00",
+            "ItemIdentifier": "fb399e13-9752-42f0-80c4-961a947fa7ff",
+            "MonitoredVehicleJourney": {
+                "LineRef": "840",
+                "DirectionRef": "outbound",
+                "FramedVehicleJourneyRef": {
+                    "DataFrameRef": "2026-06-05",
+                    "DatedVehicleJourneyRef": "0069",
+                },
+                "PublishedLineName": "840",
+                "OperatorRef": "YCST",
+                "OriginRef": "450030240",
+                "OriginName": "Leeds_City_Bus_Station",
+                "DestinationRef": "3200YNA90763",
+                "DestinationName": "Thornton_Cross",
+                "OriginAimedDepartureTime": "2026-06-05T09:00:00+00:00",
+                "DestinationAimedArrivalTime": "2026-06-05T11:49:00+00:00",
+                "VehicleLocation": {"Longitude": "-0.861806", "Latitude": "54.104675"},
+                "Bearing": "65",
+                "BlockRef": "5019",
+                "VehicleRef": "2427_-_BF62UXX",
+            },
+            "Extensions": {
+                "VehicleJourney": {
+                    "Operational": {
+                        "TicketMachine": {
+                            "TicketMachineServiceCode": "1840",
+                            "JourneyCode": "1000",
+                        }
+                    },
+                    "VehicleUniqueId": "2427",
+                }
+            },
+        }
+
+        def cycle(items, when):
+            command.source.datetime = datetime.fromisoformat(when)
+            (changed, changed_journey, ci, cj, _) = command.get_changed_items(items)
+            command.handle_items(changed_journey, cj)
+            command.handle_items(changed, ci)
+
+        with patch_redis_client():
+            # first the bus reports from both machines at once
+            cycle(
+                [handheld("2026-06-05T11:10:20+00:00", "bf87afe5"), actual],
+                "2026-06-05T11:11:14+00:00",
+            )
+
+            vehicle = Vehicle.objects.get(code="2427_-_BF62UXX")
+            self.assertEqual(vehicle.latest_journey.route_name, "840")
+
+            # then only the stationary handheld refreshes (the bus is mid-update)
+            cycle(
+                [handheld("2026-06-05T11:11:50+00:00", "aa000000")],
+                "2026-06-05T11:12:00+00:00",
+            )
+
+        # the vehicle should still be shown on the 840, not dragged back to
+        # the bus station by the stationary handheld
+        vehicle = Vehicle.objects.get(code="2427_-_BF62UXX")
+        self.assertEqual(vehicle.latest_journey.route_name, "840")
