@@ -193,6 +193,10 @@
             <p><strong>p</strong> “pick up only” – the {{ object.mode }} will only stop to pick up passengers</p>
         {% endif %}
 
+        {% if grouping.has_plus_one() %}
+            <p>Times marked ⁺¹ are after midnight</p>
+        {% endif %}
+
         </div>
 
         {% if loop.last %}</div>{% endif %}

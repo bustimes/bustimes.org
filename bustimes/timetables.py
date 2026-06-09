@@ -578,6 +578,9 @@ class Grouping:
                 if type(cell) is Cell and cell.pick_up_only():
                     return True
 
+    def has_plus_one(self):
+        return any(trip.end >= datetime.timedelta(days=1) for trip in self.trips)
+
     # def get_order(self):
     #     if self.trips:
     #         return self.trips[0].start
