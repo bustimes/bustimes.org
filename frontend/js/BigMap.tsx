@@ -596,6 +596,10 @@ export default function BigMap(
 
   const [journey, setJourney] = React.useState<VehicleJourney>();
 
+  const [operator, setOperator] = React.useState<Operator | undefined>(
+    props.operator,
+  );
+
   const [vehicles, setVehicles] = React.useState<VehicleLocation[]>();
 
   const [zoom, setZoom] = React.useState<number>();
@@ -820,12 +824,20 @@ export default function BigMap(
         setJourney(undefined);
         fetchJson(`api/trips/${props.tripId}/`).then(setTrip);
       }
-    } else if (props.noc) {
+    } else if (props.operatorSlug) {
       setJourney(undefined);
       setTrip(undefined);
       // operator mode
       if (props.noc === trip?.operator?.noc) {
+        setOperator(trip.operator);
         document.title = `Bus tracker map \u2013 ${trip.operator.name} \u2013 bustimes.org`;
+      } else {
+        fetchJson(`api/operators/?slug=${props.operatorSlug}`).then((data) => {
+          if (data.results.length) {
+            setOperator(data.results[0]);
+            document.title = `Bus tracker map \u2013 ${data.results[0].name} \u2013 bustimes.org`;
+          }
+        });
       }
       loadVehicles(true);
     } else if (props.journeyId) {
@@ -864,6 +876,7 @@ export default function BigMap(
     props.tripId,
     trip,
     props.noc,
+    props.operatorSlug,
     props.vehicleId,
     props.journeyId,
     journey,
@@ -1043,21 +1056,34 @@ export default function BigMap(
   const showBuses = props.mode !== MapMode.Slippy || shouldShowVehicles(zoom);
 
   if (props.mode === MapMode.Operator) {
+    const breadcrumb = (
+      <ul className="breadcrumb">
+        <li>
+          <a href={`/operators/${props.operatorSlug}`}>{operator?.name}</a>
+        </li>
+      </ul>
+    );
+
     if (!vehicles) {
       return <LoadingSorry />;
     }
     if (!vehiclesLength.current) {
       return (
-        <LoadingSorry
-          text={
-            <>
-              <p>Sorry, no buses are tracking at the moment</p>
-              <p>
-                <a href="/map">Go to the main map?</a>
-              </p>
-            </>
-          }
-        />
+        <React.Fragment>
+          {breadcrumb}
+          <LoadingSorry
+            text={
+              <>
+                <p>
+                  Sorry, no {operator?.name} buses are tracking at the moment
+                </p>
+                <p>
+                  <a href="/map">Go to the main map?</a>
+                </p>
+              </>
+            }
+          />
+        </React.Fragment>
       );
     }
   }
@@ -1082,6 +1108,7 @@ export default function BigMap(
         </Link>
       )}
       <div className={className}>
+        {props.mode === MapMode.Operator && breadcrumb}
         <BusTimesMap
           initialViewState={
             initialViewState.current || { bounds, fitBoundsOptions }

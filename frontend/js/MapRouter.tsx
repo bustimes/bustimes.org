@@ -31,10 +31,13 @@ export default function MapRouter() {
         />
       </Route>
       <Route path="/operators/:operatorSlug/map">
-        <BigMap
-          mode={MapMode.Operator}
-          noc={window.OPERATOR_ID || (tripData?.operator?.noc as string)}
-        />
+        {(params) => (
+          <BigMap
+            mode={MapMode.Operator}
+            operatorSlug={params.operatorSlug}
+            noc={window.OPERATOR_ID || (tripData?.operator?.noc as string)}
+          />
+        )}
       </Route>
       <Route path="/map">
         <BigMap mode={MapMode.Slippy} />
