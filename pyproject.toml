@@ -35,6 +35,7 @@ dependencies = [
     "requests>=2.32.3,<3",
     "numpy~=2.5.0",
     "onnxruntime>=1.28.0,<2",
+    "pandas>=2.2",
     "tenacity>=9.0.0,<10",
     "lightningcss-cli>=1.29.2,<2",
     "django-multidb-router>=0.10",

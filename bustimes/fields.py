@@ -38,7 +38,9 @@ class SecondsField(DurationField):
             return value
         if isinstance(value, str):
             value = parse_duration(value)
-        return int(value.total_seconds())
+        if isinstance(value, timedelta):
+            return int(value.total_seconds())
+        return int(value)
 
     @staticmethod
     def convert(value, _expression, _connection, _context=None):
