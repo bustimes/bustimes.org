@@ -104,8 +104,10 @@ class Vehicle(models.Model):
 class Stop(models.Model):
     """A Stop_Point from the iBus data.
 
-    naptan_code lines up with busstops.StopPoint.naptan_code, which is how
-    this joins back to the rest of the site's stop data.
+    Despite the name, naptan_code lines up with busstops.StopPoint.atco_code,
+    not .naptan_code (confirmed against real data - matching on .naptan_code
+    instead gives a nonsense many-to-many blow-up, since it isn't reliably
+    unique/populated there).
     """
 
     base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)

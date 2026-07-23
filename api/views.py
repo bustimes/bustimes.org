@@ -10,6 +10,7 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from haversine import Unit, haversine_vector
 from redis.exceptions import ResponseError
+
 from rest_framework import pagination, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
@@ -19,6 +20,7 @@ from sql_util.utils import Exists
 from busstops.models import Locality, Operator, Service, StopPoint
 from bustimes.models import StopTime, Trip
 from bustimes.utils import contiguous_stoptimes_only
+from tfl.models import Journey, JourneyDriveTime, JourneyWaitTime, Stop, StopInPattern
 from vehicles.models import (
     Livery,
     Vehicle,
@@ -30,6 +32,7 @@ from vehicles.time_aware_polyline import (
     decode_time_aware_polyline,
     encode_time_aware_polyline,
 )
+from vehicles.time_aware_polyline import encode_time_aware_polyline
 from vehicles.utils import redis_client
 from vehicles.views import get_vehicle_locations
 
@@ -249,7 +252,8 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                     stop.actual_arrival_time = location["datetime"]
                 stop.actual_departure_time = location["datetime"]
 
-    def trip_from_siri(self, instance, locations):
+    @staticmethod
+    def trip_from_siri(instance):
         try:
             mvj = instance.vehicle.latest_journey_data["MonitoredVehicleJourney"]
             origin_ref = mvj["OriginRef"].upper()
@@ -278,6 +282,78 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
             StopTime(stop=origin, departure=start, timing_point=True),
             StopTime(stop=dest, arrival=end, timing_point=True),
         ]
+        return trip
+
+    @staticmethod
+    def trip_from_tfl(instance):
+        # only the latest base_version's data is kept around (older ones get
+        # pruned), so pin every subsequent lookup to whichever base_version
+        # this journey actually belongs to - "idx" columns aren't unique
+        # across base_versions, only within one
+        journey = (
+            Journey.objects.filter(idx=instance.code).order_by("-base_version").first()
+        )
+        if not journey:
+            return
+
+        base_version_id = journey.base_version_id
+
+        stops_in_pattern = list(
+            StopInPattern.objects.filter(
+                base_version_id=base_version_id, pattern_idx=journey.pattern_idx
+            ).order_by("sequence_no")
+        )
+        if not stops_in_pattern:
+            return
+
+        drive_times = {
+            (dt.stop_in_pattern_from_idx, dt.stop_in_pattern_to_idx): dt.drive_time
+            for dt in JourneyDriveTime.objects.filter(
+                base_version_id=base_version_id, journey_idx=journey.idx
+            )
+        }
+        wait_times = {
+            wt.stop_in_pattern_idx: wt.wait_time
+            for wt in JourneyWaitTime.objects.filter(
+                base_version_id=base_version_id, journey_idx=journey.idx
+            )
+        }
+        # tfl.Stop.naptan_code actually lines up with StopPoint.atco_code,
+        # not StopPoint.naptan_code (see tfl.models.Stop docstring)
+        atco_codes = dict(
+            Stop.objects.filter(
+                base_version_id=base_version_id,
+                idx__in=[sip.stop_idx for sip in stops_in_pattern],
+            ).values_list("idx", "naptan_code")
+        )
+        stops = {
+            stop.atco_code: stop
+            for stop in StopPoint.objects.filter(atco_code__in=atco_codes.values())
+        }
+
+        trip = Trip(start=journey.start_time)
+
+        trip.stops = []
+        time = journey.start_time
+        previous_idx = None
+        for sip in stops_in_pattern:
+            if previous_idx is not None:
+                time += drive_times.get((previous_idx, sip.idx), timedelta())
+            arrival = time
+            time += wait_times.get(sip.idx, timedelta())
+            atco_code = atco_codes.get(sip.stop_idx)
+            trip.stops.append(
+                StopTime(
+                    stop=stops.get(atco_code),
+                    stop_code=atco_code or "",
+                    arrival=arrival,
+                    departure=time,
+                    sequence=sip.sequence_no,
+                    timing_point=bool(sip.timing_point_code),
+                )
+            )
+            previous_idx = sip.idx
+
         return trip
 
     @action(detail=True)
@@ -373,8 +449,12 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
         current_trip = (
             instance.vehicle_id and instance.id == instance.vehicle.latest_journey_id
         )
+
+        if not instance.trip and instance.code.isdigit():
+            instance.trip = self.trip_from_tfl(instance)
+
         if current_trip and not instance.trip:
-            instance.trip = self.trip_from_siri(instance, locations)
+            instance.trip = self.trip_from_siri(instance)
 
         if instance.trip:
             instance.trip.destination_name = None
