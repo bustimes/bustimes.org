@@ -15,7 +15,7 @@ class BaseVersion(models.Model):
 
 
 class Operator(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     code = models.CharField(max_length=10)
     name = models.CharField(max_length=100)
     agency = models.CharField(max_length=100, blank=True)
@@ -32,7 +32,7 @@ class Operator(models.Model):
 
 
 class Line(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     contract_line_no = models.CharField(max_length=10)
     service_line_no = models.CharField(max_length=10)
     logical_line_no = models.PositiveIntegerField()
@@ -49,7 +49,7 @@ class Line(models.Model):
 
 
 class Destination(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     idx = models.PositiveIntegerField()
     long_name = models.CharField(max_length=100)
     short_name = models.CharField(max_length=100)
@@ -66,7 +66,7 @@ class Destination(models.Model):
 
 
 class Garage(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     number = models.PositiveIntegerField()
     operator_code = models.CharField(max_length=10)
     code = models.CharField(max_length=10)
@@ -84,7 +84,7 @@ class Garage(models.Model):
 
 
 class Vehicle(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     vehicle_id = models.PositiveIntegerField()
     registration_number = models.CharField(max_length=20, blank=True)
     bonnet_no = models.CharField(max_length=20, blank=True)
@@ -108,7 +108,7 @@ class Stop(models.Model):
     this joins back to the rest of the site's stop data.
     """
 
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     idx = models.PositiveIntegerField()
     naptan_code = models.CharField(max_length=20, blank=True, db_index=True)
     stop_code_lbsl = models.CharField(max_length=20, blank=True)
@@ -136,18 +136,18 @@ class Stop(models.Model):
 
 
 class Block(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     idx = models.PositiveIntegerField()
     operator_code = models.CharField(max_length=10)
     block_no = models.PositiveIntegerField()
-    running_no = models.PositiveIntegerField()
+    running_no = models.PositiveSmallIntegerField()
 
     class Meta:
         indexes = [models.Index(fields=["base_version", "idx"])]
 
 
 class BlockCalendarDay(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     block_idx = models.PositiveIntegerField()
     calendar_day = models.DateField()
     runs = models.BooleanField()
@@ -157,7 +157,7 @@ class BlockCalendarDay(models.Model):
 
 
 class Pattern(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     idx = models.PositiveIntegerField()
     contract_line_no = models.CharField(max_length=10)
     direction = models.PositiveSmallIntegerField()
@@ -171,7 +171,7 @@ class Pattern(models.Model):
 
 
 class StopInPattern(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     idx = models.PositiveIntegerField()
     pattern_idx = models.PositiveIntegerField()
     destination_idx = models.PositiveIntegerField(null=True, blank=True)
@@ -187,11 +187,11 @@ class StopInPattern(models.Model):
 
 
 class Journey(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     idx = models.PositiveIntegerField()
     pattern_idx = models.PositiveIntegerField()
     block_idx = models.PositiveIntegerField()
-    trip_no_lbsl = models.PositiveIntegerField()
+    trip_no_lbsl = models.PositiveSmallIntegerField()
     type = models.PositiveSmallIntegerField()
     start_time = SecondsField()  # time past midnight, can exceed 24 hours
 
@@ -204,7 +204,7 @@ class Journey(models.Model):
 
 
 class JourneyDriveTime(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     journey_idx = models.PositiveIntegerField()
     stop_in_pattern_from_idx = models.PositiveIntegerField()
     stop_in_pattern_to_idx = models.PositiveIntegerField()
@@ -215,7 +215,7 @@ class JourneyDriveTime(models.Model):
 
 
 class JourneyWaitTime(models.Model):
-    base_version = models.ForeignKey(BaseVersion, models.CASCADE)
+    base_version = models.ForeignKey(BaseVersion, models.CASCADE, db_index=False)
     journey_idx = models.PositiveIntegerField()
     stop_in_pattern_idx = models.PositiveIntegerField()
     wait_time = SecondsField()
