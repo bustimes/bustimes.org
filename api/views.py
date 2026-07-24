@@ -320,15 +320,20 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
         }
         # tfl.Stop.naptan_code actually lines up with StopPoint.atco_code,
         # not StopPoint.naptan_code (see tfl.models.Stop docstring)
-        atco_codes = dict(
-            Stop.objects.filter(
+        tfl_stops = {
+            stop.idx: stop
+            for stop in Stop.objects.filter(
                 base_version_id=base_version_id,
                 idx__in=[sip.stop_idx for sip in stops_in_pattern],
-            ).values_list("idx", "naptan_code")
-        )
+            )
+        }
         stops = {
             stop.atco_code: stop
-            for stop in StopPoint.objects.filter(atco_code__in=atco_codes.values())
+            for stop in StopPoint.objects.filter(
+                atco_code__in=[
+                    s.naptan_code for s in tfl_stops.values() if s.naptan_code
+                ]
+            )
         }
 
         trip = Trip(start=journey.start_time)
@@ -341,10 +346,14 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                 time += drive_times.get((previous_idx, sip.idx), timedelta())
             arrival = time
             time += wait_times.get(sip.idx, timedelta())
-            atco_code = atco_codes.get(sip.stop_idx)
+            tfl_stop = tfl_stops.get(sip.stop_idx)
+            atco_code = tfl_stop and tfl_stop.naptan_code
+            stop = stops.get(atco_code)
+            if not stop and tfl_stop:
+                stop = StopPoint(common_name=tfl_stop.name, latlong=tfl_stop.latlong)
             trip.stops.append(
                 StopTime(
-                    stop=stops.get(atco_code),
+                    stop=stop,
                     stop_code=atco_code or "",
                     arrival=arrival,
                     departure=time,
