@@ -1,8 +1,9 @@
 from django_filters import ChoiceFilter, FilterSet, ModelChoiceFilter
 from django.db.models import Q
-from django.forms.widgets import TextInput, NumberInput
+from django.forms.widgets import NumberInput
 from vehicles.models import Vehicle, Operator
 from accounts.models import User
+from vehicles.widgets import UpperCaseTextInput
 
 
 class VehicleRevisionFilter(FilterSet):
@@ -10,7 +11,7 @@ class VehicleRevisionFilter(FilterSet):
         label="Operator code",
         method="operator_filter",
         queryset=Operator.objects,
-        widget=TextInput,
+        widget=UpperCaseTextInput,
     )
     vehicle = ModelChoiceFilter(
         label="Vehicle ID", queryset=Vehicle.objects, widget=NumberInput
