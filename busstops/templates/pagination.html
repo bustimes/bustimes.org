@@ -1,11 +1,120 @@
 {% if page.has_other_pages %}
+    <style>
+        .horizontal {
+            display: flex;
+            list-style: none;
+            gap: 8px;
+            align-items: center;
+            padding: 0;
+            margin: 10px 0;
+        }
+        
+        .horizontal li {
+            display: inline-block;
+        }
+        
+        .horizontal a, 
+        .horizontal strong {
+            display: inline-block;
+            padding: 6px 12px;
+            text-decoration: none;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #f9f9f9;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .horizontal a {
+            color: #333;
+        }
+        
+        .horizontal strong {
+            background: #e0e0e0;
+            font-weight: bold;
+        }
+        
+        .horizontal a:hover {
+            background: #e8e8e8;
+        }
+        
+        .page-jump {
+            display: inline-block;
+        }
+        
+        .jump-form {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .page-input {
+            width: 44px;
+            padding: 5px 4px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 14px;
+            line-height: 1.5;
+            background: #f9f9f9;
+        }
+        
+        .page-input:focus {
+            outline: 1px solid #666;
+            background: #fff;
+        }
+    
+        .page-input::-webkit-inner-spin-button,
+        .page-input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        .page-input[type=number] {
+            -moz-appearance: textfield;
+        }
+        
+        .jump-button {
+            padding: 5px 10px;
+            background: #e0e0e0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: nowrap;
+        }
+        
+        .jump-button:hover {
+            background: #d0d0d0;
+        }
+    </style>
+
     <nav>
         <ul class="horizontal">
             {% if page.has_previous %}
                 {% if page.previous_page_number > 1 %}
                     <li><a href="{% querystring page=1 %}{{ hash }}">1</a></li>
                     {% if page.previous_page_number > 2 %}
-                        <li>&hellip;</li>
+                        <li class="page-jump">
+                            <form method="get" action="" class="jump-form">
+                                {% for key, value in request.GET.items %}
+                                    {% if key != 'page' %}
+                                        {% for val in value %}
+                                            <input type="hidden" name="{{ key }}" value="{{ val }}">
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endfor %}
+                                <input type="number" 
+                                       name="page" 
+                                       min="2" 
+                                       max="{{ page.previous_page_number|add:'-1' }}"
+                                       placeholder="…" 
+                                       class="page-input"
+                                       aria-label="Jump to page">
+                                <button type="submit" class="jump-button">Go</button>
+                            </form>
+                        </li>
                     {% endif %}
                 {% endif %}
                 <li><a rel="prev" href="{% querystring page=page.previous_page_number %}{{ hash }}">{{ page.previous_page_number }}</a></li>
@@ -16,8 +125,26 @@
             {% if page.has_next %}
                 <li><a rel="next nofollow" href="{% querystring page=page.next_page_number %}{{ hash }}">{{ page.next_page_number }}</a></li>
                 {% if page.next_page_number < page.paginator.num_pages %}
-                    {% if page.next_page_number < page.paginator.num_pages|add:-1 %}
-                        <li>&hellip;</li>
+                    {% if page.next_page_number < page.paginator.num_pages|add:'-1' %}
+                        <li class="page-jump">
+                            <form method="get" action="" class="jump-form">
+                                {% for key, value in request.GET.items %}
+                                    {% if key != 'page' %}
+                                        {% for val in value %}
+                                            <input type="hidden" name="{{ key }}" value="{{ val }}">
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endfor %}
+                                <input type="number" 
+                                       name="page" 
+                                       min="{{ page.next_page_number|add:'1' }}" 
+                                       max="{{ page.paginator.num_pages|add:'-1' }}"
+                                       placeholder="…" 
+                                       class="page-input"
+                                       aria-label="Jump to page">
+                                <button type="submit" class="jump-button">Go</button>
+                            </form>
+                        </li>
                     {% endif %}
                     <li><a rel="nofollow" href="{% querystring page=page.paginator.num_pages %}{{ hash }}">{{ page.paginator.num_pages }}</a></li>
                 {% endif %}
