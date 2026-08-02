@@ -91,3 +91,29 @@ class DistributeVehicleLocationsTest(TestCase):
             decode_time_aware_polyline(polyline),
             [[1.0, 51.0, 1000], [1.001, 51.001, 1010], [1.002, 51.002, 1020]],
         )
+
+    async def test_unmoved_point_not_appended(self):
+        uuid = str(uuid4())
+
+        await self.command.handle_items([(uuid, 1000, 1.0, 51.0)])
+        # same coordinates, later timestamp - vehicle hasn't moved
+        await self.command.handle_items([(uuid, 1010, 1.0, 51.0)])
+        await self.command.handle_items([(uuid, 1020, 1.002, 51.002)])
+
+        polyline = (await self.redis.get(uuid)).decode()
+        self.assertEqual(
+            decode_time_aware_polyline(polyline),
+            [[1.0, 51.0, 1000], [1.002, 51.002, 1020]],
+        )
+
+    async def test_unmoved_point_not_appended_existing_string(self):
+        uuid = str(uuid4())
+        existing = encode_time_aware_polyline([[1.0, 51.0, 1000]])
+        await self.redis.set(uuid, existing)
+
+        # same coordinates as the last stored point - vehicle hasn't moved
+        await self.command.handle_items([(uuid, 1010, 1.0, 51.0)])
+
+        # nothing should have been appended
+        polyline = (await self.redis.get(uuid)).decode()
+        self.assertEqual(decode_time_aware_polyline(polyline), [[1.0, 51.0, 1000]])

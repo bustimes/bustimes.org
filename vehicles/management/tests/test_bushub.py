@@ -117,3 +117,9 @@ class BusHubTest(TestCase):
         # self.assertIsNotNone(self.vehicle.latest_location)
         # self.assertIsNone(self.vehicle.latest_location.heading)
         self.assertEqual(self.service_c, self.vehicle.latest_journey.service)
+
+        # a later report with the same coordinates - vehicle hasn't moved -
+        # should be discarded, not queued up as a new location to save
+        item["RecordedAtTime"] = "2018-08-31T22:59:33"
+        command.handle_item(item)
+        self.assertEqual(command.to_save, [])
