@@ -22,18 +22,18 @@
                     <h3>{{ item.time|date:"l j F" }}</h3>
                 {% endif %}
                 <table>
-                <tbody>
                     {% if has_live or has_scheduled %}
-                        <tr>
-                            <td></td>
+                        <thead><tr>
+                            <th></th>
                             <th scope="col">To</th>
                             {% if has_scheduled %}<th scope="col">Sched{% if has_live %}&shy;{% endif %}uled</th>{% endif %}
                             {% if has_live %}<th scope="col">Ex{% if has_scheduled %}&shy;{% endif %}pected</th>{% endif %}
                             {% if indicator_prefix %}
                                 <th scope="col">{{ indicator_prefix }}</th>
                             {% endif %}
-                        </tr>
+                        </tr></thead>
                     {% endif %}
+                <tbody>
             {% endif %}
         {% endifchanged %}
         <tr>

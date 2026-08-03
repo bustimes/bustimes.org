@@ -1324,8 +1324,9 @@ input:not(:checked) + label {
 
     td {
         border: 0;
-        padding: .125em .5em;
+        padding: .25em .5em;
         vertical-align: top;
+        border-top: 1px solid var(--border-color);
 
         &:nth-child(2) {
             width: 100%;
@@ -1337,8 +1338,8 @@ input:not(:checked) + label {
 
         a {
             display: block;
-            margin: -.125em -.5em;
-            padding: .125em .5em;
+            margin: -.25em -.5em;
+            padding: .25em .5em;
         }
     }
 
