@@ -196,7 +196,7 @@ const TripTimetable = React.memo(function TripTimetable({
 }) {
   const [showEarlierStops, setShowEarlierStops] = React.useState(false);
 
-  const aimedColumn: bool = trip.times?.some(
+  const aimedColumn: boolean = trip.times?.some(
     (item: TripTime) => item.aimed_arrival_time || item.aimed_departure_time,
   );
 
