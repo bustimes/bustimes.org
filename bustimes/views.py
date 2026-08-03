@@ -47,7 +47,7 @@ from busstops.models import (
     StopPoint,
 )
 from departures import avl, gtfsr, live
-from vehicles.forms import DateForm
+from vehicles.forms import DateForm, TripUpdatesFeedForm
 from vehicles.models import Vehicle, VehicleJourney
 from vehicles.rtpi import add_progress_and_delay
 
@@ -797,32 +797,41 @@ def trip_updates_json(request, feed_name: str):
 
 @require_GET
 def trip_updates(request):
-    feed_name = request.GET.get("feed_name", "ntaie")
+    default_feed_name = "ntaie"
 
-    if feed_name not in trip_updates_sources:
-        raise Http404
+    get = request.GET.copy()
+    get.setdefault("feed_name", default_feed_name)
+
+    form = TripUpdatesFeedForm(get, trip_updates_sources)
+
+    feed_name = default_feed_name
+    if form.is_valid() and (chosen_feed_name := form.cleaned_data["feed_name"]):
+        feed_name = chosen_feed_name
 
     source = DataSource.objects.get(name=trip_updates_sources[feed_name]["source_name"])
 
-    trip_updates = gtfsr.get_trip_updates(feed_name)
+    if trip_updates := gtfsr.get_trip_updates(feed_name):
+        journey_codes = trip_updates.keys()
+        trips = Trip.objects.filter(
+            route__source=source, ticket_machine_code__in=journey_codes
+        )
+        operators = Operator.objects.filter(
+            service__route__in={trip.route_id for trip in trips}
+        ).distinct()
+        trips = {trip.ticket_machine_code: trip for trip in trips}
 
-    journey_codes = trip_updates.keys()
-    trips = Trip.objects.filter(
-        route__source=source, ticket_machine_code__in=journey_codes
-    )
-    operators = Operator.objects.filter(
-        service__route__in={trip.route_id for trip in trips}
-    ).distinct()
-    trips = {trip.ticket_machine_code: trip for trip in trips}
-
-    trip_updates = [
-        (entity, trips.get(trip_id)) for trip_id, entity in trip_updates.items()
-    ]
+        trip_updates = [
+            (entity, trips.get(trip_id)) for trip_id, entity in trip_updates.items()
+        ]
+    else:
+        trips = ()
+        operators = None
 
     return render(
         request,
         "trip_updates.html",
         {
+            "form": form,
             "trips": len(trips),
             "operators": operators,
             "trip_updates": trip_updates,

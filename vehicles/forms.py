@@ -214,3 +214,13 @@ class DateForm(forms.Form):
 
 class RulesForm(forms.Form):
     rules = forms.BooleanField(label="I've read the rules", required=True)
+
+
+class TripUpdatesFeedForm(forms.Form):
+    feed_name = forms.ChoiceField(required=False)
+
+    def __init__(self, data, sources, **kwargs):
+        super().__init__(data, **kwargs)
+        self.fields["feed_name"].choices = [
+            (key, value["source_name"]) for key, value in sources.items()
+        ]

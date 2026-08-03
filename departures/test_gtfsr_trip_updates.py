@@ -131,9 +131,6 @@ class GTFSRTTest(TestCase):
             response = self.client.get("/trip_updates/foo.json")
             self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
-            response = self.client.get("/trip_updates?feed_name=foo")
-            self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-
             response = self.client.get("/stops/8250DB000429?date=2022-05-04&time=05:00")
             self.assertContains(response, "Ex&shy;pected")
             self.assertContains(response, "Sched&shy;uled")
