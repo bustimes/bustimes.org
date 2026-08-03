@@ -211,6 +211,9 @@ class TripSerializer(serializers.ModelSerializer):
         if not hasattr(obj, "stops"):
             return
 
+        date = self.context.get("date")
+        tzinfo = self.context.get("tzinfo")
+
         if obj.route and obj.route.service:
             stop_ids = {
                 stop_time.stop_id for stop_time in obj.stops if stop_time.stop_id
@@ -233,6 +236,12 @@ class TripSerializer(serializers.ModelSerializer):
                     notes = stop_time.note_codes
                 else:
                     notes = None
+                if date:
+                    aimed_arrival = stop_time.arrival_datetime(date, tzinfo)
+                    aimed_departure = stop_time.departure_datetime(date, tzinfo)
+                else:
+                    aimed_arrival = stop_time.arrival_time()
+                    aimed_departure = stop_time.departure_time()
                 time = {
                     "id": stop_time.id,
                     "stop": {
@@ -242,8 +251,8 @@ class TripSerializer(serializers.ModelSerializer):
                         "bearing": stop.get_heading(),
                         "icon": stop.get_icon(),
                     },
-                    "aimed_arrival_time": stop_time.arrival_time(),
-                    "aimed_departure_time": stop_time.departure_time(),
+                    "aimed_arrival_time": aimed_arrival,
+                    "aimed_departure_time": aimed_departure,
                     "timing_status": stop_time.timing_status(),
                     "pick_up": stop_time.pick_up,
                     "set_down": stop_time.set_down,

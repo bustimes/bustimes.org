@@ -382,7 +382,14 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                 instance.trip.stops = list(TripViewSet.get_stops(instance.trip))
             if locations:
                 self.set_actual_times(instance.trip.stops, locations)
-            trip_serializer = serializers.TripSerializer(instance.trip)
+            trip_serializer = serializers.TripSerializer(
+                instance.trip,
+                context={
+                    "date": instance.date,
+                    "tzinfo": tzinfo,
+                },
+            )
+
             extra_data["trip"] = trip_serializer.data
 
         if current_trip or not instance.vehicle_id:
