@@ -345,6 +345,7 @@ class VehicleJourneyAdmin(admin.ModelAdmin):
     )
     show_full_result_count = False
     ordering = ("-id",)
+    readonly_fields = ("uuid",)
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
