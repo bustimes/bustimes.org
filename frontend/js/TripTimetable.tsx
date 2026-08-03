@@ -1,4 +1,5 @@
 import React, { type ReactElement } from "react";
+import { formatTime } from "./StopPopup";
 import type { Vehicle } from "./VehicleMarker";
 
 export type TripTime = {
@@ -154,7 +155,7 @@ function Row({
 
   let aimed: ReactElement | null | string = null;
   if (aimedColumn) {
-    aimed = stop.aimed_arrival_time || stop.aimed_departure_time;
+    aimed = formatTime(stop.aimed_arrival_time || stop.aimed_departure_time);
     aimed = (
       <td>
         {aimed}
@@ -175,7 +176,7 @@ function Row({
       </tr>
       {rowSpan ? (
         <tr className={className}>
-          <td>{stop.aimed_departure_time}</td>
+          <td>{formatTime(stop.aimed_departure_time)}</td>
         </tr>
       ) : null}
     </React.Fragment>
@@ -195,7 +196,7 @@ const TripTimetable = React.memo(function TripTimetable({
 }) {
   const [showEarlierStops, setShowEarlierStops] = React.useState(false);
 
-  const aimedColumn = trip.times?.some(
+  const aimedColumn: bool = trip.times?.some(
     (item: TripTime) => item.aimed_arrival_time || item.aimed_departure_time,
   );
 

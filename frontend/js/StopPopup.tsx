@@ -24,7 +24,7 @@ type StopPopupProps = {
   onClose: () => void;
 };
 
-function formatTime(t: string | null | undefined): string | null {
+export function formatTime(t: string | null | undefined): string | null {
   if (!t) return null;
   // accept either "HH:MM" or full ISO timestamps
   if (t.length > 5) return t.slice(11, 16);
