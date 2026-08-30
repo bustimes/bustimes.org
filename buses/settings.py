@@ -180,11 +180,17 @@ if REDIS_URL:
 
 STATIC_URL = "/static/"
 STATIC_ROOT = os.environ.get("STATIC_ROOT", BASE_DIR / "staticfiles")
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.InMemoryStorage",
     }
-    if TEST or DEBUG
+    if TEST
+    else {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    }
+    if DEBUG
     else {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {

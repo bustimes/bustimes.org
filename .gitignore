@@ -4,6 +4,7 @@
 /data
 /node_modules/
 /staticfiles/
+/media/
 /.kamal/secrets
 /.env
 /.coverage
