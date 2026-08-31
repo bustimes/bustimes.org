@@ -4,22 +4,29 @@ from pathlib import Path
 import gtfs_kit
 import pandas as pd
 from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Min, OuterRef, Subquery
+from django.utils.dateparse import parse_duration
 
 from busstops.models import DataSource, Operator, Service, StopPoint
 
 from ...gtfs_utils import MODES, do_route_links, get_calendars
-from ...models import Route, StopTime, Trip
+from ...models import Route, Trip
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
     """
-    for experimental purposes
+    for experimental purposes.
 
-    `./manage.py bod_gtfs
+    first, use the AMAZING gtfstidy to make the feed less massive:
+
+        ~/go/bin/gtfstidy --min-shapes --minimize-stoptimes --minimize-services --show-warnings --keep-additional-fields itm_all_gtfs.zip
+
+    then:
+
+        ./manage.py bods_gtfs gtfs_out
     """
 
     @staticmethod
@@ -41,9 +48,9 @@ class Command(BaseCommand):
                 noc=o.agency_noc or o.agency_id,
                 slug=o.agency_noc or o.agency_id,
                 name=o.agency_name,
-                url=o.agency_url,
+                url=o.agency_url if pd.notna(o.agency_url) else "",
                 timezone=o.agency_timezone,
-                phone=o.agency_phone,
+                phone=o.agency_phone if pd.notna(o.agency_phone) else "",
             )
             for o in feed.agency.itertuples()
         }
@@ -122,85 +129,109 @@ class Command(BaseCommand):
 
         logger.info("trips")
 
-        existing_trips = {
-            trip.vehicle_journey_code: trip for trip in operator.trip_set.all()
-        }
         trips = {}
-        for row in feed.trips.itertuples():
-            trip = Trip(
-                route=existing_routes[row.route_id],
-                calendar=calendars[row.service_id],
-                inbound=row.direction_id == 1,
-                vehicle_journey_code=row.trip_id,
-                headsign=row.trip_headsign,
-            )
-            if trip.vehicle_journey_code in existing_trips:
-                # reuse existing trip id
-                trip.id = existing_trips[trip.vehicle_journey_code].id
-            trips[trip.vehicle_journey_code] = trip
-        del existing_trips
 
-        # logger.info("fillna")
-        # feed.stop_times = feed.stop_times.fillna(
-        #     {"timepoint": 1, "pickup_type": 0, "drop_off_type": 0}
-        # )
-
-        stop_times = []
-        for row in feed.stop_times.itertuples():
-            trip = trips[row.trip_id]
-
-            arrival_time = row.arrival_time
-            departure_time = row.departure_time
-
-            if arrival_time[0] == " ":
-                arrival_time = "0" + arrival_time[1:]
-            if departure_time[0] == " ":
-                departure_time = "0" + departure_time[1:]
-
-            if not trip.start:
-                trip.start = departure_time
-            trip.end = arrival_time
-
-            stop_time = StopTime(
-                arrival=arrival_time,
-                departure=departure_time,
-                sequence=row.stop_sequence,
-                trip=trip,
-                timing_point=bool(row.timepoint),
-                pick_up=(row.pickup_type != 1),
-                set_down=(row.drop_off_type != 1),
+        # line as in line in a spreadsheet, not as in the Elizabeth Line
+        for line in feed.trips.itertuples():
+            trips[line.trip_id] = Trip(
+                route=existing_routes[line.route_id],
+                calendar=calendars[line.service_id],
+                inbound=line.direction_id == 1,
+                headsign=line.trip_headsign,
+                ticket_machine_code=line.trip_id,
+                block=""
+                if pd.isna(block_id := getattr(line, "block_id", ""))
+                else block_id,
+                # operator=self.route_operators[line.route_id],
             )
 
-            stop_time.stop = trip.destination = stops[row.stop_id]
+        # use stop_times.txt to calculate trips' start times, end times and destinations:
 
-            stop_times.append(stop_time)
+        trip = None
+        previous_line = None
+
+        for line in feed.stop_times.itertuples():
+            if not previous_line or previous_line.trip_id != line.trip_id:
+                if trip:
+                    trip.destination = stops.get(previous_line.stop_id)
+                    trip.end = previous_line.arrival_time
+
+                trip = trips[line.trip_id]
+                trip.start = line.departure_time
+
+            previous_line = line
+
+        if previous_line:
+            # last trip:
+            trip.destination = stops.get(line.stop_id)
+            trip.end = line.arrival_time
+
+        for trip_id, trip in trips.items():
+            if pd.isna(trip.start) or pd.isna(trip.end):
+                logger.warning(f"trip {trip_id} has no stop times")
+                trips[trip_id] = None
+
+        Trip.objects.bulk_create(
+            [trip for trip in trips.values() if isinstance(trip, Trip)],
+            batch_size=1000,
+        )
+        logger.info("fillna")
+        feed.stop_times = feed.stop_times.fillna(
+            {"timepoint": 1, "pickup_type": 0, "drop_off_type": 0}
+        )
+
+        logger.info("stop times")
+        with (
+            connection.cursor() as cursor,
+            cursor.copy(
+                "COPY bustimes_stoptime (stop_id, arrival, departure, sequence, trip_id, timing_point, pick_up, set_down) FROM STDIN"
+            ) as copy,
+        ):
+            for line in feed.stop_times.itertuples():
+                if trips[line.trip_id] is None:
+                    continue
+
+                timing_point = bool(getattr(line, "timepoint", 1))
+
+                pick_up = None
+                match line.pickup_type:
+                    case 0:  # Regularly scheduled pickup
+                        pick_up = True
+                    case 1:  # "No pickup available"
+                        pick_up = False
+
+                set_down = None
+                match line.drop_off_type:
+                    case 0:  # Regularly scheduled drop off
+                        set_down = True
+                    case 1:  # "No drop off available"
+                        set_down = False
+
+                departure = int(parse_duration(line.departure_time).total_seconds())
+                arrival = None
+                if line.arrival_time != departure:
+                    arrival = int(parse_duration(line.arrival_time).total_seconds())
+
+                copy.write_row(
+                    (
+                        line.stop_id,
+                        arrival,
+                        departure,
+                        line.stop_sequence,
+                        trips[line.trip_id].pk,
+                        timing_point,
+                        pick_up,
+                        set_down,
+                    )
+                )
+
+        del trips
 
         feed_stops = {row.stop_id: row for row in feed.stops.itertuples()}
         stop_codes = {stop_id: stop.atco_code for stop_id, stop in stops.items()}
         do_route_links(feed, source, existing_routes, feed_stops, stop_codes)
 
         with transaction.atomic():
-            existing_trips = [trip for trip in trips.values() if trip.id]
-            Trip.objects.bulk_create([trip for trip in trips.values() if not trip.id])
-            Trip.objects.bulk_update(
-                existing_trips,
-                fields=[
-                    "route",
-                    "calendar",
-                    "start",
-                    "end",
-                    "destination",
-                    "block",
-                    "vehicle_journey_code",
-                    "ticket_machine_code",
-                    "inbound",
-                    "headsign",
-                ],
-            )
-
-            StopTime.objects.filter(trip__in=existing_trips).delete()
-            StopTime.objects.bulk_create(stop_times)
-
             for service in source.service_set.filter(current=True):
                 service.do_stop_usages()
                 service.update_search_vector()

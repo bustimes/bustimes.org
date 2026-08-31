@@ -4,12 +4,20 @@
     <h2 itemprop="name">{{ operator }}</h2>
 
     <dl class="contact-details">
-        {% if operator.url %}
-            <div>
-                <dt>Website</dt>
-                <dd itemprop="url">{{ urlise(operator.url) }}</dd>
-            </div>
-        {% endif %}
+        <div>
+            <dt>Website</dt>
+            <dd itemprop="url">{{ operator.url }}</dd>
+        </div>
+
+        <div>
+            <dt>Phone</dt>
+            <dd>{{ operator.phone }}</dd>
+        </div>
+
+        <div>
+            <dt>Email</dt>
+            <dd>{{ operator.email }}</dd>
+        </div>
 
         {% if licences %}
             <div>
