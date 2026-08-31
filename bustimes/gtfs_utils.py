@@ -9,6 +9,7 @@ from .models import Calendar, CalendarDate, RouteLink
 
 class RouteType(IntEnum):
     tram = 0
+    metro = 1
     rail = 2
     bus = 3
     ferry = 4
@@ -19,6 +20,7 @@ class RouteType(IntEnum):
 
 MODES = {
     RouteType.tram: "tram",
+    RouteType.metro: "metro",
     RouteType.rail: "rail",
     RouteType.bus: "bus",
     RouteType.ferry: "ferry",
