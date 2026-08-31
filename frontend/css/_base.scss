@@ -1,10 +1,10 @@
 @charset "UTF-8";
 
 :root {
-    --brand-color: #ffff9e;
-    --brand-color-darker: #de8;
-    --brand-color-darker-darker: #cd7;
-    --border-color: var(--brand-color-darker);
+    --brand-color: #ffcce4;
+    --brand-color-darker: #ff55a4;
+    --brand-color-darker-darker: #cc005f;
+    --border-color: var(--brand-color);
     --border-color-darker: var(--brand-color-darker-darker);
 
     --black: #000;
@@ -14,7 +14,7 @@
     --background-color: var(--white);
     --text-color: #222;
 
-    --link-color: #54c;
+    --link-color: #cc005f;
     --active-link-color: var(--black);
     --summary-marker-color: var(--border-color);
 
@@ -43,7 +43,7 @@
 body {
     background: var(--background-color);
     color: var(--text-color);
-    font-family:-apple-system,BlinkMacSystemFont,Aptos,"Segoe UI Variable","Segoe UI",Roboto,"Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-family: "Avenir Next", Avenir, sans-serif;
     font-size: 16px;
     line-height: 1.5;
     margin: 0;
@@ -84,7 +84,7 @@ main {
 
 a {
     color: var(--link-color);
-    text-decoration: none;
+    text-decoration-color: var(--brand-color);
 
     &:hover,
     &:focus {
@@ -98,10 +98,8 @@ a {
     }
 }
 
-abbr {
+acronym, abbr {
     cursor: help;
-    font-weight: bold;
-    text-decoration: none;
 }
 
 label {
@@ -268,6 +266,7 @@ h1,
 h2 {
     line-height: 1.2em;
     margin: 1rem 0;
+    font-weight: 600;
 }
 
 h1 {

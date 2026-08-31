@@ -11,7 +11,7 @@
 
 {% block content %}
 
-<p>Maps, timetables and more</p>
+<p>This isn’t <a href="https://bustimes.org">bustimes.org</a>, it’s a fork 🍴 that uses the <acronym title="Bus Open Data Service">BODS</acronym> <abbr title="General Transit Feed Specification">GTFS</abbr> feeds.</p>
 
 {% load cache %}
 {% cache 600 "index_stats" %}
@@ -30,7 +30,6 @@
     <div class="pane">
         <form method="get" action="/search" class="search">
             <h2><label for="q">Search</label></h2>
-
             <p><label for="q">Search for places, operators or routes</label></p>
             <p>
                 <input id="q" name="q" type="search" required>
@@ -46,60 +45,11 @@
     </div>
 </div>
 
-<div class="ad-wrapper">
-    <div id="AFM_inContentTop_ad"></div>
-</div>
+<h2>Operators</h2>
 
-<h2>Regions</h2>
+<p>(‘agencies’ in GTFS speak)</p>
 
-<ul class="regions">
-    {% if request.headers.cf_ipcountry == "IE" %}
-    <li>Ireland
-        <ul class="long">
-            <li><a href="/regions/CO">Connacht</a></li>
-            <li><a href="/regions/LE">Leinster</a></li>
-            <li><a href="/regions/MU">Munster</a></li>
-            <li><a href="/regions/UL">Ulster</a></li>
-        </ul>
-    </li>
-    <li><a href="/regions/NI">Northern Ireland</a></li>
-    {% endif %}
-    <li>England
-        <ul class="long">
-            <li><a href="/regions/EA">East Anglia</a></li>
-            <li><a href="/regions/EM">East Midlands</a></li>
-            <li><a href="/regions/L">London</a></li>
-            <li><a href="/regions/NE">North East</a></li>
-            <li><a href="/regions/NW">North West</a></li>
-            <li><a href="/regions/SE">South East</a></li>
-            <li><a href="/regions/SW">South West</a></li>
-            <li><a href="/regions/WM">West Midlands</a></li>
-            <li><a href="/regions/Y">Yorkshire</a></li>
-        </ul>
-    </li>
-    <li><a href="/regions/W">Wales</a></li>
-    <li><a href="/regions/S">Scotland</a></li>
-    <li><a href="/regions/GB">Great Britain</a></li>
-    {% if request.headers.cf_ipcountry != "IE" %}
-    <li><a href="/regions/NI">Northern Ireland</a></li>
-    <li>Ireland
-        <ul class="long">
-            <li><a href="/regions/CO">Connacht</a></li>
-            <li><a href="/regions/LE">Leinster</a></li>
-            <li><a href="/regions/MU">Munster</a></li>
-            <li><a href="/regions/UL">Ulster</a></li>
-        </ul>
-    </li>
-    {% endif %}
-    <li>USA
-        <ul class="long">
-            <li><a href="/operators/rtcsnv">Las Vegas</a></li>
-        </ul>
-    </li>
-    <!-- <li><a href="/regions/IM">Isle of Man</a></li> -->
-    <!-- <li><a href="/regions/GG">Guernsey</a></li> -->
-    <!-- <li><a href="/regions/JE">Jersey</a></li> -->
-</ul>
+    {% include 'list.html' with list=operators %}
 
 {% endblock content %}
 

@@ -159,7 +159,7 @@ def index(request):
             .count(),
         }
 
-    context = {"stats": stats}
+    context = {"stats": stats, "operators": Operator.objects.all()}
 
     return render(request, "index.html", context)
 
