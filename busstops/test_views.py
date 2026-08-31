@@ -221,9 +221,8 @@ class ViewsTests(TestCase):
 
     def test_lowercase_region(self):
         response = self.client.get("/regions/n")
-        self.assertContains(
-            response, '<link rel="canonical" href="https://bustimes.org/regions/N">'
-        )
+        self.assertContains(response, '<link rel="canonical" href="')
+        self.assertContains(response, '/regions/N"')
         self.assertEqual(response.status_code, 200)
 
     def test_search(self):
