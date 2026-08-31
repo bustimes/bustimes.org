@@ -9,7 +9,7 @@
 <meta name="format-detection" content="telephone=no">
 {% block canonical %}
     {% if object.get_absolute_url %}
-        <link rel="canonical" href="https://bustimes.org{{ object.get_absolute_url }}">
+        <link rel="canonical" href="https://bustim.es{{ object.get_absolute_url }}">
     {% endif %}
 {% endblock canonical %}
 {% load static %}
@@ -22,42 +22,6 @@
 <meta name="twitter:site" content="@bustimes_org">
 
 {% block head %}{% endblock %}
-
-{% block fuse %}
-{% if ad %}
-<script src="{% static 'consent.js' %}"></script>
-<script>if(window.top===window.self&&typeof Array.prototype.includes!=="undefined"&&window.__tcfapi){
-    var s=document.getElementsByTagName("script")[0];
-    var sc=document.createElement("script");
-    sc.async=true;
-    sc.src="https://cdn.adfirst.media/hb/bustimes.js?v"+Math.floor(new Date().getTime()/600000);
-    s.parentNode.insertBefore(sc,s);
-    window.__tcfapi("addEventListener",2,function(tcData,success){
-        if(!success)return;
-        if(tcData.eventStatus!=="tcloaded"&&tcData.eventStatus!=="useractioncomplete")return;
-        window.__tcfapi("removeEventListener",2,function(){},tcData.listenerId);
-        var consents=tcData.purpose&&tcData.purpose.consents,
-            ok=!tcData.gdprApplies;
-        if(!ok&&consents){
-            ok=true;
-            for(var i=1;i<=11;i++){
-                if(!consents[i]){ok=false;break;}
-            }
-        }
-        if(!ok){
-            document.body.classList.add("no-consent");
-        }
-    });
-}</script>
-{% endif %}
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-X2Z0KM7Z5C"></script>
-<script>
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', 'G-X2Z0KM7Z5C');
-</script>
-{% endblock fuse %}
 
 </head>
 <body class="{% block bodyclass %}wide{% endblock %}{% if ad is False %} no-ads{% endif %}">
@@ -75,7 +39,7 @@ gtag('config', 'G-X2Z0KM7Z5C');
 {% block header %}
 <header class="site-header">
     <div>
-        <a href="/" class="site-name">bustimes.org</a>
+        <a href="/" class="site-name">bustim.es</a>
         <ul>
             <li><a href="/map{% if object.latlong %}#16/{{ object.latlong.y|floatformat:4 }}/{{ object.latlong.x|floatformat:4 }}{% endif %}">Map</a></li>
         </ul>
@@ -115,11 +79,7 @@ gtag('config', 'G-X2Z0KM7Z5C');
         </form>
     {% endif %}
     <ul>
-        <li><a href="/contact">Contact</a></li>
         <li><a href="/data">Data sources</a></li>
-        <li><a href="https://status.bustimes.org">Status</a></li>
-        <li><a href="/privacy">Privacy policy</a></li>
-        {% if ad %}<li><a href="javascript:window.__tcfapi('displayConsentUi',2,function(){})">Privacy settings</a></li>{% endif %}
         {% if object and not user.is_authenticated %}
             <li><a href="/accounts/login/?next={{ request.path }}">Log in</a></li>
         {% endif %}
