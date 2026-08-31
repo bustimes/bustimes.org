@@ -189,7 +189,6 @@ class Command(BaseCommand):
                     "start",
                     "end",
                     "destination",
-                    "block",
                     "vehicle_journey_code",
                     "ticket_machine_code",
                     "inbound",

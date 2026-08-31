@@ -80,6 +80,7 @@
     {% endif %}
     <ul>
         <li><a href="/data">Data sources</a></li>
+        <li>Contains public sector information licensed under the Open Government Licence v3.0</li>
         {% if object and not user.is_authenticated %}
             <li><a href="/accounts/login/?next={{ request.path }}">Log in</a></li>
         {% endif %}
