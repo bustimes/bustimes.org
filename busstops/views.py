@@ -1410,7 +1410,9 @@ class ServiceDetailView(DetailView):
                     or self.object.service_code == "PF0000508:488"
                 ):
                     query = {"clickref": self.object.line_name}
-                    if context["breadcrumb"][0].name == "Scotland":
+                    if (
+                        region := context["breadcrumb"][0]
+                    ) and region.name == "Scotland":
                         query["ued"] = "https://www.flixbus.co.uk/scotland"
                     elif self.object.service_code == "PF0000508:488":  # Green Line 757
                         query["ued"] = (
