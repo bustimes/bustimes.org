@@ -461,13 +461,13 @@ class ViewsTests(TestCase):
         self.assertEqual(
             response.context_data["links"][0],
             {
-                "text": "Buy tickets at National Express",
+                "text": "(ad) Buy tickets at National Express",
                 "url": "https://nationalexpress.prf.hn/click/camref:1011ljPYw/pubref:45C",
             },
         )
 
         response = self.client.get(self.chariots.get_absolute_url())
-        self.assertContains(response, ">Tickets<")
+        self.assertContains(response, ">Tickets (ad)<")
         self.assertContains(
             response, "https://nationalexpress.prf.hn/click/camref:1011ljPYw", 2
         )
