@@ -1059,17 +1059,19 @@ class OperatorDetailView(DetailView):
             context["tickets_link"] = reverse(
                 "operator_tickets", kwargs={"slug": self.object.slug}
             )
-        elif self.object.name == "FlixBus":
-            context["tickets_link"] = flixbus_affiliate_link(
-                clickref="ot",
-                ued="https://www.flixbus.co.uk/bus-routes/london-london-stansted-airport",
-            )
-        elif self.object.name == "Flibco":
-            context["tickets_link"] = flibco_affiliate_link(clickref="ot")
-        elif self.object.name == "National Express":
-            context["tickets_link"] = (
-                "https://nationalexpress.prf.hn/click/camref:1011ljPYw"
-            )
+        else:
+            match self.object.name:
+                case "FlixBus":
+                    context["tickets_link"] = flixbus_affiliate_link(
+                        clickref="ot",
+                        ued="https://www.flixbus.co.uk/bus-routes/london-london-stansted-airport",
+                    )
+                case "Flibco":
+                    context["tickets_link"] = flibco_affiliate_link(clickref="ot")
+                case "National Express":
+                    context["tickets_link"] = (
+                        "https://nationalexpress.prf.hn/click/camref:1011ljPYw"
+                    )
 
         context["nocs"] = [
             code.code
@@ -1392,7 +1394,7 @@ class ServiceDetailView(DetailView):
                     context["links"].append(
                         {
                             "url": context["tickets_link"],
-                            "text": "Buy tickets at National Express",
+                            "text": "(ad) Buy tickets at National Express",
                         }
                     )
                     break
@@ -1401,7 +1403,7 @@ class ServiceDetailView(DetailView):
                     context["links"].append(
                         {
                             "url": context["tickets_link"],
-                            "text": "Buy tickets at Flibco",
+                            "text": "(ad) Buy tickets at Flibco",
                         }
                     )
                     break
@@ -1422,7 +1424,7 @@ class ServiceDetailView(DetailView):
                     context["links"].append(
                         {
                             "url": context["tickets_link"],
-                            "text": "Buy tickets at FlixBus",
+                            "text": "(ad) Buy tickets at FlixBus",
                         }
                     )
                     break

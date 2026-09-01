@@ -32,7 +32,7 @@
         <li><a href="{{ object.get_absolute_url }}/map">Map</a></li>
     {% endif %}
     {% if tickets_link %}
-        <li><a href="{{ tickets_link }}">Tickets</a></li>
+        <li><a href="{{ tickets_link }}">Tickets{% if "//" in tickets_link %} (ad){% endif %}</a></li>
     {% endif %}
     {% if vehicles %}
         <li><a href="{{ object.get_absolute_url }}/vehicles">Vehicles</a></li>
