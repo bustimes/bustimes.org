@@ -141,3 +141,19 @@
     latlong: POINT (-0.65996 52.49389)
 305000594CB:
     latlong: POINT (-0.66558 52.50342)
+
+# Winchester Bus Station (© OpenStreetMap contributors)
+1900HA110057: # Stand A
+    latlong: POINT (-1.3102761 51.0620150)
+1900HA110062: # Stand B
+    latlong: POINT (-1.3102259 51.0620977)
+1900HA110063: # Stand C
+    latlong: POINT (-1.3101782 51.0621895)
+1900HA110064: # Stand D
+    latlong: POINT (-1.3101270 51.0622633)
+1900HA110061: # Stand E
+    latlong: POINT (-1.3100878 51.0623398)
+1900HA110060: # Stand F
+    latlong: POINT (-1.3100450 51.0624164)
+1900HA110059: # Stand G
+    latlong: POINT (-1.3100057 51.0624974)
