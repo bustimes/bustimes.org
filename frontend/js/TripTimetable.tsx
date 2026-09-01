@@ -15,8 +15,8 @@ export type TripTime = {
   aimed_departure_time: string | null;
   expected_arrival_time?: string | null;
   expected_departure_time?: string | null;
+  actual_arrival_time?: string | null;
   actual_departure_time?: string;
-  // actual_arrival_time: string;
   timing_status: string;
   pick_up?: boolean;
   set_down?: boolean;
@@ -116,20 +116,31 @@ function Row({
 
   let actual: string | null | ReactElement | undefined;
   let actualRowSpan = rowSpan;
+  let actualDeparture: string | null = null; // shown on the second row, when split
 
-  actual = stop.expected_departure_time || stop.expected_arrival_time; // Irish live departures
+  const liveActual = stop.expected_departure_time || stop.expected_arrival_time; // Irish live departures
 
-  if (!actual) {
-    if (vehicle?.progress && vehicle.progress.id === stop.id) {
-      actual = vehicle.datetime;
-      if (vehicle.progress.progress > 0.1) {
-        actualRowSpan = (actualRowSpan || 1) + 1;
-      }
-    } else if (!vehicle?.progress || vehicle.progress.id + 1 !== stop.id) {
-      actual = stop.actual_departure_time; // vehicle history
+  if (liveActual) {
+    actual = liveActual.slice(11, 16);
+  } else if (vehicle?.progress && vehicle.progress.id === stop.id) {
+    actual = vehicle.datetime.slice(11, 16);
+    if (vehicle.progress.progress > 0.1) {
+      actualRowSpan = (actualRowSpan || 1) + 1;
     }
-    if (actual) {
-      actual = actual.slice(11, 16);
+  } else if (!vehicle?.progress || vehicle.progress.id + 1 !== stop.id) {
+    // vehicle history
+    if (
+      rowSpan === 2 &&
+      stop.actual_arrival_time &&
+      stop.actual_departure_time &&
+      stop.actual_arrival_time !== stop.actual_departure_time
+    ) {
+      actual = stop.actual_arrival_time.slice(11, 16);
+      actualDeparture = stop.actual_departure_time.slice(11, 16);
+      actualRowSpan = 1;
+    } else {
+      const time = stop.actual_departure_time || stop.actual_arrival_time;
+      actual = time ? time.slice(11, 16) : undefined;
     }
   }
   if (actual) {
@@ -177,6 +188,7 @@ function Row({
       {rowSpan ? (
         <tr className={className} onPointerEnter={handlePointerEnter}>
           <td>{formatTime(stop.aimed_departure_time)}</td>
+          {actualDeparture ? <td>{actualDeparture}</td> : null}
         </tr>
       ) : null}
     </React.Fragment>
