@@ -14,7 +14,14 @@ from django.utils.dateparse import parse_duration
 from busstops.models import DataSource, Operator, Service, StopPoint
 
 from ...download_utils import download_if_modified
-from ...gtfs_utils import MODES, RouteType, do_route_links, get_calendars
+from ...gtfs_utils import (
+    MODES,
+    RouteType,
+    do_route_links,
+    get_arrival_and_departure,
+    get_calendars,
+    get_first_and_last_stop_times,
+)
 from ...models import Route, StopTime, Trip
 
 logger = logging.getLogger(__name__)
@@ -150,66 +157,72 @@ class Command(BaseCommand):
             trips[trip.vehicle_journey_code] = trip
         del existing_trips
 
+        sorted_stop_times, first_stop_times, last_stop_times = (
+            get_first_and_last_stop_times(
+                pd.merge(feed.stop_times, feed.trips, on="trip_id")
+            )
+        )
+
         stop_times = []
-        for trip_id, group in pd.merge(
-            feed.stop_times, feed.trips, on="trip_id"
-        ).groupby("trip_id"):
-            trip = trips[trip_id]
+        for row in sorted_stop_times.itertuples():
+            trip = trips[row.trip_id]
             offset = utc_offsets[trip.calendar.start_date]
 
-            stop_time = None
+            is_first = row.stop_sequence == first_stop_times.stop_sequence[row.trip_id]
+            is_last = row.stop_sequence == last_stop_times.stop_sequence[row.trip_id]
 
-            for row in group.sort_values("stop_sequence").itertuples():
-                arrival_time = parse_duration(row.arrival_time) + offset
-                departure_time = parse_duration(row.departure_time) + offset
+            arrival_time = parse_duration(row.arrival_time) + offset
+            departure_time = parse_duration(row.departure_time) + offset
 
-                stop_time = StopTime(
-                    arrival=arrival_time,
-                    departure=departure_time,
-                    sequence=row.stop_sequence,
-                    trip=trip,
-                    pick_up=(row.pickup_type != 1),
-                    set_down=(row.drop_off_type != 1),
-                )
+            if is_first:
+                trip.start = departure_time
 
-                if trip.start is None:
-                    # first stop in trip
-                    trip.start = stop_time.departure
-                    stop_time.set_down = False
+            arrival_time, departure_time = get_arrival_and_departure(
+                arrival_time, departure_time, is_last
+            )
 
-                # (a bit pointless as I think all their stops are timing points and/or they leave this column blank)
-                if pd.notna(row.timepoint) and row.timepoint == 1:
-                    stop_time.timing_point = True
-                else:
-                    stop_time.timing_point = False
+            stop_time = StopTime(
+                arrival=arrival_time,
+                departure=departure_time,
+                sequence=row.stop_sequence,
+                trip=trip,
+                # can't be picked up at the last stop, or set down at the first stop
+                pick_up=(row.pickup_type != 1) and not is_last,
+                set_down=(row.drop_off_type != 1) and not is_first,
+            )
 
-                if row.stop_id in stop_codes:
-                    stop_time.stop_id = stop_codes[row.stop_id]
-                else:
-                    stop = stops_data[row.stop_id]
-                    stop_time.stop_id = row.stop_id
+            # (a bit pointless as I think all their stops are timing points and/or they leave this column blank)
+            if pd.notna(row.timepoint) and row.timepoint == 1:
+                stop_time.timing_point = True
+            else:
+                stop_time.timing_point = False
 
-                    # create new StopPoint
-                    if row.stop_id not in missing_stops:
-                        missing_stops[row.stop_id] = get_stoppoint(stop, source)
+            if row.stop_id in stop_codes:
+                stop_time.stop_id = stop_codes[row.stop_id]
+            else:
+                stop = stops_data[row.stop_id]
+                stop_time.stop_id = row.stop_id
 
-                        if stop.stop_timezone == "Europe/London":
-                            # stop appears to be in the UK,
-                            # so we might want to link it to the corresponding NaPTAN stop
-                            logger.info(f"{stop.stop_name} {stop.stop_code}")
-                            logger.info(
-                                f"    https://bustimes.org/map#16/{stop.stop_lat}/{stop.stop_lon}"
-                            )
-                            logger.info(
-                                f"    https://bustimes.org/admin/busstops/stopcode/add/?code={row.stop_id}"
-                            )
+                # create new StopPoint
+                if row.stop_id not in missing_stops:
+                    missing_stops[row.stop_id] = get_stoppoint(stop, source)
 
-                stop_times.append(stop_time)
+                    if stop.stop_timezone == "Europe/London":
+                        # stop appears to be in the UK,
+                        # so we might want to link it to the corresponding NaPTAN stop
+                        logger.info(f"{stop.stop_name} {stop.stop_code}")
+                        logger.info(
+                            f"    https://bustimes.org/map#16/{stop.stop_lat}/{stop.stop_lon}"
+                        )
+                        logger.info(
+                            f"    https://bustimes.org/admin/busstops/stopcode/add/?code={row.stop_id}"
+                        )
 
-            # last stop in trip
-            trip.end = stop_time.arrival
-            stop_time.pick_up = False
-            trip.destination_id = stop_time.stop_id
+            stop_times.append(stop_time)
+
+            if is_last:
+                trip.end = stop_time.arrival
+                trip.destination_id = stop_time.stop_id
 
         StopPoint.objects.bulk_create(
             missing_stops.values(),
