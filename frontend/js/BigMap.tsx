@@ -504,6 +504,9 @@ function JourneySidebar(props: {
           ) : null}
         </div>
       ) : null}
+      <p className="journey-datetime">
+        {journey.date} {journey.datetime.slice(11, 16)} to {journey.destination}
+      </p>
       {!journey.trip && journey.destination ? (
         <p>To {journey.destination}</p>
       ) : null}
