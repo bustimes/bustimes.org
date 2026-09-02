@@ -16,7 +16,13 @@ from fares.models import Fare, FareRule
 from vosa.models import Registration
 
 from ...download_utils import download_if_modified
-from ...gtfs_utils import MODES, do_route_links, get_calendars
+from ...gtfs_utils import (
+    MODES,
+    do_route_links,
+    get_arrival_and_departure,
+    get_calendars,
+    get_first_and_last_stop_times,
+)
 from ...models import Note, Route, StopTime, Trip
 
 logger = logging.getLogger(__name__)
@@ -133,16 +139,22 @@ class Command(BaseCommand):
             trips[trip.vehicle_journey_code] = trip
         del existing_trips
 
+        sorted_stop_times, first_stop_times, last_stop_times = (
+            get_first_and_last_stop_times(feed.stop_times)
+        )
+
         stop_times = []
-        for row in feed.stop_times.itertuples():
+        for row in sorted_stop_times.itertuples():
             trip = trips[row.trip_id]
-            if not trip.start:
-                trip.start = row.arrival_time
-            trip.end = row.departure_time
+
+            is_last = row.stop_sequence == last_stop_times.stop_sequence[row.trip_id]
+            arrival, departure = get_arrival_and_departure(
+                row.arrival_time, row.departure_time, is_last
+            )
 
             stop_time = StopTime(
-                arrival=row.arrival_time,
-                departure=row.departure_time,
+                arrival=arrival,
+                departure=departure,
                 sequence=row.stop_sequence,
                 trip=trip,
                 timing_point=bool(row.timepoint),
@@ -150,9 +162,20 @@ class Command(BaseCommand):
                 set_down=(row.drop_off_type != 1),
             )
 
-            stop_time.stop = trip.destination = stops[row.stop_id]
+            stop_time.stop = stops[row.stop_id]
 
             stop_times.append(stop_time)
+
+        for trip_id, trip in trips.items():
+            start = first_stop_times.arrival_time.get(trip_id)
+            end = last_stop_times.departure_time.get(trip_id)
+            if pd.isna(start) or pd.isna(end):
+                logger.warning(f"trip {trip_id} has no stop times")
+                trips[trip_id] = None
+            else:
+                trip.start = start
+                trip.end = end
+                trip.destination = stops.get(last_stop_times.stop_id.get(trip_id))
 
         feed_stops = {row.stop_id: row for row in feed.stops.itertuples()}
         stop_codes = {stop_id: stop.atco_code for stop_id, stop in stops.items()}
@@ -185,8 +208,9 @@ class Command(BaseCommand):
                         stop_notes[note] = [stop_id]
 
         with transaction.atomic():
-            existing_trips = [trip for trip in trips.values() if trip.id]
-            Trip.objects.bulk_create([trip for trip in trips.values() if not trip.id])
+            trip_objs = [trip for trip in trips.values() if trip is not None]
+            existing_trips = [trip for trip in trip_objs if trip.id]
+            Trip.objects.bulk_create([trip for trip in trip_objs if not trip.id])
             Trip.objects.bulk_update(
                 existing_trips,
                 fields=[
@@ -279,7 +303,7 @@ class Command(BaseCommand):
             )
             logger.info(
                 operator.trip_set.exclude(
-                    id__in=[trip.id for trip in trips.values()]
+                    id__in=[trip.id for trip in trip_objs]
                 ).delete()
             )
             logger.info(

@@ -16,8 +16,14 @@ from shapely.errors import EmptyPartError
 from busstops.models import AdminArea, DataSource, Operator, Region, Service, StopPoint
 
 from ...download_utils import download_if_modified
-from ...gtfs_utils import MODES, do_route_links, get_calendars
-from ...models import Route, Trip
+from ...gtfs_utils import (
+    MODES,
+    do_route_links,
+    get_arrival_and_departure,
+    get_calendars,
+    get_first_and_last_stop_times,
+)
+from ...models import Route, StopTime, Trip
 from ...utils import log_time_taken
 
 logger = logging.getLogger(__name__)
@@ -138,7 +144,7 @@ class Command(BaseCommand):
                 service.operator.set([operator])
         self.services[service.id] = service
 
-        route, created = Route.objects.update_or_create(
+        route, _ = Route.objects.update_or_create(
             {
                 "line_name": service.line_name,
                 "description": service.description,
@@ -147,8 +153,6 @@ class Command(BaseCommand):
             source=self.source,
             code=line.route_id,
         )
-        if not created:
-            route.trip_set.all().delete()
         self.routes[line.route_id] = route
         self.route_operators[line.route_id] = operator
 
@@ -178,12 +182,20 @@ class Command(BaseCommand):
 
         calendars = get_calendars(feed, source=self.source)
 
+        # reuse existing trip ids where possible, so foreign keys elsewhere
+        # (e.g. vehicle journeys) don't get orphaned by every reimport
+        existing_trip_ids = dict(
+            Trip.objects.filter(route__source=self.source)
+            .order_by("id")
+            .values_list("ticket_machine_code", "id")
+        )
+
         trips = {}
 
         # line as in line in a spreadsheet, not as in the Elizabeth Line
         for line in feed.trips.itertuples():
             route = self.routes[line.route_id]
-            trips[line.trip_id] = Trip(
+            trip = Trip(
                 route=route,
                 calendar=calendars[line.service_id],
                 inbound=line.direction_id == 1,
@@ -195,37 +207,51 @@ class Command(BaseCommand):
                 vehicle_journey_code=getattr(line, "trip_short_name", ""),
                 operator=self.route_operators[line.route_id],
             )
+            if line.trip_id in existing_trip_ids:
+                trip.id = existing_trip_ids[line.trip_id]
+            trips[line.trip_id] = trip
 
         # use stop_times.txt to calculate trips' start times, end times and destinations:
 
-        trip = None
-        previous_line = None
-
-        for line in feed.stop_times.itertuples():
-            if not previous_line or previous_line.trip_id != line.trip_id:
-                if trip:
-                    trip.destination = stops.get(previous_line.stop_id)
-                    trip.end = previous_line.arrival_time
-
-                trip = trips[line.trip_id]
-                trip.start = line.departure_time
-
-            previous_line = line
-
-        if previous_line:
-            # last trip:
-            trip.destination = stops.get(line.stop_id)
-            trip.end = line.arrival_time
+        _, first_stop_times, last_stop_times = get_first_and_last_stop_times(
+            feed.stop_times
+        )
 
         for trip_id, trip in trips.items():
-            if pd.isna(trip.start) or pd.isna(trip.end):
+            start = first_stop_times.departure_time.get(trip_id)
+            end = last_stop_times.arrival_time.get(trip_id)
+            if pd.isna(start) or pd.isna(end):
                 logger.warning(f"trip {trip_id} has no stop times")
                 trips[trip_id] = None
+            else:
+                trip.start = start
+                trip.end = end
+                trip.destination = stops.get(last_stop_times.stop_id.get(trip_id))
 
-        Trip.objects.bulk_create(
-            [trip for trip in trips.values() if isinstance(trip, Trip)],
+        trip_objs = [trip for trip in trips.values() if trip is not None]
+        new_trips = [trip for trip in trip_objs if trip.id is None]
+        trips_to_update = [trip for trip in trip_objs if trip.id is not None]
+
+        Trip.objects.bulk_create(new_trips, batch_size=1000)
+        Trip.objects.bulk_update(
+            trips_to_update,
+            fields=[
+                "route",
+                "calendar",
+                "inbound",
+                "headsign",
+                "ticket_machine_code",
+                "block",
+                "vehicle_journey_code",
+                "operator",
+                "start",
+                "end",
+                "destination",
+            ],
             batch_size=1000,
         )
+        # clear out old stop times for reused trips, they'll be recreated below
+        StopTime.objects.filter(trip__in=trips_to_update).delete()
 
         with (
             connection.cursor() as cursor,
@@ -253,10 +279,22 @@ class Command(BaseCommand):
                     case 1:  # "No drop off available"
                         set_down = False
 
-                departure = int(parse_duration(line.departure_time).total_seconds())
-                arrival = None
-                if line.arrival_time != departure:
-                    arrival = int(parse_duration(line.arrival_time).total_seconds())
+                is_last = line.stop_sequence == last_stop_times.stop_sequence.get(
+                    line.trip_id
+                )
+                arrival_time, departure_time = get_arrival_and_departure(
+                    line.arrival_time, line.departure_time, is_last
+                )
+                departure = (
+                    int(parse_duration(departure_time).total_seconds())
+                    if departure_time is not None
+                    else None
+                )
+                arrival = (
+                    int(parse_duration(arrival_time).total_seconds())
+                    if arrival_time is not None
+                    else None
+                )
 
                 copy.write_row(
                     (
@@ -271,7 +309,13 @@ class Command(BaseCommand):
                     )
                 )
 
+        kept_trip_ids = {trip.pk for trip in trips.values() if trip}
         del trips
+
+        # remove trips that used to belong to these routes but weren't in this import
+        Trip.objects.filter(route__in=self.routes.values()).exclude(
+            id__in=kept_trip_ids
+        ).delete()
 
         services = Service.objects.filter(id__in=self.services.keys())
 

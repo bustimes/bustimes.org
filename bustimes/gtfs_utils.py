@@ -2,6 +2,7 @@ from enum import IntEnum
 from itertools import pairwise
 
 import gtfs_kit
+import pandas as pd
 import shapely.ops as so
 
 from .models import Calendar, CalendarDate, RouteLink
@@ -74,6 +75,32 @@ def get_calendars(feed, source) -> dict:
     CalendarDate.objects.bulk_create(calendar_dates)
 
     return calendars
+
+
+def get_first_and_last_stop_times(
+    stop_times: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    sorted_stop_times = stop_times.sort_values(["trip_id", "stop_sequence"])
+    first_stop_times = sorted_stop_times.drop_duplicates(
+        "trip_id", keep="first"
+    ).set_index("trip_id")
+    last_stop_times = sorted_stop_times.drop_duplicates(
+        "trip_id", keep="last"
+    ).set_index("trip_id")
+    return sorted_stop_times, first_stop_times, last_stop_times
+
+
+def get_arrival_and_departure(arrival, departure, is_last: bool):
+    """Mirror import_transxchange.py: only store an arrival time if it
+    differs from the departure time, and don't store a departure time for a
+    trip's last stop, since it doesn't depart from there.
+    """
+    if arrival == departure:
+        arrival = None
+    if is_last and arrival is None:
+        arrival = departure
+        departure = None
+    return arrival, departure
 
 
 def do_route_links(
