@@ -468,9 +468,6 @@ def get_trip(
     else:
         condition = code | start
 
-    if direction:
-        condition &= destination | direction
-
     trips = trips.filter(condition).annotate(score=score).order_by("-score")
 
     if trips:
