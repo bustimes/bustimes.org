@@ -126,13 +126,13 @@ jobs:
         prune-cache: true
         cache-local-path: /__w/setup-uv-cache
 
-    - run: uv sync --group test --frozen --no-install-package psycopg-c --python-preference only-system && mkdir staticfiles
+    - run: uv sync --group test --frozen --no-install-package psycopg-c --python 3.15 --python-preference only-system && mkdir staticfiles
 
     - name: run tests
       env:
         DATABASE_URL: postgis://postgres:postgres@postgres/postgres
         SECRET_KEY: secret
-      run: uv run --no-sync coverage run --parallel-mode --concurrency=multiprocessing ./manage.py test --parallel=2 --keepdb --durations 10
+      run: uv run --no-sync --python 3.15 coverage run --parallel-mode --concurrency=multiprocessing ./manage.py test --parallel=2 --keepdb --durations 10
 
   publish-coverage:
     needs: test-backend
