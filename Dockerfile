@@ -28,7 +28,7 @@ COPY --from=0 /app/busstops/static /app/busstops/static
 COPY . /app/
 
 ENV PORT=8000 STATIC_ROOT=/staticfiles
-RUN ./manage.py collectstatic --noinput
+RUN ./manage.py check --tag urls && ./manage.py collectstatic --noinput
 
 EXPOSE 8000 9090
 CMD ["granian", "--host", "0.0.0.0", "--interface", "wsgi", "--respawn-failed-workers", "--metrics", "--metrics-address", "0.0.0.0", "buses.wsgi:application"]
