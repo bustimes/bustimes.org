@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from unittest.mock import patch
 
@@ -7,6 +7,7 @@ import time_machine
 from django.contrib.auth.models import Permission
 from django.contrib.gis.geos import Point
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from accounts.models import User
 from busstops.models import DataSource, Operator, OperatorGroup, Region, Service
@@ -232,7 +233,7 @@ class VehiclesTests(TestCase):
         self.assertContains(response, "/vehicles/edits?operator=LYNX")
         self.assertContains(response, "/operators/lynx/map")
 
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             response = self.client.get("/operators/lynx")
         self.assertContains(response, "/operators/lynx/vehicles")
         self.assertNotContains(response, "/operators/lynx/map")
@@ -1025,6 +1026,29 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
             # '<option selected value="2020-10-20">Tuesday 20 October 2020</option>'
         )
         self.assertContains(response, "1 - FD54 JYA")
+
+    def test_ad_hoc_service(self):
+        journey = VehicleJourney.objects.create(
+            vehicle=self.vehicle_1,
+            datetime=timezone.now() - timedelta(days=1),
+            date=timezone.localdate() - timedelta(days=1),
+            source=self.journey.source,
+            route_name="55",
+            destination="Avignon",
+        )
+        self.vehicle_1.latest_journey = journey
+        self.vehicle_1.save(update_fields=["latest_journey"])
+
+        response = self.client.get("/operators/LYNX")
+        self.assertContains(response, "/services/LYNX:55/vehicles")
+        self.assertContains(response, "Avignon")
+
+        response = self.client.get("/services/LYNX:55/vehicles")
+        self.assertContains(response, "1 - FD54 JYA")
+
+        # no journeys with this route name - 404
+        response = self.client.get("/services/LYNX:56/vehicles")
+        self.assertEqual(response.status_code, 404)
 
     def test_api(self):
         with self.assertNumQueries(2):

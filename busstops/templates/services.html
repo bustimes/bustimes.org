@@ -1,3 +1,4 @@
+{% if colours %}
 <style>
 {% for colour in colours %}
 .colour-{{ colour.id }} {
@@ -7,6 +8,7 @@
 }
 {% endfor %}
 </style>
+{% endif %}
 {% for service in services %}
 {% ifchanged service.group %}
     {% if not forloop.first %}

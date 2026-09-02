@@ -745,12 +745,14 @@ def journeys_list(request, journeys, service=None, vehicle=None) -> dict:
 @require_safe
 def service_vehicles_history(request, slug=None, noc=None, line_name=None):
     if slug:
+        # real service
         service: Service = get_object_or_404(
             Service.objects.with_line_names(), slug=slug
         )
         operator = service.operator.first()
         journeys = service.vehiclejourney_set
     else:
+        # ad-hoc service
         service = None
         operator = get_object_or_404(Operator, noc=noc)
         journeys = VehicleJourney.objects.filter(
