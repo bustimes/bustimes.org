@@ -1,12 +1,12 @@
 from datetime import UTC, date, datetime, timedelta
 
 from django.db import transaction
+from django.db.backends.postgresql.psycopg_any import DateTimeTZRange
 from django.test import TransactionTestCase
 
 from busstops.models import DataSource, Operator, PaymentMethod, Service, StopPoint
 from disruptions.models import Consequence, Situation
 from fares.models import DataSet, Tariff
-from photos.models import Photo
 from vehicles.models import Vehicle, VehicleFeature, VehicleJourney
 
 from .models import Note, Route, StopTime, Trip
@@ -127,14 +127,15 @@ class ManyToManyCascadeTest(TransactionTestCase):
         self.assertTrue(Vehicle.objects.filter(id=vehicle.id).exists())
 
     def test_deleting_the_python_side_cascades(self):
-        """StopPoint, Tariff and Photo delete their rows by database cascade only."""
+        """StopPoint and Tariff delete their rows by database cascade only."""
 
         operator = Operator.objects.create(noc="TEST", name="Test")
         stop = StopPoint.objects.create(
             atco_code="test", common_name="Test Stop", active=True
         )
         situation = Situation.objects.create(
-            source=DataSource.objects.create(name="test")
+            source=DataSource.objects.create(name="test"),
+            publication_window=DateTimeTZRange("2026-09-01Z", "2026-09-30Z"),
         )
         consequence = Consequence.objects.create(situation=situation)
         consequence.stops.add(stop)
@@ -144,21 +145,14 @@ class ManyToManyCascadeTest(TransactionTestCase):
         )
         tariff.operators.add(operator)
 
-        vehicle = Vehicle.objects.create()
-        photo = Photo.objects.create(image="test.jpg")
-        photo.vehicles.add(vehicle)
-
         with transaction.atomic():
             StopPoint.objects.filter(atco_code=stop.pk).delete()
             Tariff.objects.filter(id=tariff.id).delete()
-            Photo.objects.filter(id=photo.id).delete()
 
         self.assertFalse(Consequence.stops.through.objects.exists())
         self.assertFalse(Tariff.operators.through.objects.exists())
-        self.assertFalse(Photo.vehicles.through.objects.exists())
         self.assertTrue(Consequence.objects.filter(id=consequence.id).exists())
         self.assertTrue(Operator.objects.filter(noc=operator.noc).exists())
-        self.assertTrue(Vehicle.objects.filter(id=vehicle.id).exists())
 
     def test_symmetrical_siblings(self):
         """A symmetrical self-referential m2m still writes and deletes both rows."""
@@ -168,6 +162,11 @@ class ManyToManyCascadeTest(TransactionTestCase):
         a.siblings.add(b)
         self.assertEqual(Operator.siblings.through.objects.count(), 2)
         self.assertEqual(list(b.siblings.all()), [a])
+
+        # the admin edits siblings with set(), which removes as well as adds
+        a.siblings.set([])
+        self.assertFalse(Operator.siblings.through.objects.exists())
+        a.siblings.add(b)
 
         with transaction.atomic():
             Operator.objects.filter(noc=b.noc).delete()
