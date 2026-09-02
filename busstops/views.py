@@ -1105,6 +1105,7 @@ class OperatorDetailView(DetailView):
             for route in VehicleJourney.objects.filter(
                 latest_vehicle__operator=self.object,
                 service=None,
+                date__gte=Now() - datetime.timedelta(days=2),
             )
             .exclude(route_name="")
             .values("route_name")
