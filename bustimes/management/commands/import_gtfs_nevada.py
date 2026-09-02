@@ -2,11 +2,9 @@ import logging
 from pathlib import Path
 
 import gtfs_kit
-import pandas as pd
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.db.models import Min, OuterRef, Subquery
 
 from busstops.models import DataSource, Operator, Service, ServiceColour, StopPoint
 
@@ -14,9 +12,12 @@ from ...download_utils import download_if_modified
 from ...gtfs_utils import (
     MODES,
     do_route_links,
+    finish_gtfs_import,
     get_arrival_and_departure,
     get_calendars,
     get_first_and_last_stop_times,
+    save_trips,
+    set_trip_times,
 )
 from ...models import Route, StopTime, Trip
 
@@ -182,16 +183,8 @@ class Command(BaseCommand):
 
             stop_times.append(stop_time)
 
-        for trip_id, trip in trips.items():
-            start = first_stop_times.departure_time.get(trip_id)
-            end = last_stop_times.arrival_time.get(trip_id)
-            if pd.isna(start) or pd.isna(end):
-                logger.warning(f"trip {trip_id} has no stop times")
-                trips[trip_id] = None
-            else:
-                trip.start = start
-                trip.end = end
-                trip.destination = stops.get(last_stop_times.stop_id.get(trip_id))
+        for trip_id in set_trip_times(trips, first_stop_times, last_stop_times, stops):
+            logger.warning(f"trip {trip_id} has no stop times")
 
         feed_stops = {row.stop_id: row for row in feed.stops.itertuples()}
         stop_codes = {stop_id: stop.atco_code for stop_id, stop in stops.items()}
@@ -199,10 +192,8 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             trip_objs = [trip for trip in trips.values() if trip is not None]
-            existing_trips = [trip for trip in trip_objs if trip.id]
-            Trip.objects.bulk_create([trip for trip in trip_objs if not trip.id])
-            Trip.objects.bulk_update(
-                existing_trips,
+            existing_trips = save_trips(
+                trip_objs,
                 fields=[
                     "route",
                     "calendar",
@@ -220,30 +211,6 @@ class Command(BaseCommand):
             StopTime.objects.filter(trip__in=existing_trips).delete()
             StopTime.objects.bulk_create(stop_times)
 
-            for service in source.service_set.filter(current=True):
-                service.do_stop_usages()
-                service.update_search_vector()
-
-            logger.info(
-                source.route_set.exclude(id__in=[route.id for route in routes]).delete()
-            )
-            logger.info(
-                operator.trip_set.exclude(
-                    id__in=[trip.id for trip in trip_objs]
-                ).delete()
-            )
-            logger.info(
-                operator.service_set.filter(current=True, route__isnull=True).update(
-                    current=False
-                )
-            )
-
-            source.route_set.update(
-                start_date=Subquery(
-                    Route.objects.filter(pk=OuterRef("pk"))
-                    .annotate(min_date=Min("trip__calendar__start_date"))
-                    .values("min_date")[:1]
-                )
-            )
+            finish_gtfs_import(source, operator, routes, trip_objs)
 
             source.save(update_fields=["url", "datetime"])

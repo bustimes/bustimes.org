@@ -22,6 +22,8 @@ from ...gtfs_utils import (
     get_arrival_and_departure,
     get_calendars,
     get_first_and_last_stop_times,
+    save_trips,
+    set_trip_times,
 )
 from ...models import Route, StopTime, Trip
 from ...utils import log_time_taken
@@ -217,24 +219,12 @@ class Command(BaseCommand):
             feed.stop_times
         )
 
-        for trip_id, trip in trips.items():
-            start = first_stop_times.departure_time.get(trip_id)
-            end = last_stop_times.arrival_time.get(trip_id)
-            if pd.isna(start) or pd.isna(end):
-                logger.warning(f"trip {trip_id} has no stop times")
-                trips[trip_id] = None
-            else:
-                trip.start = start
-                trip.end = end
-                trip.destination = stops.get(last_stop_times.stop_id.get(trip_id))
+        for trip_id in set_trip_times(trips, first_stop_times, last_stop_times, stops):
+            logger.warning(f"trip {trip_id} has no stop times")
 
         trip_objs = [trip for trip in trips.values() if trip is not None]
-        new_trips = [trip for trip in trip_objs if trip.id is None]
-        trips_to_update = [trip for trip in trip_objs if trip.id is not None]
-
-        Trip.objects.bulk_create(new_trips, batch_size=1000)
-        Trip.objects.bulk_update(
-            trips_to_update,
+        existing_trips = save_trips(
+            trip_objs,
             fields=[
                 "route",
                 "calendar",
@@ -248,10 +238,9 @@ class Command(BaseCommand):
                 "end",
                 "destination",
             ],
-            batch_size=1000,
         )
         # clear out old stop times for reused trips, they'll be recreated below
-        StopTime.objects.filter(trip__in=trips_to_update).delete()
+        StopTime.objects.filter(trip__in=existing_trips).delete()
 
         with (
             connection.cursor() as cursor,

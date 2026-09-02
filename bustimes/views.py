@@ -7,7 +7,7 @@ import folium
 import requests
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.core.cache import cache
 from django.db.models import (
     Count,
@@ -50,6 +50,8 @@ from vehicles.models import Vehicle, VehicleJourney
 from vehicles.rtpi import add_progress_and_delay
 
 from .download_utils import download
+from .forms import UploadGTFSForm
+from .gtfs_utils import handle_gtfs_upload
 from .models import Route, RouteLink, StopTime, Trip
 from .utils import get_calendars, get_other_trips_in_block
 
@@ -876,3 +878,20 @@ def operator_blocks(request, slug):
     }
 
     return render(request, "operator_blocks.html", context)
+
+
+@permission_required("busstops.add_datasource", raise_exception=True)
+def upload_gtfs(request):
+    if request.method == "POST":
+        form = UploadGTFSForm(request.POST, request.FILES)
+    else:
+        form = UploadGTFSForm()
+
+    context = {"form": form}
+
+    if request.method == "POST" and form.is_valid():
+        source = handle_gtfs_upload(**form.cleaned_data)
+
+        return redirect(source)
+
+    return render(request, "upload_gtfs.html", context)

@@ -8,7 +8,6 @@ import pandas as pd
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.db.models import Min
 from django.utils.dateparse import parse_duration
 
 from busstops.models import DataSource, Operator, Service, StopPoint
@@ -18,9 +17,11 @@ from ...gtfs_utils import (
     MODES,
     RouteType,
     do_route_links,
+    finish_gtfs_import,
     get_arrival_and_departure,
     get_calendars,
     get_first_and_last_stop_times,
+    save_trips,
 )
 from ...models import Route, StopTime, Trip
 
@@ -237,10 +238,9 @@ class Command(BaseCommand):
                 stop_time.timing_point = True
 
         with transaction.atomic():
-            existing_trips = [trip for trip in trips.values() if trip.id]
-            Trip.objects.bulk_create([trip for trip in trips.values() if not trip.id])
-            Trip.objects.bulk_update(
-                existing_trips,
+            trip_objs = list(trips.values())
+            existing_trips = save_trips(
+                trip_objs,
                 fields=[
                     "route",
                     "calendar",
@@ -256,31 +256,10 @@ class Command(BaseCommand):
             StopTime.objects.filter(trip__in=existing_trips).delete()
             StopTime.objects.bulk_create(stop_times)
 
-            for service in source.service_set.filter(current=True):
-                service.do_stop_usages()
-                service.update_search_vector()
-                service.update_geometry()
-
-            logger.info(
-                source.route_set.exclude(id__in=[route.id for route in routes]).delete()
+            finish_gtfs_import(
+                source, operator, routes, trip_objs, update_geometry=True
             )
 
-            for route in source.route_set.annotate(
-                start=Min("trip__calendar__start_date")
-            ):
-                route.start_date = route.start
-                route.save(update_fields=["start_date"])
-
-            logger.info(
-                operator.trip_set.exclude(
-                    id__in=[trip.id for trip in trips.values()]
-                ).delete()
-            )
-            logger.info(
-                operator.service_set.filter(current=True, route__isnull=True).update(
-                    current=False
-                )
-            )
             if last_modified:
                 source.datetime = last_modified
                 source.save(update_fields=["datetime"])

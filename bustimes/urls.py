@@ -28,4 +28,5 @@ urlpatterns = [
         views.route_link_view,
         name="routelink_detail",
     ),
+    path("upload", views.upload_gtfs),
 ]
