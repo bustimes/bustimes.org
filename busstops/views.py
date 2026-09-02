@@ -13,7 +13,7 @@ from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
-from django.contrib.postgres.aggregates import ArrayAgg, BoolOr
+from django.contrib.postgres.aggregates import ArrayAgg, BoolOr, StringAgg
 from django.contrib.postgres.search import SearchHeadline, SearchQuery, SearchRank
 from django.contrib.sitemaps import Sitemap
 from django.core.cache import cache
@@ -48,7 +48,7 @@ from bustimes.models import StopTime, Trip
 from departures import live
 from disruptions.models import Consequence, Situation
 from fares.models import FareTable
-from vehicles.models import Vehicle
+from vehicles.models import Vehicle, VehicleJourney
 from vehicles.utils import redis_client
 from vosa.models import Registration
 
@@ -1093,6 +1093,24 @@ class OperatorDetailView(DetailView):
                 )
             except ConnectionError:
                 pass
+
+        context["ad_hoc_services"] = [
+            {
+                "get_line_names": [route["route_name"]],
+                "line_name": route["route_name"],
+                "line_brand": "",
+                "description": route["description"],
+                "get_absolute_url": f"/services/{self.object.noc}:{route['route_name']}/vehicles",
+            }
+            for route in VehicleJourney.objects.filter(
+                latest_vehicle__operator=self.object,
+                service=None,
+            )
+            .exclude(route_name="")
+            .values("route_name")
+            .annotate(description=StringAgg("destination", ", ", distinct=True))
+            .order_by("route_name")
+        ]
 
         return context
 

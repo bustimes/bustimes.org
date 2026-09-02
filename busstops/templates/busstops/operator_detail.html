@@ -41,6 +41,12 @@
 
 {% include 'services.html' with services=services %}
 
+{% if ad_hoc_services %}
+    <h2>Other routes</h2>
+
+    {% include 'services.html' with services=ad_hoc_services %}
+{% endif %}
+
 {% include 'operator-contact-details.html' with licences=operator.licences.all %}
 
 {% if perms.busstops.change_operator %}
