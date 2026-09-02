@@ -1,4 +1,3 @@
-import json
 import xml.etree.ElementTree as ET
 import zipfile
 from datetime import datetime, timedelta
@@ -32,13 +31,11 @@ from django.views.decorators.http import require_GET
 from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
 from django_orjson.http import JsonResponse
-from pygments import highlight
-from pygments.formatters import HtmlFormatter
-from pygments.lexers import JsonLexer, XmlLexer
 from rest_framework.renderers import JSONRenderer
 
 from api.serializers import TripSerializer
 from api.views import TripViewSet
+from buses.utils import format_json, format_xml
 from busstops.models import (
     DataSource,
     Locality,
@@ -460,9 +457,7 @@ def stop_debug(request, atco_code: str):
     )
 
     responses = []
-
-    formatter = HtmlFormatter()
-    css = formatter.get_style_defs()
+    css = ""
 
     for response in cache.get_many(
         [
@@ -474,15 +469,10 @@ def stop_debug(request, atco_code: str):
         # syntax-highlight and pretty-print XML and JSON responses
         try:
             # XML
-            ET.register_namespace("", "http://www.siri.org.uk/siri")
-            xml = ET.XML(response.text)
-            ET.indent(xml)
-            response_text = ET.tostring(xml).decode()
-            response_text = mark_safe(highlight(response_text, XmlLexer(), formatter))
+            response_text, css = format_xml(response.text)
         except ET.ParseError:
             # JSON
-            response_text = json.dumps(response.json(), indent=2)
-            response_text = mark_safe(highlight(response_text, JsonLexer(), formatter))
+            response_text, css = format_json(response.text)
         responses.append(
             {"url": response.url, "text": response_text, "headers": response.headers}
         )

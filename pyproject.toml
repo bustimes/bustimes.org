@@ -69,7 +69,7 @@ test = [
     "psycopg[binary]>=3.1.8,<4",
 ]
 dev = [
-    "django-debug-toolbar~=7.1.0",
+    "django-debug-toolbar~=8.0.0",
     "django-debug-toolbar-force>=0.2,<0.3",
     "django-debug-toolbar-template-profiler>=2.1.0,<3",
     "django-watchfiles>=1.4.0",

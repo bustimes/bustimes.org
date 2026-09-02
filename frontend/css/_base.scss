@@ -322,8 +322,15 @@ h3 {
     margin-left: 1em;
 }
 
+input[type='file'] {
+    font: inherit;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
 .button,
-input[type='submit'] {
+input[type='submit'],
+input[type='file']::file-selector-button {
     appearance: none;
     background: var(--brand-color);
     border: 0;
@@ -339,7 +346,8 @@ input[type='submit'] {
 }
 
 .button,
-input[type='submit'] {
+input[type='submit'],
+input[type='file']::file-selector-button {
     &:hover {
         border-bottom-width: 2px;
         text-decoration: none;

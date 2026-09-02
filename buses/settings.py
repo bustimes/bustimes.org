@@ -108,7 +108,6 @@ if DEBUG and not TEST:
         "debug_toolbar_force.middleware.ForceDebugToolbarMiddleware",
     ]
     INTERNAL_IPS = os.environ.get("INTERNAL_IPS", "127.0.0.1").split()
-    DEBUG_TOOLBAR_CONFIG = {"SHOW_TOOLBAR_CALLBACK": "buses.utils.show_toolbar"}
 
 ROOT_URLCONF = "buses.urls"
 

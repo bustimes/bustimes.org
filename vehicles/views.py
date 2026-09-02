@@ -46,6 +46,7 @@ from requests import RequestException
 from sql_util.utils import Exists, SubqueryMax, SubqueryMin
 
 from accounts.models import User
+from buses.utils import format_json
 from busstops.models import (
     SERVICE_ORDER_REGEX,
     Operator,
@@ -849,6 +850,11 @@ class VehicleDetailView(DetailView):
 
         if self.request.user.has_perm("photos.add_photo"):
             context["form"] = self.form or PhotoForm()
+
+        if self.request.user.is_staff:
+            context["css"], context["latest_journey_debug"] = format_json(
+                self.object.latest_journey_data
+            )
 
         context["photo"] = self.object.photo_set.filter(
             livery=self.object.livery_id

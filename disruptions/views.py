@@ -1,12 +1,7 @@
-import xml.etree.ElementTree as ET
-
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, render
-from django.utils.html import mark_safe
-from pygments import highlight
-from pygments.formatters import HtmlFormatter
-from pygments.lexers import XmlLexer
 
+from buses.utils import format_xml
 from busstops.models import Service, StopPoint
 
 from .models import Situation
@@ -37,15 +32,9 @@ def situation(request, id):
     )
 
     context = {}
-    if situation.data:
-        formatter = HtmlFormatter()
 
-        xml = ET.XML(situation.data)
-        ET.indent(xml)
-        xml = ET.tostring(xml).decode()
-        xml = mark_safe(highlight(xml, XmlLexer(), formatter))
-        context["css"] = formatter.get_style_defs()
-        context["xml"] = xml
+    if situation.data:
+        context["css"], context["xml"] = format_xml(situation.data)
 
     context["stops"] = StopPoint.objects.filter(consequence__situation=situation)
     context["services"] = Service.objects.filter(consequence__situation=situation)
