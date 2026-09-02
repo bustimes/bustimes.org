@@ -126,7 +126,7 @@ jobs:
         prune-cache: true
         cache-local-path: /__w/setup-uv-cache
 
-    - run: uv sync --group test --frozen --no-install-package psycopg-c --no-install-package onnxruntime --python 3.15 --python-preference only-system && mkdir staticfiles
+    - run: uv sync --group test --frozen --no-install-package psycopg-binary --no-install-package onnxruntime --python 3.15 --python-preference only-system && mkdir staticfiles
 
     - name: run tests
       env:
