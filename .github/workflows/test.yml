@@ -87,7 +87,7 @@ jobs:
         name: coverage-html
         path: htmlcov
 
-  test-backend-python-3.15-rc:
+  test-backend-python-3-15-rc:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     continue-on-error: true
