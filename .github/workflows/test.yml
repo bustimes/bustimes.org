@@ -87,6 +87,53 @@ jobs:
         name: coverage-html
         path: htmlcov
 
+  test-backend-python-3.15-rc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    continue-on-error: true
+    container:
+      image: python:3.15-rc-slim
+
+    services:
+      postgres:
+        image: postgis/postgis:18-3.6-alpine
+
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_INITDB_ARGS: "--no-sync"
+        options: >-
+          --mount type=tmpfs,destination=/var/lib/postgresql
+          --health-cmd pg_isready
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 5
+          --health-start-period 5s
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: install system dependencies
+      run: |
+        apt-get update && \
+        apt-get install -y --no-install-recommends gdal-bin git gcc libc6-dev libpq-dev
+
+    - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      with:
+        prune-cache: true
+        cache-local-path: /__w/setup-uv-cache
+
+    - run: uv sync --group test --frozen --no-install-package psycopg-c --python-preference only-system && mkdir staticfiles
+
+    - name: run tests
+      env:
+        DATABASE_URL: postgis://postgres:postgres@postgres/postgres
+        SECRET_KEY: secret
+      run: uv run --no-sync coverage run --parallel-mode --concurrency=multiprocessing ./manage.py test --parallel=2 --keepdb --durations 10
+
   publish-coverage:
     needs: test-backend
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
