@@ -52,13 +52,13 @@ dependencies = [
     "channels-redis>=4.3.0",
     "granian[uvloop]>=2.7.9",
     "django-orjson[drf]>=1.1.0",
+    "gtfs-kit>=13.0.1",
 ]
 
 [dependency-groups]
 test = [
     "govuk-bank-holidays>=0.15",
     "asgiref>=3.4.1,<4",
-    "gtfs-kit>=11.0.0",
     "requests-toolbelt>=1.0.0,<2",
     "time-machine~=3.5.0",
     "vcrpy~=8.3.0",
