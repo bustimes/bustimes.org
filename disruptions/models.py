@@ -175,9 +175,15 @@ class ValidityPeriod(models.Model):
 
 class Consequence(models.Model):
     situation = models.ForeignKey(Situation, models.DB_CASCADE)
-    stops = models.ManyToManyField("busstops.StopPoint", blank=True)
-    services = models.ManyToManyField("busstops.Service", blank=True)
-    operators = models.ManyToManyField("busstops.Operator", blank=True)
+    stops = models.ManyToManyField(
+        "busstops.StopPoint", blank=True, through="ConsequenceStop"
+    )
+    services = models.ManyToManyField(
+        "busstops.Service", blank=True, through="ConsequenceService"
+    )
+    operators = models.ManyToManyField(
+        "busstops.Operator", blank=True, through="ConsequenceOperator"
+    )
     text = models.TextField(blank=True)
     data = models.TextField(blank=True)
 
@@ -188,6 +194,47 @@ class Consequence(models.Model):
         if service := self.services.first():
             return service.get_absolute_url()
         return ""
+
+
+class ConsequenceStop(models.Model):
+    # StopPoint is deleted by Python; the ON DELETE CASCADE comes from the migration
+    consequence = models.ForeignKey(
+        Consequence, models.DB_CASCADE, related_name="consequencestop+"
+    )
+    stoppoint = models.ForeignKey(
+        "busstops.StopPoint", models.DO_NOTHING, related_name="consequencestop+"
+    )
+
+    class Meta:
+        db_table = "disruptions_consequence_stops"
+        unique_together = ("consequence", "stoppoint")
+
+
+class ConsequenceService(models.Model):
+    # as above
+    consequence = models.ForeignKey(
+        Consequence, models.DB_CASCADE, related_name="consequenceservice+"
+    )
+    service = models.ForeignKey(
+        "busstops.Service", models.DO_NOTHING, related_name="consequenceservice+"
+    )
+
+    class Meta:
+        db_table = "disruptions_consequence_services"
+        unique_together = ("consequence", "service")
+
+
+class ConsequenceOperator(models.Model):
+    consequence = models.ForeignKey(
+        Consequence, models.DB_CASCADE, related_name="consequenceoperator+"
+    )
+    operator = models.ForeignKey(
+        "busstops.Operator", models.DB_CASCADE, related_name="consequenceoperator+"
+    )
+
+    class Meta:
+        db_table = "disruptions_consequence_operators"
+        unique_together = ("consequence", "operator")
 
 
 class AffectedJourney(models.Model):

@@ -589,9 +589,16 @@ class Operator(SearchMixin, models.Model):
     slug = AutoSlugField(populate_from=str, editable=True, unique=True)
     vehicle_mode = models.CharField(max_length=48, blank=True)
     group = models.ForeignKey(OperatorGroup, models.DB_SET_NULL, null=True, blank=True)
-    siblings = models.ManyToManyField("self", blank=True)
+    siblings = models.ManyToManyField(
+        "self",
+        blank=True,
+        through="OperatorSibling",
+        through_fields=("from_operator", "to_operator"),
+    )
     region = models.ForeignKey(Region, models.DB_SET_NULL, null=True, blank=True)
-    regions = models.ManyToManyField(Region, blank=True, related_name="operators")
+    regions = models.ManyToManyField(
+        Region, blank=True, related_name="operators", through="OperatorRegion"
+    )
     colour = models.ForeignKey(
         "ServiceColour", models.DB_SET_NULL, null=True, blank=True
     )
@@ -604,8 +611,12 @@ class Operator(SearchMixin, models.Model):
 
     timezone = TimeZoneField(null=True, blank=True)
 
-    licences = models.ManyToManyField("vosa.Licence", blank=True)
-    payment_methods = models.ManyToManyField("PaymentMethod", blank=True)
+    licences = models.ManyToManyField(
+        "vosa.Licence", blank=True, through="OperatorLicence"
+    )
+    payment_methods = models.ManyToManyField(
+        "PaymentMethod", blank=True, through="OperatorPaymentMethod"
+    )
     search_vector = SearchVectorField(null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True)
 
@@ -641,6 +652,58 @@ class Operator(SearchMixin, models.Model):
         if not mode or mode[0].lower() in "aeiou":
             return "An " + mode  # 'An airline' or 'An '
         return "A " + mode  # 'A hovercraft'
+
+
+class OperatorSibling(models.Model):
+    from_operator = models.ForeignKey(
+        Operator, models.DB_CASCADE, related_name="from_operatorsibling+"
+    )
+    to_operator = models.ForeignKey(
+        Operator, models.DB_CASCADE, related_name="to_operatorsibling+"
+    )
+
+    class Meta:
+        db_table = "busstops_operator_siblings"
+        unique_together = ("from_operator", "to_operator")
+
+
+class OperatorRegion(models.Model):
+    operator = models.ForeignKey(
+        Operator, models.DB_CASCADE, related_name="operatorregion+"
+    )
+    region = models.ForeignKey(
+        Region, models.DB_CASCADE, related_name="operatorregion+"
+    )
+
+    class Meta:
+        db_table = "busstops_operator_regions"
+        unique_together = ("operator", "region")
+
+
+class OperatorLicence(models.Model):
+    operator = models.ForeignKey(
+        Operator, models.DB_CASCADE, related_name="operatorlicence+"
+    )
+    licence = models.ForeignKey(
+        "vosa.Licence", models.DB_CASCADE, related_name="operatorlicence+"
+    )
+
+    class Meta:
+        db_table = "busstops_operator_licences"
+        unique_together = ("operator", "licence")
+
+
+class OperatorPaymentMethod(models.Model):
+    operator = models.ForeignKey(
+        Operator, models.DB_CASCADE, related_name="operatorpaymentmethod+"
+    )
+    paymentmethod = models.ForeignKey(
+        "PaymentMethod", models.DB_CASCADE, related_name="operatorpaymentmethod+"
+    )
+
+    class Meta:
+        db_table = "busstops_operator_payment_methods"
+        unique_together = ("operator", "paymentmethod")
 
 
 class StopCode(models.Model):
@@ -757,7 +820,7 @@ class Service(models.Model):
     description = models.CharField(max_length=255, blank=True, db_index=True)
     slug = AutoSlugField(populate_from=str, editable=True, unique=True)
     mode = models.CharField(max_length=11, blank=True, default="bus")
-    operator = models.ManyToManyField(Operator, blank=True)
+    operator = models.ManyToManyField(Operator, blank=True, through="ServiceOperator")
     region = models.ForeignKey(Region, models.CASCADE, null=True, blank=True)
     stops = models.ManyToManyField(StopPoint, through=StopUsage)
     current = models.BooleanField(default=True, db_index=True)
@@ -1136,6 +1199,20 @@ class PaymentMethod(models.Model):
         return self.name
 
 
+class ServiceOperator(models.Model):
+    # Service is deleted by Python; the ON DELETE CASCADE comes from the migration
+    service = models.ForeignKey(
+        "Service", models.DO_NOTHING, related_name="serviceoperator+"
+    )
+    operator = models.ForeignKey(
+        Operator, models.DB_CASCADE, related_name="serviceoperator+"
+    )
+
+    class Meta:
+        db_table = "busstops_service_operator"
+        unique_together = ("service", "operator")
+
+
 class ServicePaymentMethod(models.Model):
     service = models.ForeignKey("Service", models.CASCADE)
     payment_method = models.ForeignKey("PaymentMethod", models.CASCADE)
@@ -1159,7 +1236,9 @@ class SIRISource(models.Model):
     url = models.URLField()
     requestor_ref = models.CharField(max_length=255, blank=True)
     admin_areas = models.ManyToManyField(AdminArea, blank=True)
-    operators = models.ManyToManyField(Operator, blank=True)
+    operators = models.ManyToManyField(
+        Operator, blank=True, through="SIRISourceOperator"
+    )
 
     def __str__(self):
         return self.name
@@ -1169,3 +1248,16 @@ class SIRISource(models.Model):
 
     def is_poorly(self):
         return cache.get(self.get_poorly_key())
+
+
+class SIRISourceOperator(models.Model):
+    sirisource = models.ForeignKey(
+        SIRISource, models.DB_CASCADE, related_name="sirisourceoperator+"
+    )
+    operator = models.ForeignKey(
+        Operator, models.DB_CASCADE, related_name="sirisourceoperator+"
+    )
+
+    class Meta:
+        db_table = "busstops_sirisource_operators"
+        unique_together = ("sirisource", "operator")

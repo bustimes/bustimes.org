@@ -501,7 +501,7 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
                     datetime.datetime.fromisoformat("2020-06-10T12:00:00+01:00"),
                 ),
             ) as download_if_modified:
-                with self.assertNumQueries(118):
+                with self.assertNumQueries(120):
                     call_command("import_bod_timetables", "stagecoach")
                 download_if_modified.assert_called_with(
                     path, DataSource.objects.get(name="Stagecoach East"), ANY

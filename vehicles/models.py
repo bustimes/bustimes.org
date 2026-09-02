@@ -277,7 +277,9 @@ class Vehicle(models.Model):
         related_name="latest_vehicle",
     )
     latest_journey_data = models.JSONField(null=True, blank=True)
-    features = models.ManyToManyField(VehicleFeature, blank=True)
+    features = models.ManyToManyField(
+        VehicleFeature, blank=True, through="VehicleHasFeature"
+    )
     withdrawn = models.BooleanField(default=False)
     data = models.JSONField(null=True, blank=True)
     garage = models.ForeignKey(
@@ -467,6 +469,19 @@ class Vehicle(models.Model):
         if colour := getattr(self, "colour", None):
             json["colour"] = colour
         return json
+
+
+class VehicleHasFeature(models.Model):
+    vehicle = models.ForeignKey(
+        Vehicle, models.DB_CASCADE, related_name="vehiclehasfeature+"
+    )
+    vehiclefeature = models.ForeignKey(
+        VehicleFeature, models.DB_CASCADE, related_name="vehiclehasfeature+"
+    )
+
+    class Meta:
+        db_table = "vehicles_vehicle_features"
+        unique_together = ("vehicle", "vehiclefeature")
 
 
 class VehicleCode(models.Model):

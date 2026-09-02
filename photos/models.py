@@ -73,7 +73,9 @@ class Photo(models.Model):
         settings.AUTH_USER_MODEL, models.SET_NULL, null=True, blank=True
     )
 
-    vehicles = models.ManyToManyField("vehicles.Vehicle", blank=True)
+    vehicles = models.ManyToManyField(
+        "vehicles.Vehicle", blank=True, through="PhotoVehicle"
+    )
 
     livery = models.ForeignKey(
         "vehicles.Livery", models.SET_NULL, null=True, blank=True
@@ -92,3 +94,15 @@ class Photo(models.Model):
         if vehicle := self.vehicles.first():
             return vehicle.get_absolute_url()
         return ""
+
+
+class PhotoVehicle(models.Model):
+    # Photo is deleted by Python; the ON DELETE CASCADE comes from the migration
+    photo = models.ForeignKey(Photo, models.DO_NOTHING, related_name="photovehicle+")
+    vehicle = models.ForeignKey(
+        "vehicles.Vehicle", models.DB_CASCADE, related_name="photovehicle+"
+    )
+
+    class Meta:
+        db_table = "photos_photo_vehicles"
+        unique_together = ("photo", "vehicle")

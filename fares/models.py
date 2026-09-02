@@ -23,7 +23,9 @@ class DataSet(models.Model):
     name = models.CharField(max_length=255)
     url = models.URLField(blank=True)
     description = models.CharField(max_length=255, blank=True)
-    operators = models.ManyToManyField("busstops.Operator", blank=True)
+    operators = models.ManyToManyField(
+        "busstops.Operator", blank=True, through="DataSetOperator"
+    )
     datetime = models.DateTimeField(null=True, blank=True)
     published = models.BooleanField(default=False)
 
@@ -49,6 +51,19 @@ class DataSet(models.Model):
             text = f"{text}, {self.datetime:%-d %B %Y}"
 
         return mark_safe(f'<p class="credit">Fares data from {text}</p>')
+
+
+class DataSetOperator(models.Model):
+    dataset = models.ForeignKey(
+        DataSet, models.DB_CASCADE, related_name="datasetoperator+"
+    )
+    operator = models.ForeignKey(
+        "busstops.Operator", models.DB_CASCADE, related_name="datasetoperator+"
+    )
+
+    class Meta:
+        db_table = "fares_dataset_operators"
+        unique_together = ("dataset", "operator")
 
 
 class TimeInterval(models.Model):
@@ -105,7 +120,9 @@ class Tariff(models.Model):
     code = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
     services = models.ManyToManyField("busstops.Service", blank=True)
-    operators = models.ManyToManyField("busstops.Operator", blank=True)
+    operators = models.ManyToManyField(
+        "busstops.Operator", blank=True, through="TariffOperator"
+    )
     source = models.ForeignKey(DataSet, models.CASCADE)
     filename = models.CharField(max_length=255)
     user_profile = models.ForeignKey(UserProfile, models.CASCADE, null=True, blank=True)
@@ -124,6 +141,20 @@ class Tariff(models.Model):
 
     class Meta:
         unique_together = ("source", "filename", "code")
+
+
+class TariffOperator(models.Model):
+    # Tariff is deleted by Python; the ON DELETE CASCADE comes from the migration
+    tariff = models.ForeignKey(
+        Tariff, models.DO_NOTHING, related_name="tariffoperator+"
+    )
+    operator = models.ForeignKey(
+        "busstops.Operator", models.DB_CASCADE, related_name="tariffoperator+"
+    )
+
+    class Meta:
+        db_table = "fares_tariff_operators"
+        unique_together = ("tariff", "operator")
 
 
 class Price(models.Model):

@@ -99,7 +99,7 @@ class OperatorTests(TestCase):
         self.assertEqual(0, response.context_data["cl"].result_count)
 
         response = self.client.get(
-            "/admin/autocomplete/?term=ainsley&app_label=busstops&model_name=operator_payment_methods"
+            "/admin/autocomplete/?term=ainsley&app_label=busstops&model_name=operatorpaymentmethod"
             "&field_name=operator"
         )
         self.assertEqual(

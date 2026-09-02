@@ -25,7 +25,9 @@ class TimetableDataSource(models.Model):
         help_text="for non-BODS sources, i.e. Stagecoach, Passenger, or Ticketer",
     )
     modified_at = models.DateTimeField(null=True, blank=True, auto_now=True)
-    operators = models.ManyToManyField("busstops.Operator", blank=True)
+    operators = models.ManyToManyField(
+        "busstops.Operator", blank=True, through="TimetableDataSourceOperator"
+    )
     settings = models.JSONField(null=True, blank=True)
     complete = models.BooleanField(default=True)
     active = models.BooleanField(default=True)
@@ -36,6 +38,23 @@ class TimetableDataSource(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class TimetableDataSourceOperator(models.Model):
+    timetabledatasource = models.ForeignKey(
+        TimetableDataSource,
+        models.DB_CASCADE,
+        related_name="timetabledatasourceoperator+",
+    )
+    operator = models.ForeignKey(
+        "busstops.Operator",
+        models.DB_CASCADE,
+        related_name="timetabledatasourceoperator+",
+    )
+
+    class Meta:
+        db_table = "bustimes_timetabledatasource_operators"
+        unique_together = ("timetabledatasource", "operator")
 
 
 class Version(models.Model):
@@ -376,7 +395,7 @@ class Trip(models.Model):
     headsign = models.CharField(null=True, blank=True)
     calendar = models.ForeignKey(Calendar, models.DB_CASCADE, null=True, blank=True)
     sequence = models.PositiveSmallIntegerField(null=True, blank=True)
-    notes = models.ManyToManyField(Note, blank=True)
+    notes = models.ManyToManyField(Note, blank=True, through="TripNote")
     start = SecondsField()
     end = SecondsField()
     garage = models.ForeignKey("Garage", models.DB_SET_NULL, null=True, blank=True)
@@ -489,6 +508,15 @@ class Trip(models.Model):
         return [self]
 
 
+class TripNote(models.Model):
+    trip = models.ForeignKey(Trip, models.DB_CASCADE, related_name="tripnote+")
+    note = models.ForeignKey(Note, models.DB_CASCADE, related_name="tripnote+")
+
+    class Meta:
+        db_table = "bustimes_trip_notes"
+        unique_together = ("trip", "note")
+
+
 class StopTime(models.Model):
     id = models.BigAutoField(primary_key=True)
     trip = models.ForeignKey(Trip, models.DB_CASCADE, db_index=False)
@@ -499,7 +527,7 @@ class StopTime(models.Model):
     timing_point = models.BooleanField(null=True, blank=True)
     pick_up = models.BooleanField(default=True)
     set_down = models.BooleanField(default=True)
-    notes = models.ManyToManyField(Note, blank=True)
+    notes = models.ManyToManyField(Note, blank=True, through="StopTimeNote")
 
     class Meta:
         ordering = ("id",)
@@ -551,6 +579,17 @@ class StopTime(models.Model):
 
     def is_minor(self):
         return self.timing_point is False
+
+
+class StopTimeNote(models.Model):
+    stoptime = models.ForeignKey(
+        StopTime, models.DB_CASCADE, related_name="stoptimenote+"
+    )
+    note = models.ForeignKey(Note, models.DB_CASCADE, related_name="stoptimenote+")
+
+    class Meta:
+        db_table = "bustimes_stoptime_notes"
+        unique_together = ("stoptime", "note")
 
 
 class Garage(models.Model):

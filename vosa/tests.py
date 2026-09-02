@@ -44,7 +44,7 @@ class VosaTest(TestCase):
             "vosa.management.commands.import_vosa.download_utils.download_if_modified",
             return_value=(True, None),
         ):
-            with self.assertNumQueries(17):
+            with self.assertNumQueries(16):
                 call_command("import_vosa", "F")
 
             with self.assertNumQueries(8):

@@ -31,7 +31,7 @@ class TfLDisruptionsTest(TestCase):
                 str(vcr_dir / "tfl_disruptions.yaml"), decode_compressed_response=True
             ) as cassette,
         ):
-            with self.assertNumQueries(109):
+            with self.assertNumQueries(111):
                 tfl_disruptions()
 
             cassette.rewind()

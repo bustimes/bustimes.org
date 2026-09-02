@@ -3,8 +3,11 @@ from datetime import UTC, date, datetime, timedelta
 from django.db import transaction
 from django.test import TransactionTestCase
 
-from busstops.models import DataSource, StopPoint
-from vehicles.models import Vehicle, VehicleJourney
+from busstops.models import DataSource, Operator, PaymentMethod, Service, StopPoint
+from disruptions.models import Consequence, Situation
+from fares.models import DataSet, Tariff
+from photos.models import Photo
+from vehicles.models import Vehicle, VehicleFeature, VehicleJourney
 
 from .models import Note, Route, StopTime, Trip
 
@@ -59,3 +62,114 @@ class DatabaseCascadeTest(TransactionTestCase):
         # journey history survives, minus the link to the trip
         journey.refresh_from_db()
         self.assertIsNone(journey.trip_id)
+
+
+class ManyToManyCascadeTest(TransactionTestCase):
+    """The other end of the same relationships.
+
+    Now that the through models say DB_CASCADE (or DO_NOTHING, where the model
+    at the other end is deleted by Python), Django's collector no longer
+    deletes these rows either way - the database has to.
+    """
+
+    def test_deleting_a_note_cascades(self):
+        source = DataSource.objects.create(name="test")
+        route = Route.objects.create(source=source, code="test")
+        trip = Trip.objects.create(
+            route=route, start=timedelta(0), end=timedelta(minutes=1)
+        )
+        note = Note.objects.create(code="X", text="explanatory")
+        trip.notes.add(note)
+
+        with transaction.atomic():
+            Note.objects.filter(id=note.id).delete()
+
+        self.assertFalse(Trip.notes.through.objects.exists())
+        self.assertTrue(Trip.objects.filter(id=trip.id).exists())
+
+    def test_deleting_an_operator_cascades(self):
+        operator = Operator.objects.create(noc="TEST", name="Test")
+        service = Service.objects.create(line_name="1")
+        service.operator.add(operator)
+        payment_method = PaymentMethod.objects.create(name="cash")
+        operator.payment_methods.add(payment_method)
+
+        with transaction.atomic():
+            Operator.objects.filter(noc=operator.noc).delete()
+
+        self.assertFalse(Service.operator.through.objects.exists())
+        self.assertFalse(Operator.payment_methods.through.objects.exists())
+        self.assertTrue(Service.objects.filter(id=service.id).exists())
+        self.assertTrue(PaymentMethod.objects.filter(id=payment_method.id).exists())
+
+    def test_deleting_a_service_cascades(self):
+        """The DO_NOTHING side: only the database knows about this one."""
+
+        operator = Operator.objects.create(noc="TEST", name="Test")
+        service = Service.objects.create(line_name="1")
+        service.operator.add(operator)
+
+        with transaction.atomic():
+            Service.objects.filter(id=service.id).delete()
+
+        self.assertFalse(Service.operator.through.objects.exists())
+        self.assertTrue(Operator.objects.filter(noc=operator.noc).exists())
+
+    def test_deleting_a_vehicle_feature_cascades(self):
+        vehicle = Vehicle.objects.create()
+        feature = VehicleFeature.objects.create(name="USB chargers")
+        vehicle.features.add(feature)
+
+        with transaction.atomic():
+            VehicleFeature.objects.filter(id=feature.id).delete()
+
+        self.assertFalse(Vehicle.features.through.objects.exists())
+        self.assertTrue(Vehicle.objects.filter(id=vehicle.id).exists())
+
+    def test_deleting_the_python_side_cascades(self):
+        """StopPoint, Tariff and Photo delete their rows by database cascade only."""
+
+        operator = Operator.objects.create(noc="TEST", name="Test")
+        stop = StopPoint.objects.create(
+            atco_code="test", common_name="Test Stop", active=True
+        )
+        situation = Situation.objects.create(
+            source=DataSource.objects.create(name="test")
+        )
+        consequence = Consequence.objects.create(situation=situation)
+        consequence.stops.add(stop)
+
+        tariff = Tariff.objects.create(
+            source=DataSet.objects.create(name="test"), code="t", name="t", filename="t"
+        )
+        tariff.operators.add(operator)
+
+        vehicle = Vehicle.objects.create()
+        photo = Photo.objects.create(image="test.jpg")
+        photo.vehicles.add(vehicle)
+
+        with transaction.atomic():
+            StopPoint.objects.filter(atco_code=stop.pk).delete()
+            Tariff.objects.filter(id=tariff.id).delete()
+            Photo.objects.filter(id=photo.id).delete()
+
+        self.assertFalse(Consequence.stops.through.objects.exists())
+        self.assertFalse(Tariff.operators.through.objects.exists())
+        self.assertFalse(Photo.vehicles.through.objects.exists())
+        self.assertTrue(Consequence.objects.filter(id=consequence.id).exists())
+        self.assertTrue(Operator.objects.filter(noc=operator.noc).exists())
+        self.assertTrue(Vehicle.objects.filter(id=vehicle.id).exists())
+
+    def test_symmetrical_siblings(self):
+        """A symmetrical self-referential m2m still writes and deletes both rows."""
+
+        a = Operator.objects.create(noc="AAAA", name="A")
+        b = Operator.objects.create(noc="BBBB", name="B")
+        a.siblings.add(b)
+        self.assertEqual(Operator.siblings.through.objects.count(), 2)
+        self.assertEqual(list(b.siblings.all()), [a])
+
+        with transaction.atomic():
+            Operator.objects.filter(noc=b.noc).delete()
+
+        self.assertFalse(Operator.siblings.through.objects.exists())
