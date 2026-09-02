@@ -347,7 +347,6 @@ class Command(BaseCommand):
                 current=False
             )
         )
-        old_routes.update(service=None)
 
         feed_stops = {row.stop_id: row for row in feed.stops.itertuples()}
         do_route_links(feed, self.source, self.routes, feed_stops)
