@@ -1,6 +1,6 @@
 import json
 import logging
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
 from time import sleep
 
@@ -345,7 +345,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
         pipeline = redis_client.pipeline(transaction=False)
 
         geoadd = []
-        sadd = {}
+        sadd = defaultdict(list)
         items = []
         appendages = []
 
@@ -362,16 +362,10 @@ class ImportLiveVehiclesCommand(BaseCommand):
 
             if location.journey.service_id:
                 key = f"service{location.journey.service_id}vehicles"
-                if key in sadd:
-                    sadd[key].append(vehicle.id)
-                else:
-                    sadd[key] = [vehicle.id]
+                sadd[key].append(vehicle.id)
             if vehicle.operator_id:
                 key = f"operator{vehicle.operator_id}vehicles"
-                if key in sadd:
-                    sadd[key].append(vehicle.id)
-                else:
-                    sadd[key] = [vehicle.id]
+                sadd[key].append(vehicle.id)
             try:
                 if (
                     location.journey.trip
@@ -379,10 +373,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     and location.journey.trip.operator_id != vehicle.operator_id
                 ):
                     key = f"operator{location.journey.trip.operator_id}vehicles"
-                    if key in sadd:
-                        sadd[key].append(vehicle.id)
-                    else:
-                        sadd[key] = [vehicle.id]
+                    sadd[key].append(vehicle.id)
             except Trip.DoesNotExist:
                 location.journey.trip = None
 

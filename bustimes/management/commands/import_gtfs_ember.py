@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from functools import cache
 from pathlib import Path
 
@@ -187,7 +188,7 @@ class Command(BaseCommand):
         feed = gtfs_realtime_pb2.FeedMessage()
         feed.ParseFromString(response.content)
 
-        stop_notes = {}  # map of notes to lists of stop ids
+        stop_notes = defaultdict(list)  # map of notes to lists of stop ids
 
         for item in feed.entity:
             if item.HasField("alert"):
@@ -196,10 +197,7 @@ class Command(BaseCommand):
                 if header == "Pre-booking":
                     stop_id = item.alert.informed_entity[0].stop_id
                     note = get_note(description)
-                    if note in stop_notes:
-                        stop_notes[note].append(stop_id)
-                    else:
-                        stop_notes[note] = [stop_id]
+                    stop_notes[note].append(stop_id)
 
         with transaction.atomic():
             trip_objs = [trip for trip in trips.values() if trip is not None]

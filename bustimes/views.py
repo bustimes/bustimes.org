@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import zipfile
+from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -858,17 +859,14 @@ def operator_blocks(request, slug):
         end = min(trip.end.total_seconds() for trip in trips)
         length_of_day = end - start
 
-    blocks = {}
+    blocks = defaultdict(list)
 
     for trip in trips:
         trip.left = int((trip.start.total_seconds() - start) / length_of_day * 200)
         trip.width = int((trip.end - trip.start).total_seconds() / length_of_day * 200)
 
         if trip.block:
-            if trip.block in blocks:
-                blocks[trip.block].append(trip)
-            else:
-                blocks[trip.block] = [trip]
+            blocks[trip.block].append(trip)
 
     context = {
         "object": operator,
