@@ -1100,7 +1100,10 @@ class OperatorDetailView(DetailView):
                 "line_name": route["route_name"],
                 "line_brand": "",
                 "description": route["description"],
-                "get_absolute_url": f"/services/{self.object.noc}:{route['route_name']}/vehicles",
+                "get_absolute_url": reverse(
+                    "ad_hoc_service_vehicles",
+                    args=(self.object.noc, route["route_name"]),
+                ),
             }
             for route in VehicleJourney.objects.filter(
                 latest_vehicle__operator=self.object,
