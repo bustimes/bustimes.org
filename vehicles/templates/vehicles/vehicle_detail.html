@@ -109,11 +109,14 @@
 
 {% load static %}
 
-<div id="journeys" data-hx-trigger="false">
+{% if date %}
+    {# outside of the #journeys element! #}
+    <script src="{% static 'js/htmx.org/htmx.min.js' %}"></script>
+{% endif %}
+
+<div id="journeys" data-hx-history-elt>
 
 {% if date %}
-    <script src="{% static 'js/htmx.org/htmx.min.js' %}"></script>
-
     <form class="timetable-date" autocomplete="off"
         data-hx-trigger="change"
         data-hx-get="{{ request.path }}"
@@ -121,7 +124,7 @@
         data-hx-target="#journeys"
         data-hx-indicator="#journeys"
         data-hx-swap="outerHTML"
-        data-hx-trigger="true"
+        data-hx-push-url="true"
     >
         {% if dates %}
             <select name="date" aria-label="Date">
