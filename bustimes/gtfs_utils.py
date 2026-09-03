@@ -9,6 +9,7 @@ import shapely.ops as so
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from django.db.models import Min, OuterRef, Subquery
+from shapely.errors import EmptyPartError
 
 from busstops.models import DataSource, Operator, Service, StopPoint
 
@@ -68,6 +69,7 @@ def get_calendars(feed, source) -> dict:
             if (calendar := calendars.get(row.service_id)) is None:
                 calendar = Calendar(
                     start_date=row.date,  # dummy date
+                    source=source,
                 )
                 calendars[row.service_id] = calendar
             calendar_dates.append(
@@ -110,6 +112,12 @@ def get_arrival_and_departure(arrival, departure, is_last: bool):
         arrival = departure
         departure = None
     return arrival, departure
+
+
+def get_str(row, attr: str) -> str:
+    """An optional GTFS column may be missing entirely, or be NaN for a row"""
+    value = getattr(row, attr, None)
+    return value if type(value) is str else ""
 
 
 def set_trip_times(
@@ -337,12 +345,15 @@ def handle_gtfs_upload(source_name, file):
         route_operators = {}
 
         for row in feed.routes.itertuples():
-            line_name = row.route_short_name
+            line_name = get_str(row, "route_short_name")
+            description = get_str(row, "route_long_name")
 
+            # routes with the same short name (e.g. one per direction) belong to the same service
             if line_name in existing_services:
                 service = existing_services[line_name]
             else:
                 service = Service(line_name=line_name, source=source)
+                existing_services[line_name] = service
 
             if row.route_id in existing_routes:
                 route = existing_routes[row.route_id]
@@ -350,16 +361,20 @@ def handle_gtfs_upload(source_name, file):
                 route = Route(code=row.route_id, source=source)
             route.service = service
             route.line_name = line_name
-            service.description = route.description = row.route_long_name
+            service.description = route.description = description
             service.current = True
-            service.mode = MODES[row.route_type]
+            if row.route_type in MODES:
+                service.mode = MODES[row.route_type]
 
             service.save()
             route.save()
 
-            operator = operators.get(row.agency_id)
+            operator = operators.get(get_str(row, "agency_id"))
+            if operator is None and len(operators) == 1:
+                # agency_id is optional if there's only one agency
+                operator = next(iter(operators.values()))
             if operator:
-                service.operator.set([operator])
+                service.operator.add(operator)
 
             routes[row.route_id] = route
             route_operators[row.route_id] = operator
@@ -379,8 +394,8 @@ def handle_gtfs_upload(source_name, file):
             trip = Trip(
                 route=route,
                 calendar=calendars[row.service_id],
-                inbound=row.direction_id == 1,
-                headsign=row.trip_headsign,
+                inbound=getattr(row, "direction_id", None) == 1,
+                headsign=get_str(row, "trip_headsign"),
                 ticket_machine_code=row.trip_id,
                 operator=route_operators[row.route_id],
             )
@@ -412,6 +427,13 @@ def handle_gtfs_upload(source_name, file):
         )
         # clear out old stop times for reused trips, they'll be recreated below
         StopTime.objects.filter(trip__in=existing_trips).delete()
+
+        # optional columns, where an empty value means the default
+        defaults = {"pickup_type": 0, "drop_off_type": 0, "timepoint": 1}
+        for column, default in defaults.items():
+            if column not in feed.stop_times.columns:
+                feed.stop_times[column] = default
+        feed.stop_times = feed.stop_times.fillna(defaults)
 
         stop_times = []
 
@@ -448,7 +470,7 @@ def handle_gtfs_upload(source_name, file):
                     arrival=arrival_time,
                     departure=departure_time,
                     sequence=row.stop_sequence,
-                    timing_point=bool(getattr(row, "timepoint", 1)),
+                    timing_point=bool(row.timepoint),
                     pick_up=pick_up,
                     set_down=set_down,
                 )
@@ -463,12 +485,43 @@ def handle_gtfs_upload(source_name, file):
             id__in=kept_trip_ids
         ).delete()
 
-        for service in Service.objects.filter(
+        services = Service.objects.filter(
             id__in={route.service_id for route in routes.values()}
-        ):
+        )
+        for service in services:
             service.do_stop_usages()
             service.update_search_vector()
+            service.update_geometry()
+
+        do_geometries_and_route_links(feed, source, routes, services)
 
         set_route_start_dates(source)
 
     return source
+
+
+def do_geometries_and_route_links(
+    feed: gtfs_kit.feed.Feed, source, routes: dict, services
+) -> None:
+    """If the feed has shapes.txt, use it for detailed service geometries
+    (instead of just the bounding box of the stops) and route links
+    """
+    try:
+        routes_gdf = feed.get_routes(as_gdf=True)
+    except (AttributeError, EmptyPartError, ValueError):
+        return
+
+    geometries = {}
+    for row in routes_gdf.itertuples():
+        if row.geometry and row.route_id in routes:
+            geometries.setdefault(routes[row.route_id].service_id, []).append(
+                row.geometry
+            )
+
+    for service in services:
+        if service.id in geometries:
+            service.geometry = so.unary_union(geometries[service.id]).wkt
+            service.save(update_fields=["geometry"])
+
+    feed_stops = {row.stop_id: row for row in feed.stops.itertuples()}
+    do_route_links(feed, source, routes, feed_stops)
