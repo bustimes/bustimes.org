@@ -403,7 +403,6 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
             if instance.trip:
                 params["trip_id"] = instance.trip_id
                 params["stop_times"] = instance.trip.stops
-            live = get_vehicle_locations(**params, tzinfo=tzinfo)
             this = None
             if live := get_vehicle_locations(**params, tzinfo=tzinfo):
                 # check that this journey is actually tracking (not an old journey)
