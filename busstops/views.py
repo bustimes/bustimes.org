@@ -17,6 +17,7 @@ from django.contrib.postgres.aggregates import ArrayAgg, BoolOr, StringAgg
 from django.contrib.postgres.search import SearchHeadline, SearchQuery, SearchRank
 from django.contrib.sitemaps import Sitemap
 from django.core.cache import cache
+from django.core.exceptions import PermissionDenied
 from django.core.mail import EmailMessage
 from django.core.paginator import Paginator
 from django.db import connection
@@ -30,6 +31,7 @@ from django.http import (
     StreamingHttpResponse,
 )
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.backends.utils import csrf_input_lazy
 from django.template.loader import get_template
 from django.urls import resolve, reverse
 from django.utils import timezone
@@ -63,6 +65,7 @@ from .models import (
     Region,
     Service,
     ServiceColour,
+    ServiceOverride,
     StopArea,
     StopPoint,
 )
@@ -1455,7 +1458,36 @@ class ServiceDetailView(DetailView):
         for url, text in self.object.get_traveline_links(date):
             context["links"].append({"url": url, "text": text})
 
+        if self.request.user.has_perm("busstops.change_service"):
+            context["override_form"] = forms.ServiceOverrideForm()
+            context["csrf_input"] = csrf_input_lazy(self.request)
+
         return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        if not request.user.has_perm("busstops.change_service"):
+            raise PermissionDenied
+
+        if "delete" in request.POST:
+            ServiceOverride.objects.filter(
+                id=request.POST["delete"], service=self.object
+            ).delete()
+        else:
+            form = forms.ServiceOverrideForm(request.POST)
+            if form.is_valid():
+                ServiceOverride.objects.update_or_create(
+                    service=self.object,
+                    field=form.cleaned_data["field"],
+                    defaults={"value": form.cleaned_data["value"]},
+                )
+                setattr(
+                    self.object, form.cleaned_data["field"], form.cleaned_data["value"]
+                )
+                self.object.save(update_fields=[form.cleaned_data["field"]])
+
+        return redirect(self.object)
 
     def render_to_response(self, context):
         if "redirect_to" in context:

@@ -1,6 +1,8 @@
 from django import forms
 from turnstile.fields import TurnstileField
 
+from .models import ServiceOverride
+
 
 class ContactForm(forms.Form):
     name = forms.CharField(label="Name")
@@ -89,3 +91,9 @@ class TimetableForm(forms.Form):
 class DeparturesForm(forms.Form):
     date = forms.DateField()
     time = forms.TimeField(required=False)
+
+
+class ServiceOverrideForm(forms.ModelForm):
+    class Meta:
+        model = ServiceOverride
+        fields = ("field", "value")

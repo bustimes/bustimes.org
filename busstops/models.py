@@ -1176,6 +1176,25 @@ class ServiceCode(models.Model):
         return f"{self.scheme} {self.code}"
 
 
+class ServiceOverride(models.Model):
+    service = models.ForeignKey(Service, models.CASCADE)
+    field = models.CharField(
+        max_length=32,
+        choices=(
+            ("description", "Description"),
+            ("line_brand", "Marketing name"),
+        ),
+        default="description",
+    )
+    value = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        unique_together = ("service", "field")
+
+    def __str__(self):
+        return f"{self.field} {self.value}"
+
+
 class ServiceLink(models.Model):
     from_service = models.ForeignKey(Service, models.CASCADE, "link_from")
     to_service = models.ForeignKey(Service, models.CASCADE, "link_to")

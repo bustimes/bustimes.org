@@ -137,6 +137,27 @@
     <p>Mobile tickets and live bus tracking available on <a href="{{ app.url }}">the {{ app.name }}</a></p>
 {% endif %}
 
+
+{% if override_form %}
+    <h2>Overrides</h2>
+    {% for override in service.serviceoverride_set.all() %}
+        <form method="post">
+            {{ csrf_input }}
+            <p>
+                <strong>{{ override.get_field_display() }}</strong>
+                {{ override.value }}
+                <button name="delete" value="{{ override.id }}" class="button">Delete</button>
+            </p>
+        </form>
+    {% endfor %}
+
+    <form method="post">
+        {{ csrf_input }}
+        {{ override_form.as_p() }}
+        <input type="submit" value="Add override" />
+    </form>
+{% endif %}
+
 {% endblock content %}
 
 {% block foot %}

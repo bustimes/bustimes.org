@@ -11,7 +11,8 @@ import os
 import re
 import sys
 import zipfile
-from functools import cache
+from collections import defaultdict
+from functools import cache, cached_property
 from pathlib import Path
 
 from django.conf import settings
@@ -33,6 +34,7 @@ from busstops.models import (
     Service,
     ServiceCode,
     ServiceColour,
+    ServiceOverride,
     StopPoint,
     StopUsage,
 )
@@ -433,6 +435,13 @@ class Command(BaseCommand):
         self.notes = {}
         self.garages = {}
         self.today = localdate()
+
+    @cached_property
+    def service_overrides(self):
+        overrides = defaultdict(list)
+        for o in ServiceOverride.objects.all():
+            overrides[o.service_id].append(o)
+        return overrides
 
     def handle(self, *args, **options):
         self.set_up()
@@ -1421,6 +1430,11 @@ class Command(BaseCommand):
                     service.description = out_desc
                 if in_desc and not service.description:
                     service.description = in_desc
+
+            # apply "overrides" of line_brand and description
+            if service.id and service.id in self.service_overrides:
+                for o in self.service_overrides[service.id]:
+                    setattr(service, o.field, o.value)
 
             service.save()
 
