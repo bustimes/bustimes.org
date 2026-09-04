@@ -4,7 +4,7 @@ from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.db import transaction
 from django.db.models import CharField, Exists, F, OuterRef, Q, Value
 from django.db.models.aggregates import StringAgg
-from django.db.models.functions import Cast, Now
+from django.db.models.functions import Cast, Now, TruncDate
 from django.forms import ModelForm, Textarea
 from django.urls import reverse
 from django.utils.html import format_html
@@ -283,7 +283,7 @@ class HasCurrentRouteFilter(admin.SimpleListFilter):
         if value:
             exists = Exists(
                 Route.objects.filter(
-                    Q(end_date=None) | Q(end_date__lt=Now()),
+                    Q(end_date=None) | Q(end_date__gte=TruncDate(Now())),
                     service=OuterRef("id"),
                 )
             )
