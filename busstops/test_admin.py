@@ -45,6 +45,7 @@ class BusStopsAdminTests(TestCase):
             code="129",
             line_name="129",
             service=cls.service_a,
+            revision_number=1,
         )
         Route.objects.create(
             source=cls.source,
@@ -52,6 +53,7 @@ class BusStopsAdminTests(TestCase):
             code="129A",
             line_name="129A",
             service=cls.service_b,
+            revision_number=1,
         )
 
         cls.staff_user = User.objects.create(
@@ -113,6 +115,39 @@ class BusStopsAdminTests(TestCase):
             "/admin/busstops/service/?split=1",
         )
         self.assertContains(response, "Frankby Cemetery - Liscard")
+
+    def test_has_current_route_filter(self):
+        self.client.force_login(self.staff_user)
+
+        url = "/admin/busstops/service/?has_current_route="
+
+        response = self.client.get(f"{url}1")
+        self.assertEqual(response.context_data["cl"].result_count, 2)
+
+        # a newer revision of service_a's route, which has expired
+        Route.objects.create(
+            source=self.source,
+            service_code="129",
+            code="129 2",
+            line_name="129",
+            service=self.service_a,
+            revision_number=2,
+            start_date="2024-01-01",
+            end_date="2024-06-01",
+        )
+
+        # service_a's other route has no end date, but is superseded
+        response = self.client.get(f"{url}0")
+        self.assertEqual(
+            [service.line_name for service in response.context_data["cl"].result_list],
+            ["129"],
+        )
+
+        response = self.client.get(f"{url}1")
+        self.assertEqual(
+            [service.line_name for service in response.context_data["cl"].result_list],
+            ["129A"],
+        )
 
     def test_data_source_admin(self):
         url = "/admin/busstops/datasource/"

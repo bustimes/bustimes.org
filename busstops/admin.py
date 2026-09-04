@@ -281,9 +281,22 @@ class HasCurrentRouteFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         value = self.value()
         if value:
+            today = TruncDate(Now())
+
+            superseded = Exists(
+                Route.objects.filter(
+                    service=OuterRef("service"),
+                    source=OuterRef("source"),
+                    service_code=OuterRef("service_code"),
+                    revision_number_context=OuterRef("revision_number_context"),
+                    revision_number__gt=OuterRef("revision_number"),
+                    start_date__lte=today,
+                )
+            )
             exists = Exists(
                 Route.objects.filter(
-                    Q(end_date=None) | Q(end_date__gte=TruncDate(Now())),
+                    Q(end_date=None) | Q(end_date__gte=today),
+                    ~superseded,
                     service=OuterRef("id"),
                 )
             )
