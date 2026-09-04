@@ -268,6 +268,33 @@ class DuplicateLineNameFilter(DuplicateOperatorFilter):
         return queryset
 
 
+class HasCurrentRouteFilter(admin.SimpleListFilter):
+    title = "has current route"
+    parameter_name = "has_current_route"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("1", "Yes"),
+            ("0", "No"),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value:
+            exists = Exists(
+                Route.objects.filter(
+                    Q(end_date=None) | Q(end_date__lt=Now()),
+                    service=OuterRef("id"),
+                )
+            )
+            if value == "1":
+                queryset = queryset.filter(exists)
+            elif value == "0":
+                queryset = queryset.filter(~exists)
+
+        return queryset
+
+
 @admin.register(models.Service)
 class ServiceAdmin(GISModelAdmin):
     list_display = (
@@ -288,6 +315,7 @@ class ServiceAdmin(GISModelAdmin):
     list_filter = (
         SplitServiceFilter,
         DuplicateLineNameFilter,
+        HasCurrentRouteFilter,
         "current",
         "timetable_wrong",
         "public_use",
