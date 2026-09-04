@@ -15,11 +15,12 @@
 
     {% load email_obfuscator %}
 
-    <p><strong>If you’re a bus operator or transport authority</strong>,
-    although updating the information about your vehicles on this website may not be a high priority,
-    you’re welcome to request an account by emailing
-    {{ 'hallo@bustimes.org?subject=Invitation request&body=[Delete this text. Briefly explain who you are]'|obfuscate_mailto:'hallo@bustimes.org' }}
-    <strong>from an official-looking email address, explaining who you are</strong>.</p>
+    <details>
+        <summary><strong>Are you a bus operator or transport authority?</strong></summary>
+        <p>Although updating the information about your vehicles on this website may not be a high priority, you're welcome to request an account by emailing
+       {{ 'hallo@bustimes.org?subject=Invitation request&body=&#91;Delete this text. Briefly explain who you are&#93;'|obfuscate_mailto:'hallo@bustimes.org' }}
+        <strong>from an official-looking email address, explaining who you are</strong>.</p>
+    </details>
 
     <p>If not, you can still enjoy all the main features of bustimes.org without an account.
     You can also suggest edits (in line with <a href="/rules">the rules</a>) <a href="/contact">by email</a> or <a href="https://discord.com/invite/gY4PdDFau7">on Discord</a>.</p>
