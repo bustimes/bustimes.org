@@ -27,17 +27,14 @@ from django.http import (
     Http404,
     HttpResponse,
     HttpResponseBadRequest,
-    HttpResponseRedirect,
     StreamingHttpResponse,
 )
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.backends.utils import csrf_input_lazy
 from django.template.loader import get_template
 from django.urls import resolve, reverse
 from django.utils import timezone
 from django.utils.cache import patch_response_headers
 from django.utils.functional import SimpleLazyObject
-from django.views.csrf import csrf_failure as django_csrf_failure
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import last_modified
 from django.views.generic.detail import DetailView
@@ -229,19 +226,6 @@ def not_found(request, exception):
         patch_response_headers(response, cache_timeout=3600)
 
     return response
-
-
-def csrf_failure(request, reason=""):
-    logger.warning("CSRF failure: %s", reason)
-    if (
-        request.resolver_match
-        and request.resolver_match.url_name == "login"
-        and request.user.is_authenticated
-    ):
-        return HttpResponseRedirect(
-            request.POST.get("next") or settings.LOGIN_REDIRECT_URL
-        )
-    return django_csrf_failure(request, reason)
 
 
 @cache_control(max_age=3600)
@@ -1460,7 +1444,6 @@ class ServiceDetailView(DetailView):
 
         if self.request.user.has_perm("busstops.change_service"):
             context["override_form"] = forms.ServiceOverrideForm()
-            context["csrf_input"] = csrf_input_lazy(self.request)
 
         return context
 

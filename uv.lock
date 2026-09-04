@@ -190,6 +190,7 @@ dependencies = [
     { name = "django-filter" },
     { name = "django-http-compression" },
     { name = "django-imagekit" },
+    { name = "django-modern-csrf" },
     { name = "django-multidb-router" },
     { name = "django-orjson", extra = ["drf"] },
     { name = "django-simple-history" },
@@ -264,6 +265,7 @@ requires-dist = [
     { name = "django-filter", specifier = "~=26.1" },
     { name = "django-http-compression", specifier = ">=1.2.0" },
     { name = "django-imagekit", specifier = ">=6.1.0" },
+    { name = "django-modern-csrf", specifier = ">=1.0.1" },
     { name = "django-multidb-router", specifier = ">=0.10" },
     { name = "django-orjson", extras = ["drf"], specifier = ">=1.1.0" },
     { name = "django-simple-history", specifier = ">=3.0.0,<4" },
@@ -903,6 +905,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/62/5f/229c58eefe2a9051bc17152179c46002b519371001ad15097a50226e1306/django_imagekit-6.1.0.tar.gz", hash = "sha256:60fa411eaf5d2d137e1d18d17b3004a6d17b482ca46b3e4b5121a5338a8fc9ff", size = 65550, upload-time = "2026-02-22T18:17:03.951Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/4f/9a3b70941982efb80fc59880a471cf26818879a00f930d80d82342cf63c1/django_imagekit-6.1.0-py3-none-any.whl", hash = "sha256:b735620d101821ae0789480b3945addfeb900f0d7653c7f377e0dc1ed63d7c39", size = 41061, upload-time = "2026-02-22T18:17:02.622Z" },
+]
+
+[[package]]
+name = "django-modern-csrf"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/84/f6/bb760a2b01f77f3b4004578f69787267e113c8bae19ff3af647724df852f/django_modern_csrf-1.0.1.tar.gz", hash = "sha256:6d13bf8eb887457f676d6f70987e9670353ef495e81d695d27c26e71e727a7f7", size = 5520, upload-time = "2025-10-28T13:33:48.196Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6f/3e/7aedb5a679da43ac01e421956b45bf97d3d7f48db30c55f093c0a28ddb64/django_modern_csrf-1.0.1-py3-none-any.whl", hash = "sha256:fce69521d2a832a6f3243fc5985cbd61a925fc782e7308e0f3b9ad0b4d219e11", size = 6705, upload-time = "2025-10-28T13:33:47.292Z" },
 ]
 
 [[package]]

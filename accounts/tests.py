@@ -1,8 +1,7 @@
-from http import HTTPStatus
 from unittest.mock import patch
 
 from django.core import mail
-from django.test import Client, TransactionTestCase, override_settings
+from django.test import TransactionTestCase, override_settings
 
 from .models import Invitation, User
 
@@ -111,17 +110,6 @@ class RegistrationTest(TransactionTestCase):
         with self.assertNumQueries(9):
             response = self.client.post("/accounts/login/", data)
             self.assertEqual(302, response.status_code)
-
-        # test CSDRF middeware
-        csrf_client = Client(enforce_csrf_checks=True)
-        with self.assertNumQueries(0), self.assertLogs():
-            response = csrf_client.post("/accounts/login/", data)
-        self.assertEqual(response.status_code, HTTPStatus.FORBIDDEN)
-
-        csrf_client.force_login(user)
-        with self.assertNumQueries(2), self.assertLogs():
-            response = csrf_client.post("/accounts/login/", data)
-        self.assertEqual(302, response.status_code)
 
     def test_update_user(self):
         super_user = User.objects.create(

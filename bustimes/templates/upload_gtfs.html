@@ -13,7 +13,6 @@
 <form action="{{ request.path }}" method="POST" enctype="multipart/form-data">
     {{ form.as_p }}
     <p><label><input type="checkbox" required> I know what I’m doing</label></p>
-    {% csrf_token %}
     <input type="submit" value="Upload">
 </form>
 

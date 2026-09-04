@@ -53,6 +53,7 @@ dependencies = [
     "granian[uvloop]>=2.7.9",
     "django-orjson[drf]>=1.1.0",
     "gtfs-kit>=13.0.1",
+    "django-modern-csrf>=1.0.1",
 ]
 
 [dependency-groups]

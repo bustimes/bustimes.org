@@ -103,8 +103,7 @@ gtag('config', 'G-X2Z0KM7Z5C');
             <ul class="user">
                 <li><a href="{% url 'user_detail' user.id %}">user {{ user.id }}</a></li>
                 <li>
-                    {% csrf_token %}
-                    <button type="submit" class="button">Log out</button>
+                    <input type="submit" value="Log out">
                 </li>
                 {% if user.trusted %}
                     <li><a href="/vehicles/edits?status=pending">Pending edits</a></li>

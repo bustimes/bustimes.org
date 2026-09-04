@@ -37,14 +37,12 @@
             </p>
 
             {{ form.as_p }}
-            {% csrf_token %}
             <input type="submit" value="Save changes">
         </form>
 
         <h2>Delete your account?</h2>
 
         <form method="POST" autocomplete="off">
-            {% csrf_token %}
             {{ delete_form.as_p }}
             <input type="submit" value="☠️ Delete my account!">
         </form>

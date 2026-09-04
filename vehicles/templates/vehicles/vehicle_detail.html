@@ -221,7 +221,6 @@
     <summary>Add photo</summary>
     <form action="{{ request.path }}" method="POST" enctype="multipart/form-data">
         {{ form.as_p }}
-        {% csrf_token %}
         <input type="submit">
     </form>
 </details>

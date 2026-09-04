@@ -2,7 +2,7 @@
 
 <script src="{% static 'js/htmx.org/htmx.min.js' %}"></script>
 
-<ul class="revisions-list" data-hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<ul class="revisions-list">
     {% for revision in revisions %}
         {% include "vehicle_revision.html" %}
     {% endfor %}

@@ -49,7 +49,6 @@
 
         <form action="/contact" method="post">
             {{ form.as_p }}
-            {% csrf_token %}
             <input type="submit" value="Send message">
         </form>
     </details>

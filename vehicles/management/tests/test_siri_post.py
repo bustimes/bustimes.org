@@ -5,7 +5,7 @@ from unittest import mock
 import fakeredis
 import time_machine
 from django.core.management import call_command
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from vcr import use_cassette
 
 from busstops.models import DataSource
@@ -66,7 +66,10 @@ class SiriPostTest(TestCase):
         self.assertEqual(404, response.status_code)
 
     def test_siri_post_heartbeat(self):
-        response = self.client.post(
+        # check that view is CSRF-exempt
+        client = Client(enforce_csrf_checks=True)
+
+        response = client.post(
             "/siri/475d1d1f-5708-4ee1-8f51-c63d948bc0b9",
             data="""<?xml version="1.0" encoding="UTF-8" ?>
 <Siri xmlns="http://www.siri.org.uk/siri" version="1.3"
@@ -153,6 +156,9 @@ class SiriPostTest(TestCase):
     def test_overland(self):
         redis_client = fakeredis.FakeStrictRedis(version=7)
 
+        # check that view is CSRF-exempt
+        client = Client(enforce_csrf_checks=True)
+
         with (
             mock.patch(
                 "vehicles.management.import_live_vehicles.redis_client", redis_client
@@ -182,10 +188,8 @@ class SiriPostTest(TestCase):
             }
 
             for response in (
-                self.client.post(
-                    f"/overland/{uuid}", data, content_type="application/json"
-                ),
-                self.client.post(
+                client.post(f"/overland/{uuid}", data, content_type="application/json"),
+                client.post(
                     "/overland",
                     data,
                     content_type="application/json",
@@ -198,7 +202,7 @@ class SiriPostTest(TestCase):
             with self.assertRaises(KeyError):
                 self.client.post("/overland", data, content_type="application/json")
 
-            response = self.client.get("/siri/475d1d1f-5708-4ee1-8f51-c63d948bc0b9")
+            response = client.get("/siri/475d1d1f-5708-4ee1-8f51-c63d948bc0b9")
             self.assertEqual(response.headers["Content-Type"], "application/json")
 
         vehicle = Vehicle.objects.get()
