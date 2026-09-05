@@ -3,7 +3,6 @@
 import os
 import sys
 from pathlib import Path
-from warnings import filterwarnings
 
 import dj_database_url
 
@@ -284,13 +283,6 @@ TIME_ZONE = "Europe/London"
 USE_TZ = True
 USE_I18N = False
 LANGUAGE_CODE = "en-gb"
-
-
-# https://adamj.eu/tech/2023/12/07/django-fix-urlfield-assume-scheme-warnings/
-filterwarnings(
-    "ignore", "The FORMS_URLFIELD_ASSUME_HTTPS transitional setting is deprecated."
-)
-FORMS_URLFIELD_ASSUME_HTTPS = True
 
 
 def traces_sampler(context):

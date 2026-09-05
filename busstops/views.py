@@ -13,7 +13,7 @@ from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
-from django.contrib.postgres.aggregates import ArrayAgg, BoolOr, StringAgg
+from django.contrib.postgres.aggregates import ArrayAgg, BoolOr
 from django.contrib.postgres.search import SearchHeadline, SearchQuery, SearchRank
 from django.contrib.sitemaps import Sitemap
 from django.core.cache import cache
@@ -21,7 +21,7 @@ from django.core.exceptions import PermissionDenied
 from django.core.mail import EmailMessage
 from django.core.paginator import Paginator
 from django.db import connection
-from django.db.models import Case, F, OuterRef, Prefetch, Q, Value, When
+from django.db.models import Case, F, OuterRef, Prefetch, Q, StringAgg, Value, When
 from django.db.models.functions import Coalesce, Now
 from django.http import (
     Http404,
@@ -1099,7 +1099,7 @@ class OperatorDetailView(DetailView):
             )
             .exclude(route_name="")
             .values("route_name")
-            .annotate(description=StringAgg("destination", ", ", distinct=True))
+            .annotate(description=StringAgg("destination", Value(", "), distinct=True))
             .order_by("route_name")
         ]
 

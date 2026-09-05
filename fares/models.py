@@ -128,9 +128,7 @@ class Tariff(models.Model):
     user_profile = models.ForeignKey(UserProfile, models.CASCADE, null=True, blank=True)
     trip_type = models.CharField(max_length=255, blank=True)
     valid_between = DateTimeRangeField(null=True, blank=True)
-    type_of_tariff = models.CharField(
-        max_length=19, choices=TypeOfTariff.choices, blank=True
-    )
+    type_of_tariff = models.CharField(max_length=19, choices=TypeOfTariff, blank=True)
     access_zones = models.ManyToManyField("FareZone", blank=True)
 
     def __str__(self):
