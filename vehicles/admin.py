@@ -10,6 +10,7 @@ from django.utils.html import format_html
 from simple_history.admin import SimpleHistoryAdmin
 from sql_util.utils import SubqueryCount
 
+from buses.admin_utils import M2MThroughMixin
 from bustimes.admin import log_change
 
 from . import models
@@ -104,7 +105,7 @@ class DuplicateVehicleFilter(admin.SimpleListFilter):
 
 
 @admin.register(models.Vehicle)
-class VehicleAdmin(admin.ModelAdmin):
+class VehicleAdmin(M2MThroughMixin, admin.ModelAdmin):
     list_display = (
         "code",
         "fleet_number",

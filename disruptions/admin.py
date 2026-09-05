@@ -1,10 +1,12 @@
 from django.contrib import admin
 from sql_util.utils import SubqueryCount
 
+from buses.admin_utils import M2MThroughMixin
+
 from .models import AffectedJourney, Consequence, Link, Situation, ValidityPeriod
 
 
-class ConsequenceInline(admin.StackedInline):
+class ConsequenceInline(M2MThroughMixin, admin.StackedInline):
     model = Consequence
     autocomplete_fields = ("stops", "services", "operators")
     readonly_fields = ("data",)

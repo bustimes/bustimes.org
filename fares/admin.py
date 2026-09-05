@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.db.models import Value
 from django.db.models.aggregates import StringAgg
 
+from buses.admin_utils import M2MThroughMixin
+
 from .models import (
     DataSet,
     DistanceMatrixElement,
@@ -14,7 +16,7 @@ from .models import (
 
 
 @admin.register(DataSet)
-class DataSetAdmin(admin.ModelAdmin):
+class DataSetAdmin(M2MThroughMixin, admin.ModelAdmin):
     list_display = ("__str__", "description", "noc", "datetime")
     list_filter = ("published",)
     autocomplete_fields = ("operators",)
@@ -33,7 +35,7 @@ class DataSetAdmin(admin.ModelAdmin):
 
 
 @admin.register(Tariff)
-class TariffAdmin(admin.ModelAdmin):
+class TariffAdmin(M2MThroughMixin, admin.ModelAdmin):
     autocomplete_fields = ("operators", "services")
     list_filter = (("operators", admin.RelatedOnlyFieldListFilter),)
     raw_id_fields = ("source", "user_profile", "access_zones")

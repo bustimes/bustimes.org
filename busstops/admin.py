@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from sql_util.utils import SubqueryCount
 
+from buses.admin_utils import M2MThroughMixin
 from bustimes.admin import log_change
 from bustimes.models import Route, RouteLink
 
@@ -121,7 +122,7 @@ class DuplicateOperatorFilter(admin.SimpleListFilter):
 
 
 @admin.register(models.Operator)
-class OperatorAdmin(admin.ModelAdmin):
+class OperatorAdmin(M2MThroughMixin, admin.ModelAdmin):
     form = OperatorAdminForm
     list_display = (
         "name",
@@ -309,7 +310,7 @@ class HasCurrentRouteFilter(admin.SimpleListFilter):
 
 
 @admin.register(models.Service)
-class ServiceAdmin(GISModelAdmin):
+class ServiceAdmin(M2MThroughMixin, GISModelAdmin):
     list_display = (
         "id",
         "line_name",
@@ -639,7 +640,7 @@ class DataSourceAdmin(admin.ModelAdmin):
 
 
 @admin.register(models.SIRISource)
-class SIRISourceAdmin(admin.ModelAdmin):
+class SIRISourceAdmin(M2MThroughMixin, admin.ModelAdmin):
     list_display = ("name", "url", "requestor_ref", "areas", "is_poorly")
     autocomplete_fields = ("operators", "admin_areas")
 

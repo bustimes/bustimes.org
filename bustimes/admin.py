@@ -10,6 +10,8 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from sql_util.utils import SubqueryCount
 
+from buses.admin_utils import M2MThroughMixin
+
 from .models import (
     BankHoliday,
     BankHolidayDate,
@@ -66,7 +68,7 @@ class TimetableDataSourceAdminForm(ModelForm):
 
 
 @admin.register(TimetableDataSource)
-class TimetableDataSourceAdmin(admin.ModelAdmin):
+class TimetableDataSourceAdmin(M2MThroughMixin, admin.ModelAdmin):
     autocomplete_fields = ("operators",)
     list_display = (
         "id",
@@ -122,7 +124,7 @@ class RouteAdmin(admin.ModelAdmin):
 
 
 @admin.register(Trip)
-class TripAdmin(admin.ModelAdmin):
+class TripAdmin(M2MThroughMixin, admin.ModelAdmin):
     list_filter = (("calendar", admin.EmptyFieldListFilter),)
     raw_id_fields = ("route", *TripInline.raw_id_fields)
     list_display = (

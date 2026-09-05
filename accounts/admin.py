@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from sql_util.utils import SubqueryCount
 
+from buses.admin_utils import M2MThroughMixin
 from bustimes.admin import log_change
 
 from .models import Invitation, OperatorUser, User
@@ -93,5 +94,5 @@ class OperatorUserAdmin(admin.ModelAdmin):
 
 
 @admin.register(Invitation)
-class InvitationAdmin(admin.ModelAdmin):
+class InvitationAdmin(M2MThroughMixin, admin.ModelAdmin):
     raw_id_fields = ("operators",)
