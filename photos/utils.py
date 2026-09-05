@@ -11,7 +11,7 @@ from PIL import Image
 
 from .exif import get_exif
 from .models import Photo
-from .tasks import detect_photo_subject
+from .tasks import detect_photo_subject_blocking
 
 
 class WrongLicense(Exception):
@@ -52,7 +52,7 @@ def add_uploaded_photo(image, vehicle, request):
     photo.livery_id = vehicle.livery_id
     photo.save()
     photo.vehicles.add(vehicle)
-    detect_photo_subject(photo.id)
+    detect_photo_subject_blocking(photo.id)
 
 
 def add_flickr_photo(url, vehicle, request):
@@ -114,4 +114,4 @@ def add_flickr_photo(url, vehicle, request):
     photo.livery_id = vehicle.livery_id
     photo.save()
     photo.vehicles.add(vehicle)
-    detect_photo_subject(photo.id)
+    detect_photo_subject_blocking(photo.id)

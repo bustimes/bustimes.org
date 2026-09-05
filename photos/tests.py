@@ -1,4 +1,5 @@
 from io import BytesIO
+from unittest.mock import patch
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import InMemoryStorage
@@ -14,6 +15,7 @@ from .detect import get_subject
 from .exif import get_exif
 from .models import Photo
 from .processors import SmartCrop
+from .tasks import detect_photo_subject, detect_photo_subject_blocking
 from .utils import read_image
 
 
@@ -272,3 +274,19 @@ class PhotoTest(TestCase):
 
         photo.bbox = [0.5, 0.55, 0.95, 0.95]
         self.assertNotEqual(photo.image_320.name, before)
+
+    def test_detection_result_is_stored(self):
+        photo = Photo.objects.get()
+        with patch("photos.tasks.update_photo", return_value=False) as update_photo:
+            result = detect_photo_subject(photo.id)
+
+        update_photo.assert_called_once()
+        self.assertIs(result(blocking=True, timeout=1), False)
+
+    def test_detection_error_doesnt_break_the_upload(self):
+        photo = Photo.objects.get()
+        with (
+            patch("photos.tasks.update_photo", side_effect=OSError),
+            self.assertLogs("photos.tasks", "ERROR"),
+        ):
+            detect_photo_subject_blocking(photo.id)

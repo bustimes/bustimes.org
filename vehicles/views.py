@@ -897,7 +897,7 @@ class VehicleDetailView(DetailView):
         if form.errors:
             self.form = form
 
-        return self.get(*args, **kwargs)
+        return redirect(self.object)
 
 
 def check_user(request):
