@@ -44,7 +44,7 @@ class BusTimesTest(TestCase):
             self.assertEqual("LTZ1243", response.context["object"].reg)
             self.assertContains(response, "Old Ford Road")
             self.assertContains(response, '"OB"')
-            self.assertContains(response, '"18:56"')
+            self.assertContains(response, '"2021-03-17T18:56:00Z"')
 
             response = self.client.get("/vehicles/tfl/LJ53NHP")
             self.assertEqual(response.status_code, 404)
