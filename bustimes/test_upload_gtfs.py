@@ -8,7 +8,7 @@ from django.test import TestCase
 from accounts.models import User
 from busstops.models import DataSource, Operator, Service
 
-from .models import Route, RouteLink, StopTime, Trip
+from .models import Note, Route, RouteLink, StopTime, Trip
 
 GTFS_FILES = {
     "agency.txt": """agency_id,agency_name,agency_url,agency_timezone
@@ -127,6 +127,27 @@ class UploadGTFSTest(TestCase):
         self.assertEqual(Route.objects.count(), 3)
         self.assertEqual(set(Trip.objects.values_list("id", flat=True)), trip_ids)
         self.assertEqual(StopTime.objects.count(), 6)
+
+    def test_upload_with_note(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            "/upload",
+            {"source_name": "TDTT", "file": make_zip(), "note": "Runs on Saturdays"},
+        )
+        self.assertEqual(response.status_code, 302)
+
+        note = Note.objects.get()
+        self.assertEqual(note.text, "Runs on Saturdays")
+        self.assertEqual(note.trip_set.count(), 3)
+
+        # uploading again reuses the note
+        response = self.client.post(
+            "/upload",
+            {"source_name": "TDTT", "file": make_zip(), "note": "Runs on Saturdays"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Note.objects.get().trip_set.count(), 3)
 
     def test_upload_with_shapes(self):
         self.client.force_login(self.user)

@@ -13,7 +13,16 @@ from shapely.errors import EmptyPartError
 
 from busstops.models import DataSource, Operator, Service, StopPoint
 
-from .models import Calendar, CalendarDate, Route, RouteLink, StopTime, Trip
+from .models import (
+    Calendar,
+    CalendarDate,
+    Note,
+    Route,
+    RouteLink,
+    StopTime,
+    Trip,
+    TripNote,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -253,13 +262,10 @@ def do_stops(feed: gtfs_kit.feed.Feed, source) -> dict:
 def get_operators(feed: gtfs_kit.feed.Feed) -> dict:
     operators = {}
     for row in feed.agency.itertuples():
-        operator, created = Operator.objects.get_or_create(
+        operator, _ = Operator.objects.get_or_create(
             noc=row.agency_id,
             defaults={"name": row.agency_name, "url": row.agency_url},
         )
-        if not created and operator.name != row.agency_name:
-            operator.name = row.agency_name
-            operator.save(update_fields=["name"])
         operators[row.agency_id] = operator
     return operators
 
@@ -318,13 +324,16 @@ def finish_gtfs_import(
     set_route_start_dates(source)
 
 
-def handle_gtfs_upload(source_name, file):
+def handle_gtfs_upload(source_name, file, note=None):
     source, _ = DataSource.objects.get_or_create(name=source_name)
 
     with (
         tempfile.NamedTemporaryFile(suffix=".zip") as temp_file,
         transaction.atomic(),
     ):
+        if note:
+            note = Note.objects.get_or_create(code="", text=note)[0]
+
         for chunk in file.chunks():
             temp_file.write(chunk)
         temp_file.flush()
@@ -484,6 +493,12 @@ def handle_gtfs_upload(source_name, file):
         Trip.objects.filter(route__in=routes.values()).exclude(
             id__in=kept_trip_ids
         ).delete()
+
+        if note:
+            TripNote.objects.bulk_create(
+                [TripNote(trip_id=trip_id, note=note) for trip_id in kept_trip_ids],
+                ignore_conflicts=True,
+            )
 
         services = Service.objects.filter(
             id__in={route.service_id for route in routes.values()}
