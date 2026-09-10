@@ -677,7 +677,9 @@ def journeys_list(request, journeys, service=None, vehicle=None) -> dict:
     if date:
         context["date"] = date
 
-        journeys = journeys.filter(date=date).select_related("trip").order_by("id")
+        journeys = (
+            journeys.filter(date=date).select_related("trip").order_by("datetime", "id")
+        )
 
         if dates and date not in dates:
             dates.append(date)
