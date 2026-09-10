@@ -457,7 +457,16 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
         if not instance.trip and instance.code.isdigit():
-            instance.trip = self.trip_from_tfl(instance)
+            try:
+                if (
+                    instance.vehicle.latest_journey_data["MonitoredVehicleJourney"][
+                        "OperatorRef"
+                    ]
+                    == "TFLO"
+                ):
+                    instance.trip = self.trip_from_tfl(instance)
+            except (AttributeError, TypeError, KeyError, ValueError):
+                pass
 
         if current_trip and not instance.trip:
             instance.trip = self.trip_from_siri(instance)
