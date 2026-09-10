@@ -17,7 +17,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry, Point
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 from django.db.models import Count, Exists, OuterRef, Q
 from django.db.models.functions import Now, Upper
@@ -593,10 +593,10 @@ class Command(BaseCommand):
                     self.handle_sub_archive(sub_archive, filename)
 
     def maybe_flatten(self, archive_path: Path) -> Path:
-        """If the zip contains nested zips, rebuild it as a single flat zip.
-
-        Errors if two inner XMLs would share a basename. Returns the path
-        to use for the rest of the import (and the archive).
+        """If the zip contains nested zips
+        (i.e. it's the Transport for London journey planner dataset)
+        rebuild it as a single flat zip,
+        paying attention to possible duplicate filenames
         """
         try:
             archive = zipfile.ZipFile(archive_path)
@@ -616,9 +616,14 @@ class Command(BaseCommand):
 
             def add(base: str, origin: str, data: bytes) -> None:
                 if base in seen:
-                    raise CommandError(
+                    logger.warning(
                         f"duplicate basename {base!r}: {seen[base]} and {origin}"
                     )
+                    stem, suffix = Path(base).stem, Path(base).suffix
+                    i = 2
+                    while f"{stem}-{i}{suffix}" in seen:
+                        i += 1
+                    base = f"{stem}-{i}{suffix}"
                 seen[base] = origin
                 flat.writestr(base, data)
 
