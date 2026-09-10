@@ -450,11 +450,15 @@ def get_trip(
             start_time - timedelta(minutes=10),
             start_time + timedelta(minutes=5),
         )
+        if next_stop[3:4] == "0":
+            stop_q = Q(stop=next_stop)  # translink
+        else:
+            stop_q = Q(stop__naptan_code=next_stop)  # lothian
         condition = Q(
             Exists(
                 "stoptime",
                 filter=Q(
-                    stop__naptan_code=next_stop,
+                    stop_q,
                     departure__range=start_range,
                 ),
             ),

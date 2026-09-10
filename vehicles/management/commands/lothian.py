@@ -85,7 +85,7 @@ class Command(ImportLiveVehiclesCommand):
 
         if journey.service_id:
             journey.trip = journey.get_trip(
-                next_stop=item["nextStopCode"],
+                next_stop=item.get("CurrentStop"),
                 approximate_datetime=True,
                 datetime=self.get_datetime(item),
             )
