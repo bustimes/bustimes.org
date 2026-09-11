@@ -243,10 +243,6 @@ const Vehicles = memo(function Vehicles({
   clickedVehicleMarkerId,
   setClickedVehicleMarker,
 }: VehiclesProps) {
-  const vehiclesById = React.useMemo<{ [id: string]: VehicleLocation }>(() => {
-    return Object.assign({}, ...vehicles.map((item) => ({ [item.id]: item })));
-  }, [vehicles]);
-
   const vehiclesGeoJson = React.useMemo(() => {
     if (vehicles.length < 1000) {
       return null;
@@ -276,8 +272,22 @@ const Vehicles = memo(function Vehicles({
     };
   }, [vehicles]);
 
+  const vehiclesById = React.useMemo<
+    { [id: string]: VehicleLocation } | undefined
+  >(() => {
+    if (!vehiclesGeoJson) {
+      return Object.assign(
+        {},
+        ...vehicles.map((item) => ({ [item.id]: item })),
+      );
+    }
+  }, [vehicles, vehiclesGeoJson]);
+
   const clickedVehicle =
-    clickedVehicleMarkerId && vehiclesById[clickedVehicleMarkerId];
+    clickedVehicleMarkerId &&
+    (vehiclesById
+      ? vehiclesById[clickedVehicleMarkerId]
+      : vehicles.find((item) => item.id === clickedVehicleMarkerId));
 
   let markers: ReactElement[] | ReactElement;
 
