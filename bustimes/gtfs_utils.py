@@ -7,8 +7,9 @@ import gtfs_kit
 import pandas as pd
 import shapely.ops as so
 from django.contrib.gis.geos import GEOSGeometry
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Min, OuterRef, Subquery
+from django.utils.dateparse import parse_duration
 from shapely.errors import EmptyPartError
 
 from busstops.models import DataSource, Operator, Service, StopPoint
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 class RouteType(IntEnum):
     tram = 0
+    metro = 1
     rail = 2
     bus = 3
     ferry = 4
@@ -39,6 +41,7 @@ class RouteType(IntEnum):
 
 MODES = {
     RouteType.tram: "tram",
+    RouteType.metro: "metro",
     RouteType.rail: "rail",
     RouteType.bus: "bus",
     RouteType.ferry: "ferry",
@@ -122,11 +125,44 @@ def get_arrival_and_departure(arrival, departure, is_last: bool):
         departure = None
     return arrival, departure
 
-
-def get_str(row, attr: str) -> str:
     """An optional GTFS column may be missing entirely, or be NaN for a row"""
+
+
+def get_str(row, attr: str, default=""):
     value = getattr(row, attr, None)
-    return value if type(value) is str else ""
+    if type(value) is str and value:
+        return value
+    return default
+
+
+def get_seconds(time) -> int | None:
+    return int(parse_duration(time).total_seconds()) if time is not None else None
+
+
+def set_stop_time_defaults(feed: gtfs_kit.feed.Feed) -> None:
+    defaults = {"pickup_type": 0, "drop_off_type": 0, "timepoint": 1}
+    for column, default in defaults.items():
+        if column not in feed.stop_times.columns:
+            feed.stop_times[column] = default
+    feed.stop_times = feed.stop_times.fillna(defaults)
+
+
+def get_pick_up_and_set_down(row) -> tuple:
+    pick_up = None
+    match row.pickup_type:
+        case 0:  # Regularly scheduled pickup
+            pick_up = True
+        case 1:  # "No pickup available"
+            pick_up = False
+
+    set_down = None
+    match row.drop_off_type:
+        case 0:  # Regularly scheduled drop off
+            set_down = True
+        case 1:  # "No drop off available"
+            set_down = False
+
+    return pick_up, set_down
 
 
 def set_trip_times(
@@ -152,6 +188,45 @@ def set_trip_times(
             trip.end = end
             trip.destination = stops.get(last_stop_times.stop_id.get(trip_id))
     return missing_trip_ids
+
+
+def copy_stop_times(
+    feed: gtfs_kit.feed.Feed, trips: dict, last_stop_times: pd.DataFrame
+) -> None:
+    set_stop_time_defaults(feed)
+
+    with (
+        connection.cursor() as cursor,
+        cursor.copy(
+            "COPY bustimes_stoptime (stop_id, arrival, departure, sequence, trip_id, timing_point, pick_up, set_down) FROM STDIN"
+        ) as copy,
+    ):
+        for row in feed.stop_times.itertuples():
+            trip = trips[row.trip_id]
+            if trip is None:
+                continue
+
+            pick_up, set_down = get_pick_up_and_set_down(row)
+
+            is_last = row.stop_sequence == last_stop_times.stop_sequence.get(
+                row.trip_id
+            )
+            arrival, departure = get_arrival_and_departure(
+                row.arrival_time, row.departure_time, is_last
+            )
+
+            copy.write_row(
+                (
+                    row.stop_id,
+                    get_seconds(arrival),
+                    get_seconds(departure),
+                    row.stop_sequence,
+                    trip.pk,
+                    bool(row.timepoint),
+                    pick_up,
+                    set_down,
+                )
+            )
 
 
 def do_route_links(
@@ -242,6 +317,7 @@ def do_stops(feed: gtfs_kit.feed.Feed, source) -> dict:
     stops = {
         row.stop_id: StopPoint(
             atco_code=row.stop_id,
+            naptan_code=get_str(row, "stop_code", default=None),
             common_name=row.stop_name[:48],
             latlong=GEOSGeometry(f"POINT({row.stop_lon} {row.stop_lat})"),
             active=True,
@@ -263,8 +339,13 @@ def get_operators(feed: gtfs_kit.feed.Feed) -> dict:
     operators = {}
     for row in feed.agency.itertuples():
         operator, _ = Operator.objects.get_or_create(
-            noc=row.agency_id,
-            defaults={"name": row.agency_name, "url": row.agency_url},
+            noc=get_str(row, "agency_noc", default=row.agency_id),
+            defaults={
+                "name": row.agency_name,
+                "url": get_str(row, "agency_url"),
+                "phone": get_str(row, "agency_phone"),
+                "email": get_str(row, "agency_email"),
+            },
         )
         operators[row.agency_id] = operator
     return operators
@@ -437,12 +518,7 @@ def handle_gtfs_upload(source_name, file, note=None):
         # clear out old stop times for reused trips, they'll be recreated below
         StopTime.objects.filter(trip__in=existing_trips).delete()
 
-        # optional columns, where an empty value means the default
-        defaults = {"pickup_type": 0, "drop_off_type": 0, "timepoint": 1}
-        for column, default in defaults.items():
-            if column not in feed.stop_times.columns:
-                feed.stop_times[column] = default
-        feed.stop_times = feed.stop_times.fillna(defaults)
+        set_stop_time_defaults(feed)
 
         stop_times = []
 
@@ -451,19 +527,7 @@ def handle_gtfs_upload(source_name, file, note=None):
             if trip is None:
                 continue
 
-            pick_up = None
-            match row.pickup_type:
-                case 0:  # Regularly scheduled pickup
-                    pick_up = True
-                case 1:  # "No pickup available"
-                    pick_up = False
-
-            set_down = None
-            match row.drop_off_type:
-                case 0:  # Regularly scheduled drop off
-                    set_down = True
-                case 1:  # "No drop off available"
-                    set_down = False
+            pick_up, set_down = get_pick_up_and_set_down(row)
 
             is_last = row.stop_sequence == last_stop_times.stop_sequence.get(
                 row.trip_id
