@@ -30,7 +30,7 @@
     "jest-environment-jsdom": "^30.2.0",
     "loadjs": "^4.2.0",
     "lodash": "^4.17.21",
-    "maplibre-gl": "^6.6.0",
+    "maplibre-gl": "6.7.*",
     "process": "^0.11.10",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
