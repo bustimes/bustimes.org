@@ -3,14 +3,11 @@ from pathlib import Path
 from zipfile import BadZipFile
 
 import gtfs_kit
-import pandas as pd
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.management.base import BaseCommand
-from django.db import connection
 from django.db.models import Count, Exists, OuterRef, Q
 from django.db.models.functions import Now
-from django.utils.dateparse import parse_duration
 from shapely.errors import EmptyPartError
 
 from busstops.models import AdminArea, DataSource, Operator, Region, Service, StopPoint
@@ -18,10 +15,11 @@ from busstops.models import AdminArea, DataSource, Operator, Region, Service, St
 from ...download_utils import download_if_modified
 from ...gtfs_utils import (
     MODES,
+    copy_stop_times,
     do_route_links,
-    get_arrival_and_departure,
     get_calendars,
     get_first_and_last_stop_times,
+    get_str,
     save_trips,
     set_trip_times,
 )
@@ -201,19 +199,15 @@ class Command(BaseCommand):
                 route=route,
                 calendar=calendars[line.service_id],
                 inbound=line.direction_id == 1,
-                headsign=line.trip_headsign,
+                headsign=get_str(line, "trip_headsign", default=None),
                 ticket_machine_code=line.trip_id,
-                block=""
-                if pd.isna(block_id := getattr(line, "block_id", ""))
-                else block_id,
-                vehicle_journey_code=getattr(line, "trip_short_name", ""),
+                block=get_str(line, "block_id", default=None),
+                vehicle_journey_code=get_str(line, "trip_short_name", default=None),
                 operator=self.route_operators[line.route_id],
             )
             if line.trip_id in existing_trip_ids:
                 trip.id = existing_trip_ids[line.trip_id]
             trips[line.trip_id] = trip
-
-        # use stop_times.txt to calculate trips' start times, end times and destinations:
 
         _, first_stop_times, last_stop_times = get_first_and_last_stop_times(
             feed.stop_times
@@ -239,64 +233,9 @@ class Command(BaseCommand):
                 "destination",
             ],
         )
-        # clear out old stop times for reused trips, they'll be recreated below
         StopTime.objects.filter(trip__in=existing_trips).delete()
 
-        with (
-            connection.cursor() as cursor,
-            cursor.copy(
-                "COPY bustimes_stoptime (stop_id, arrival, departure, sequence, trip_id, timing_point, pick_up, set_down) FROM STDIN"
-            ) as copy,
-        ):
-            for line in feed.stop_times.itertuples():
-                if trips[line.trip_id] is None:
-                    continue
-
-                timing_point = bool(getattr(line, "timepoint", 1))
-
-                pick_up = None
-                match line.pickup_type:
-                    case 0:  # Regularly scheduled pickup
-                        pick_up = True
-                    case 1:  # "No pickup available"
-                        pick_up = False
-
-                set_down = None
-                match line.drop_off_type:
-                    case 0:  # Regularly scheduled drop off
-                        set_down = True
-                    case 1:  # "No drop off available"
-                        set_down = False
-
-                is_last = line.stop_sequence == last_stop_times.stop_sequence.get(
-                    line.trip_id
-                )
-                arrival_time, departure_time = get_arrival_and_departure(
-                    line.arrival_time, line.departure_time, is_last
-                )
-                departure = (
-                    int(parse_duration(departure_time).total_seconds())
-                    if departure_time is not None
-                    else None
-                )
-                arrival = (
-                    int(parse_duration(arrival_time).total_seconds())
-                    if arrival_time is not None
-                    else None
-                )
-
-                copy.write_row(
-                    (
-                        line.stop_id,
-                        arrival,
-                        departure,
-                        line.stop_sequence,
-                        trips[line.trip_id].pk,
-                        timing_point,
-                        pick_up,
-                        set_down,
-                    )
-                )
+        copy_stop_times(feed, trips, last_stop_times)
 
         kept_trip_ids = {trip.pk for trip in trips.values() if trip}
         del trips

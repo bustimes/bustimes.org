@@ -2,16 +2,23 @@ import logging
 from pathlib import Path
 
 import gtfs_kit
-import pandas as pd
 from django.core.management.base import BaseCommand
-from django.db import connection, transaction
+from django.db import transaction
 from django.db.models import Min, OuterRef, Subquery
-from django.utils.dateparse import parse_duration
 
 from busstops.models import DataSource, Operator, Service, StopPoint
 
-from ...gtfs_utils import MODES, do_route_links, get_calendars
-from ...models import Route, Trip
+from ...gtfs_utils import (
+    MODES,
+    copy_stop_times,
+    do_route_links,
+    get_calendars,
+    get_first_and_last_stop_times,
+    get_str,
+    save_trips,
+    set_trip_times,
+)
+from ...models import Route, StopTime, Trip
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +27,13 @@ class Command(BaseCommand):
     """
     for experimental purposes.
 
-    first, use the AMAZING gtfstidy to make the feed less massive:
+    1. download GTFS timetable from BODS
+
+    2. (optional) use the AMAZING gtfstidy to make the feed less massive:
 
         ~/go/bin/gtfstidy --min-shapes --minimize-stoptimes --minimize-services --show-warnings --keep-additional-fields itm_all_gtfs.zip
 
-    then:
+    3.
 
         ./manage.py bods_gtfs gtfs_out
     """
@@ -45,12 +54,13 @@ class Command(BaseCommand):
         # upsert agencies (operators)
         operators = {
             o.agency_id: Operator(
-                noc=o.agency_noc or o.agency_id,
-                slug=o.agency_noc or o.agency_id,
+                noc=get_str(o, "agency_noc", default=o.agency_id),
+                slug=get_str(o, "agency_noc", default=o.agency_id),
                 name=o.agency_name,
-                url=o.agency_url if pd.notna(o.agency_url) else "",
+                url=get_str(o, "agency_url"),
                 timezone=o.agency_timezone,
-                phone=o.agency_phone if pd.notna(o.agency_phone) else "",
+                phone=get_str(o, "agency_phone"),
+                email=get_str(o, "agency_email"),
             )
             for o in feed.agency.itertuples()
         }
@@ -66,8 +76,8 @@ class Command(BaseCommand):
         stops = {
             stop.stop_id: StopPoint(
                 atco_code=stop.stop_id,
-                naptan_code=stop.stop_code if pd.notna(stop.stop_code) else None,
-                common_name=stop.stop_name,
+                naptan_code=get_str(stop, "stop_code", default=None),
+                common_name=stop.stop_name[:48],
                 active=True,
                 source=source,
                 latlong=f"POINT({stop.stop_lon} {stop.stop_lat})",
@@ -89,6 +99,7 @@ class Command(BaseCommand):
             route.code: route for route in source.route_set.select_related("service")
         }
         routes = []
+        route_operators = {}
 
         for row in feed.get_routes(as_gdf=True).itertuples():
             operator = operators[row.agency_id]
@@ -127,109 +138,72 @@ class Command(BaseCommand):
 
             existing_routes[route.code] = route  # deals with duplicate rows
 
+            route_operators[row.route_id] = operator
+
         logger.info("trips")
+
+        # reuse existing trip ids where possible, so foreign keys elsewhere
+        # (e.g. vehicle journeys) don't get orphaned by every reimport
+        existing_trip_ids = dict(
+            Trip.objects.filter(route__source=source)
+            .order_by("id")
+            .values_list("ticket_machine_code", "id")
+        )
 
         trips = {}
 
         # line as in line in a spreadsheet, not as in the Elizabeth Line
         for line in feed.trips.itertuples():
-            trips[line.trip_id] = Trip(
+            trip = Trip(
                 route=existing_routes[line.route_id],
                 calendar=calendars[line.service_id],
                 inbound=line.direction_id == 1,
-                headsign=line.trip_headsign,
+                headsign=get_str(line, "trip_headsign", default=None),
                 ticket_machine_code=line.trip_id,
-                block=""
-                if pd.isna(block_id := getattr(line, "block_id", ""))
-                else block_id,
-                # operator=self.route_operators[line.route_id],
+                block=get_str(line, "block_id", default=None),
+                vehicle_journey_code=get_str(line, "trip_short_name", default=None),
+                operator=route_operators[line.route_id],
             )
+            if line.trip_id in existing_trip_ids:
+                trip.id = existing_trip_ids[line.trip_id]
+            trips[line.trip_id] = trip
 
-        # use stop_times.txt to calculate trips' start times, end times and destinations:
-
-        trip = None
-        previous_line = None
-
-        for line in feed.stop_times.itertuples():
-            if not previous_line or previous_line.trip_id != line.trip_id:
-                if trip:
-                    trip.destination = stops.get(previous_line.stop_id)
-                    trip.end = previous_line.arrival_time
-
-                trip = trips[line.trip_id]
-                trip.start = line.departure_time
-
-            previous_line = line
-
-        if previous_line:
-            # last trip:
-            trip.destination = stops.get(line.stop_id)
-            trip.end = line.arrival_time
-
-        for trip_id, trip in trips.items():
-            if pd.isna(trip.start) or pd.isna(trip.end):
-                logger.warning(f"trip {trip_id} has no stop times")
-                trips[trip_id] = None
-
-        Trip.objects.bulk_create(
-            [trip for trip in trips.values() if isinstance(trip, Trip)],
-            batch_size=1000,
-        )
-        logger.info("fillna")
-        feed.stop_times = feed.stop_times.fillna(
-            {"timepoint": 1, "pickup_type": 0, "drop_off_type": 0}
+        _, first_stop_times, last_stop_times = get_first_and_last_stop_times(
+            feed.stop_times
         )
 
-        logger.info("stop times")
-        with (
-            connection.cursor() as cursor,
-            cursor.copy(
-                "COPY bustimes_stoptime (stop_id, arrival, departure, sequence, trip_id, timing_point, pick_up, set_down) FROM STDIN"
-            ) as copy,
-        ):
-            for line in feed.stop_times.itertuples():
-                if trips[line.trip_id] is None:
-                    continue
+        for trip_id in set_trip_times(trips, first_stop_times, last_stop_times, stops):
+            logger.warning(f"trip {trip_id} has no stop times")
 
-                timing_point = bool(getattr(line, "timepoint", 1))
+        trip_objs = [trip for trip in trips.values() if trip is not None]
+        existing_trips = save_trips(
+            trip_objs,
+            fields=[
+                "route",
+                "calendar",
+                "inbound",
+                "headsign",
+                "ticket_machine_code",
+                "block",
+                "vehicle_journey_code",
+                "operator",
+                "start",
+                "end",
+                "destination",
+            ],
+        )
+        StopTime.objects.filter(trip__in=existing_trips).delete()
 
-                pick_up = None
-                match line.pickup_type:
-                    case 0:  # Regularly scheduled pickup
-                        pick_up = True
-                    case 1:  # "No pickup available"
-                        pick_up = False
+        copy_stop_times(feed, trips, last_stop_times)
 
-                set_down = None
-                match line.drop_off_type:
-                    case 0:  # Regularly scheduled drop off
-                        set_down = True
-                    case 1:  # "No drop off available"
-                        set_down = False
-
-                departure = int(parse_duration(line.departure_time).total_seconds())
-                arrival = None
-                if line.arrival_time != departure:
-                    arrival = int(parse_duration(line.arrival_time).total_seconds())
-
-                copy.write_row(
-                    (
-                        line.stop_id,
-                        arrival,
-                        departure,
-                        line.stop_sequence,
-                        trips[line.trip_id].pk,
-                        timing_point,
-                        pick_up,
-                        set_down,
-                    )
-                )
-
+        kept_trip_ids = {trip.pk for trip in trips.values() if trip}
         del trips
 
+        # remove trips that used to belong to these routes but weren't in this import
+        Trip.objects.filter(route__in=routes).exclude(id__in=kept_trip_ids).delete()
+
         feed_stops = {row.stop_id: row for row in feed.stops.itertuples()}
-        stop_codes = {stop_id: stop.atco_code for stop_id, stop in stops.items()}
-        do_route_links(feed, source, existing_routes, feed_stops, stop_codes)
+        do_route_links(feed, source, existing_routes, feed_stops)
 
         with transaction.atomic():
             for service in source.service_set.filter(current=True):
@@ -239,16 +213,6 @@ class Command(BaseCommand):
             logger.info(
                 source.route_set.exclude(id__in=[route.id for route in routes]).delete()
             )
-            # logger.info(
-            #     operator.trip_set.exclude(
-            #         id__in=[trip.id for trip in trips.values()]
-            #     ).delete()
-            # )
-            # logger.info(
-            #     operator.service_set.filter(current=True, route__isnull=True).update(
-            #         current=False
-            #     )
-            # )
 
             source.route_set.update(
                 start_date=Subquery(
@@ -257,5 +221,3 @@ class Command(BaseCommand):
                     .values("min_date")[:1]
                 )
             )
-
-            # source.save(update_fields=["url", "datetime"])

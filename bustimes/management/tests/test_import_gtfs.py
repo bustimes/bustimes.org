@@ -161,9 +161,8 @@ class GTFSTest(TestCase):
         service = Service.objects.get(route__code="21-963-1-y11-1")
         self.assertEqual(service.mode, "bus")
         timetable = service.get_timetable(datetime.date(2017, 6, 7)).render()
-        self.assertEqual(
-            str(timetable.groupings[0]), "To <NA>"
-        )  # this looks like a bug, but in practice there is always a headsign
+        # a missing trip_headsign should leave the headsign null, not "<NA>"
+        self.assertEqual(str(timetable.groupings[0]), "Outbound")
         self.assertEqual(
             str(timetable.groupings[0].rows[0].times), "['', 10:15, '', 14:15, 17:45]"
         )
@@ -178,7 +177,7 @@ class GTFSTest(TestCase):
 
         # block_id missing or <NA> should not result in the string "<NA>"
         trip = Trip.objects.get(ticket_machine_code="2.Mo-Fr.21-963-1-y11-1.2.O")
-        self.assertEqual(trip.block, "")
+        self.assertIsNone(trip.block)
 
         self.assertEqual(str(service.source), "Seamus Doherty")
 
