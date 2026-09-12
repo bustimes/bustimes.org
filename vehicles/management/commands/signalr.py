@@ -133,7 +133,7 @@ class Command(ImportLiveVehiclesCommand):
         hub_url = self.source.url
 
         self.timetable_source = DataSource.objects.get(name="IM")
-        self.operator_id = "bus-vannin"
+        self.operator_id = "BVAN"
         self.region_id = "IM"
 
         session = requests.Session()

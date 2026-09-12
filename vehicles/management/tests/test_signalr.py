@@ -18,7 +18,7 @@ class SignalRTest(TestCase):
         DataSource.objects.create(name="signalr", url="https://example.com/hub")
         s = DataSource.objects.create(name="IM")
         r = Region.objects.create(name="Isle of Man", id="IM")
-        o = Operator.objects.create(noc="bus-vannin")
+        o = Operator.objects.create(noc="BVAN")
         s = Service.objects.create(current=True, region=r, line_name="47B", source=s)
         s.operator.add(o)
 
