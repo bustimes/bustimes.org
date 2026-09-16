@@ -84,6 +84,113 @@
     });
 </script>
 
+<h2>Vehicle locations per second</h2>
+
+<form id="locations-form">
+    <label>Last
+        <select name="hours">
+            <option value="1">hour</option>
+            <option value="6">6 hours</option>
+            <option value="24" selected>24 hours</option>
+            <option value="72">3 days</option>
+            <option value="168">week</option>
+        </select>
+    </label>
+</form>
+
+<svg id="locations" width="792" height="400"></svg>
+
+<p id="locations-key"></p>
+
+<script>
+    // draw a stacked area chart of data like [{datetime, sources: {name: number}}]
+    function stackedArea(selector, data, colours) {
+        var svg = d3.select(selector);
+        svg.selectAll("*").remove();
+
+        if (!data.length) {
+            return [];
+        }
+
+        var height = svg.attr("height") - 20;
+        var width = svg.attr("width") - 92;
+
+        data = data.map(item => Object.assign({}, item.sources, {
+            datetime: new Date(item.datetime)
+        }));
+
+        var keys = new Set();
+        data.forEach(item => {
+            Object.keys(item).forEach(key => {
+                if (key != "datetime") {
+                    keys.add(key);
+                }
+            });
+        });
+        keys = Array.from(keys).sort();
+
+        var series = d3.stack().keys(keys).value((obj, key) => obj[key] || 0)(data);
+
+        var xScale = d3.scaleTime().domain(d3.extent(data, item => item.datetime)).range([0, width]);
+        var yScale = d3.scaleLinear().domain([
+            0,
+            d3.max(series[series.length - 1], item => item[1]) || 1
+        ]).nice().range([height, 0]);
+
+        svg.append("g").attr("transform", "translate(50, " + height + ")").call(d3.axisBottom(xScale));
+        svg.append("g").attr("transform", "translate(50, 0)").call(d3.axisLeft(yScale));
+
+        var area = d3.area()
+        .x(item => xScale(item.data.datetime))
+        .y0(item => yScale(item[0]))
+        .y1(item => yScale(item[1]));
+
+        var group = svg.append("g").attr("transform", "translate(50, 0)");
+
+        group.selectAll("path")
+        .data(series)
+        .join("path")
+        .attr("d", area)
+        .style("fill", item => colours(item.key))
+        .on("mousemove", handleMouseMove);
+
+        var mouser = group.append("text").style("stroke", "white").style("paint-order", "stroke").style("stroke-width", "5px");
+
+        function handleMouseMove(event, item) {
+            var pointer = d3.pointer(event, this);
+            mouser.text(item.key).attr("x", pointer[0]).attr("y", pointer[1]);
+        }
+
+        return keys;
+    }
+
+    var locationsForm = document.getElementById("locations-form");
+    var locationsKey = document.getElementById("locations-key");
+    var locationsColours = d3.scaleOrdinal(d3.schemePaired);  // 12 colours, for ~12 sources
+
+    function loadLocations() {
+        var params = new URLSearchParams(new FormData(locationsForm));
+        fetch("/location-stats.json?" + params).then(response => response.json()).then(data => {
+            var keys = stackedArea("#locations", data, locationsColours);
+            locationsKey.replaceChildren(...keys.map(key => {
+                var span = document.createElement("span");
+                span.textContent = key;
+                span.style.borderBottom = "3px solid " + locationsColours(key);
+                span.style.marginRight = "1em";
+                return span;
+            }));
+        });
+    }
+
+    loadLocations();
+    locationsForm.addEventListener("change", loadLocations);
+    locationsForm.addEventListener("submit", event => {
+        event.preventDefault();
+        loadLocations();
+    });
+    setInterval(loadLocations, 60000);
+</script>
+
 <h2>AVL</h2>
 
 {% for key, items in statuses %}
@@ -123,88 +230,7 @@
 
 <script>
     fetch("/timetable-source-stats.json").then(response => response.json()).then(data => {
-        var timetables = d3.select("#timetables");
-
-        data = data.map(item => {
-            item.datetime = new Date(item.datetime);
-            return item;
-        });
-
-        var datetimes = data.map(item => item.datetime);
-
-        var xScale = d3.scaleTime().domain([
-            datetimes.reduce((a, b) => Math.min(a, b)),
-            datetimes.reduce((a, b) => Math.max(a, b)),
-        ]).range([0, 700]);
-
-        var totals = data.map(item => Object.values(item.sources).reduce((a, b) => a + b));
-        var maxTotal = totals.reduce((a, b) => Math.max(a, b));
-        var servicesScale = d3.scaleLinear().domain([0, maxTotal]).range([780, 0]);
-
-        var xAxis = d3.axisBottom(xScale);
-        var yAxis = d3.axisLeft(servicesScale);
-
-        timetables.append("g").attr("transform", "translate(50, 780)").call(xAxis);
-
-        timetables.append("g").attr("transform", "translate(50, 0)").call(yAxis);
-
-        var sources = {};
-        data.forEach(item => {
-            Object.keys(item.sources).forEach(source => {
-                if (!sources[source]) {
-                    sources[source] = true;
-                }
-            })
-        });
-
-        // stack generator
-        var stack = d3.stack()
-        .keys(Object.keys(sources))
-        .value((obj, key) => {
-            return obj[key] || 0;
-        });
-
-        // use the generator to generate
-        var series = stack(data.map(item => {
-            var object = {
-                datetime: item.datetime
-            };
-            return Object.assign({
-                datetime: item.datetime
-            }, item.sources)
-        }));
-
-        // area generator
-        var area = d3.area()
-        .x((d, i, data) => {
-            return xScale(d.data.datetime);
-        })
-        .y0(function(d, i, data) {
-            return servicesScale(d[0]);
-        })
-        .y1(function(d, i, data) {
-            return servicesScale(d[1]);
-        });
-
-        var accent = d3.scaleOrdinal(d3.schemeAccent);
-        timetables.append("g")
-        .attr("transform", "translate(50, 0)")
-        .selectAll("path")
-        .data(series)
-        .join("path")
-        .attr("d", area)
-        .style("fill", d => {
-            return accent(d.key);
-        })
-        .on("mousemove", handleMouseMove);
-
-        var mouser = timetables.append('text').style('stroke', 'white').style('paint-order', 'stroke').style('stroke-width', '5px');
-
-        function handleMouseMove(event, data) {
-            var pointer = d3.pointer(event, this);
-            mouser.text(data.key).attr('x', pointer[0]).attr('y', pointer[1]);
-        }
-
+        stackedArea("#timetables", data, d3.scaleOrdinal(d3.schemeAccent));
     });
 </script>
 

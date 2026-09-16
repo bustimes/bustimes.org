@@ -48,7 +48,7 @@ from departures import live
 from disruptions.models import Consequence, Situation
 from fares.models import FareTable
 from vehicles.models import Vehicle, VehicleJourney
-from vehicles.utils import redis_client
+from vehicles.utils import get_location_stats, redis_client
 from vosa.models import Registration
 
 from . import forms
@@ -449,6 +449,26 @@ def stats(request):
 
 def timetable_source_stats(request):
     return JsonResponse(cache.get("timetable-source-stats", []))
+
+
+@cache_control(max_age=60)
+def location_stats(request):
+    """vehicle locations per second, for a graph on the /status page"""
+
+    try:
+        hours = int(request.GET.get("hours", 24))
+    except ValueError:
+        hours = 24
+    hours = min(max(hours, 1), 24 * 7)
+
+    # a week's worth of counters is a lot of little Redis reads
+    key = f"location-stats:{hours}"
+    stats = cache.get(key)
+    if stats is None:
+        stats = get_location_stats(hours)
+        cache.set(key, stats, 60)
+
+    return JsonResponse(stats)
 
 
 @cache_control(max_age=3600)

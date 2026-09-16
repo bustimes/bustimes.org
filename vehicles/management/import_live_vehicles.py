@@ -23,7 +23,12 @@ from busstops.models import DataSource
 from bustimes.models import Route, Trip
 
 from ..models import Vehicle, VehicleCode, VehicleJourney
-from ..utils import VEHICLE_POSITIONS_CHANNEL, calculate_bearing, redis_client
+from ..utils import (
+    VEHICLE_POSITIONS_CHANNEL,
+    calculate_bearing,
+    count_locations,
+    redis_client,
+)
 
 logger = logging.getLogger(__name__)
 fifteen_minutes = timedelta(minutes=15)
@@ -348,6 +353,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
         sadd = defaultdict(list)
         items = []
         appendages = []
+        count = 0
 
         for location, vehicle in self.to_save:
             if not location.latlong or (
@@ -355,6 +361,9 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 and (self.source.datetime - location.datetime).total_seconds() > 600
             ):
                 continue
+
+            # count locations for the /status graph
+            count += 1
 
             # update live map
 
@@ -399,6 +408,8 @@ class ImportLiveVehiclesCommand(BaseCommand):
             pipeline.geoadd("vehicle_location_locations", geoadd)
         for key, value in sadd.items():
             pipeline.sadd(key, *value)
+        if count:
+            count_locations(pipeline, self.source.name, count)
 
         try:
             pipeline.execute()

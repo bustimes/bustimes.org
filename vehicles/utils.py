@@ -1,4 +1,7 @@
 import math
+from collections import defaultdict
+from datetime import UTC, datetime
+from time import time
 
 import redis.asyncio
 from django.conf import settings
@@ -26,6 +29,71 @@ VEHICLE_POSITIONS_CHANNEL = "vehicle_positions"
 # Redis sorted set of vehicle_id -> number of websocket clients currently watching it,
 # updated by VehicleLocationConsumer.connect/disconnect
 VEHICLE_WATCHERS_KEY = "vehicle_watchers"
+
+# Redis hashes counting the vehicle locations recorded each minute,
+# for the "locations per second" graph on the /status page.
+# Keys are like "location-counts:29285760" (Unix time in minutes),
+# hash fields are data source names
+LOCATION_COUNTS_PREFIX = "location-counts"
+LOCATION_COUNTS_TTL = 60 * 60 * 24 * 8  # a week and a bit
+
+# however long a time range is graphed, aim for about this many points
+LOCATION_STATS_POINTS = 720
+
+
+def location_counts_key(minute: int) -> str:
+    return f"{LOCATION_COUNTS_PREFIX}:{minute}"
+
+
+def count_locations(pipeline, source_name: str, count: int):
+    """Add a "locations this minute" counter to a Redis pipeline
+    (which the caller is responsible for executing)
+    """
+
+    key = location_counts_key(int(time()) // 60)
+    pipeline.hincrby(key, source_name, count)
+    pipeline.expire(key, LOCATION_COUNTS_TTL)
+
+
+def get_location_stats(hours: int = 24) -> list:
+    """Vehicle locations per second per data source over the last so many hours,
+    in buckets of a minute or more, for the graph on the /status page
+    """
+
+    if not redis_client:
+        return []
+
+    minutes = hours * 60
+    bucket = math.ceil(minutes / LOCATION_STATS_POINTS)  # minutes per point
+
+    # the current minute is still in progress, so end with the previous one,
+    # and line buckets up so that each one covers the same number of minutes
+    end = int(time()) // 60 // bucket * bucket
+    start = end - math.ceil(minutes / bucket) * bucket
+
+    pipeline = redis_client.pipeline(transaction=False)
+    for minute in range(start, end):
+        pipeline.hgetall(location_counts_key(minute))
+    results = pipeline.execute()
+
+    stats = []
+    for i in range(0, len(results), bucket):
+        counts = defaultdict(int)
+        for result in results[i : i + bucket]:
+            for name, count in result.items():
+                counts[name.decode()] += int(count)
+
+        stats.append(
+            {
+                "datetime": datetime.fromtimestamp((start + i) * 60, UTC),
+                "sources": {
+                    name: round(count / (bucket * 60), 2)
+                    for name, count in sorted(counts.items())
+                },
+            }
+        )
+
+    return stats
 
 
 def filename_from_content_disposition(response) -> str:

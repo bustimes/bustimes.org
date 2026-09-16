@@ -36,6 +36,7 @@ urlpatterns = [
     path("status", views.status),
     path("timetable-source-stats.json", views.timetable_source_stats),
     path("stats.json", views.stats),
+    path("location-stats.json", views.location_stats),
     path(
         "ads.txt",
         cache_control(max_age=1800)(
