@@ -26,6 +26,7 @@ from busstops.models import (
     StopPoint,
 )
 from bustimes.models import Route, Trip
+from bustimes.utils import cache_routes
 
 from ...models import Vehicle, VehicleJourney, VehicleLocation
 from ..import_live_vehicles import ImportLiveVehiclesCommand, Status
@@ -795,6 +796,7 @@ class Command(ImportLiveVehiclesCommand):
             quick_queries = queries.count - fetch_queries
 
             with (
+                cache_routes() as routes_cache,
                 connection.execute_wrapper(queries),
                 sentry_sdk.start_span(name="handle changed journey items") as span,
             ):
@@ -809,6 +811,8 @@ class Command(ImportLiveVehiclesCommand):
             logger.info(
                 f"{fetch_took=:.1f} {quick_took=:.1f} {journey_took=:.1f}"
                 f"  {fetch_queries=} {quick_queries=} {journey_queries=}"
+                f"  routes_cached={routes_cache.hits}/"
+                f"{routes_cache.hits + routes_cache.misses}"
             )
 
             # stats for last 50 updates:
