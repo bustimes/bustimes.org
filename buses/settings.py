@@ -325,6 +325,16 @@ def traces_sampler(context):
     return 0.00003
 
 
+def before_send_transaction(event, hint):
+    # the AVL importer makes thousands of queries per update - too many spans
+    # to send, and we only want the top-level timings anyway
+    if event.get("transaction") == "bod_avl_update":
+        event["spans"] = [
+            span for span in event.get("spans", ()) if span.get("op") != "db"
+        ]
+    return event
+
+
 if not TEST:  # pragma: nocover
     if "SENTRY_DSN" in os.environ:
         import sentry_sdk
@@ -344,6 +354,9 @@ if not TEST:  # pragma: nocover
             release=os.environ.get("COMMIT_HASH")
             or os.environ.get("KAMAL_CONTAINER_NAME"),
             traces_sampler=traces_sampler,
+            before_send_transaction=before_send_transaction,
+            # don't truncate before the interesting spans are recorded
+            _experiments={"max_spans": 10000},
             send_default_pii=False,
         )
         ignore_logger("django.security.DisallowedHost")

@@ -4,13 +4,14 @@ import logging
 import zipfile
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
+from time import monotonic
 
 import requests
 import sentry_sdk
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.cache import cache
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_duration
@@ -30,6 +31,17 @@ from ...models import Vehicle, VehicleJourney, VehicleLocation
 from ..import_live_vehicles import ImportLiveVehiclesCommand, Status
 
 logger = logging.getLogger(__name__)
+
+
+class QueryCounter:
+    """counts queries even when DEBUG is off"""
+
+    count = 0
+
+    def __call__(self, execute, sql, params, many, context):
+        self.count += 1
+        return execute(sql, params, many)
+
 
 _SIRI_NS = "http://www.siri.org.uk/siri"
 
@@ -735,7 +747,13 @@ class Command(ImportLiveVehiclesCommand):
         with sentry_sdk.start_transaction(name="bod_avl_update"):
             now = timezone.now()
 
-            with sentry_sdk.start_span(name="get changed items"):
+            queries = QueryCounter()
+
+            with (
+                connection.execute_wrapper(queries),
+                sentry_sdk.start_span(name="get changed items"),
+            ):
+                fetch_started = monotonic()
                 try:
                     (
                         changed_items,
@@ -764,14 +782,34 @@ class Command(ImportLiveVehiclesCommand):
                     f"{now.second=} {age=}  {total_items=}  {len(changed_items)=}  {len(changed_journey_items)=}"
                 )
 
-            with sentry_sdk.start_span(name="handle quick items") as span:
+            fetch_took = monotonic() - fetch_started
+            fetch_queries = queries.count
+
+            with (
+                connection.execute_wrapper(queries),
+                sentry_sdk.start_span(name="handle quick items") as span,
+            ):
                 span.set_data("count", len(changed_items))
                 self.handle_items(changed_items, changed_item_identities)
-            with sentry_sdk.start_span(name="handle changed journey items") as span:
+            quick_took = monotonic() - fetch_started - fetch_took
+            quick_queries = queries.count - fetch_queries
+
+            with (
+                connection.execute_wrapper(queries),
+                sentry_sdk.start_span(name="handle changed journey items") as span,
+            ):
                 span.set_data("count", len(changed_journey_items))
                 self.handle_items(changed_journey_items, changed_journey_identities)
+            journey_took = monotonic() - fetch_started - fetch_took - quick_took
+            journey_queries = queries.count - fetch_queries - quick_queries
 
             time_taken = (timezone.now() - now).total_seconds()
+
+            # does the cost scale with total_items or with changed items?
+            logger.info(
+                f"{fetch_took=:.1f} {quick_took=:.1f} {journey_took=:.1f}"
+                f"  {fetch_queries=} {quick_queries=} {journey_queries=}"
+            )
 
             # stats for last 50 updates:
             bod_status = cache.get("bod_avl_status", [])
