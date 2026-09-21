@@ -63,3 +63,42 @@ class StagecoachTest(TestCase):
             },
         )
         self.assertEqual(VehicleJourney.objects.count(), 8)
+
+    def test_no_gps(self):
+        """a vehicle with no GPS should still be recorded as running,
+        but not added to the map"""
+
+        command = Command()
+        command.do_source()
+
+        item = {
+            "fn": "50275",
+            "ut": "1573999200000",
+            "oc": "SCOX",
+            "so": "SOX",
+            "sn": "Oxford Tube",
+            "dn": "INBOUND",
+            "dd": "London",
+            "la": None,
+            "lo": None,
+            "hg": None,
+        }
+
+        redis = fakeredis.FakeStrictRedis(version=7)
+        with patch("vehicles.management.import_live_vehicles.redis_client", redis):
+            location, vehicle = command.handle_item(item)
+            self.assertIsNone(location.latlong)
+
+            # a vehicle with GPS, for comparison
+            command.handle_item(
+                item | {"fn": "50276", "la": "51.4928233539", "lo": "-0.1475818977"}
+            )
+
+            command.save()
+
+        self.assertEqual(redis.zcard("vehicle_location_locations"), 1)
+
+        journey = vehicle.vehiclejourney_set.get()
+        self.assertEqual(journey.route_name, "Oxford Tube")
+        self.assertEqual(journey.destination, "London")
+        self.assertEqual(journey.service.line_name, "Oxford Tube")
