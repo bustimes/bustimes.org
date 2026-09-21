@@ -19,7 +19,7 @@ class Command(GTFSRCommand):
     def do_source(self):
         self.tzinfo = ZoneInfo("Europe/London")
         self.source, _ = DataSource.objects.get_or_create(name=self.source_name)
-        self.url = "https://api.ember.to/v1/gtfs/realtime/vehicle-positions/"
+        self.url = "https://api.ember.to/v1/gtfs/realtime/"
         return self
 
     def get_items(self):
