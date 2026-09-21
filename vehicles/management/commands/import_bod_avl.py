@@ -28,7 +28,6 @@ from busstops.models import (
     StopPoint,
 )
 from bustimes.models import Route, Trip
-from bustimes.utils import cache_routes
 
 from ...models import Vehicle, VehicleJourney, VehicleLocation
 from ..import_live_vehicles import ImportLiveVehiclesCommand, Status
@@ -147,6 +146,7 @@ class Command(ImportLiveVehiclesCommand):
         super().__init__(*args, **kwargs)
         self.last_modified = None
         self.not_modified = False
+        self.fetched_at = None
 
     @staticmethod
     def get_datetime(item):
@@ -642,7 +642,7 @@ class Command(ImportLiveVehiclesCommand):
             headers["if-modified-since"] = http_date(self.last_modified.timestamp())
 
         response = self.session.get(self.source.url, headers=headers, timeout=61)
-        fetched_at = timezone.now()
+        self.fetched_at = timezone.now()
 
         self.not_modified = response.status_code == HTTPStatus.NOT_MODIFIED
         if self.not_modified:
@@ -689,7 +689,7 @@ class Command(ImportLiveVehiclesCommand):
         )
 
         items = None
-        if not self.source.datetime or self.source.datetime > fetched_at:
+        if not self.source.datetime or self.source.datetime > self.fetched_at:
             # ResponseTimestamp is missing, or implausibly fresh -
             # fall back to the newest RecordedAtTime
             items = [
@@ -756,6 +756,8 @@ class Command(ImportLiveVehiclesCommand):
     def update(self):
         with sentry_sdk.start_transaction(name="bod_avl_update"):
             now = timezone.now()
+            # refined by get_items, once we know when the data actually arrived
+            self.fetched_at = now
 
             queries = QueryCounter()
 
@@ -786,7 +788,7 @@ class Command(ImportLiveVehiclesCommand):
                     return 0.5
                 return 10 - (since % 10) + 0.5
 
-            age = int((now - self.source.datetime).total_seconds())
+            age = int((self.fetched_at - self.source.datetime).total_seconds())
             if age > 0:
                 logger.info(
                     f"{now.second=} {age=}  {total_items=}  {len(changed_items)=}  {len(changed_journey_items)=}"
@@ -805,7 +807,6 @@ class Command(ImportLiveVehiclesCommand):
             quick_queries = queries.count - fetch_queries
 
             with (
-                cache_routes() as routes_cache,
                 connection.execute_wrapper(queries),
                 sentry_sdk.start_span(name="handle changed journey items") as span,
             ):
@@ -820,8 +821,6 @@ class Command(ImportLiveVehiclesCommand):
             logger.info(
                 f"{fetch_took=:.1f} {quick_took=:.1f} {journey_took=:.1f}"
                 f"  {fetch_queries=} {quick_queries=} {journey_queries=}"
-                f"  routes_cached={routes_cache.hits}/"
-                f"{routes_cache.hits + routes_cache.misses}"
                 f"  {dict(queries.tables.most_common(6))}"
             )
 
@@ -829,9 +828,9 @@ class Command(ImportLiveVehiclesCommand):
             bod_status = cache.get("bod_avl_status", [])
             bod_status.append(
                 Status(
-                    now,
+                    self.fetched_at,
                     self.source.datetime,
-                    now - self.source.datetime,
+                    self.fetched_at - self.source.datetime,
                     total_items,
                     len(changed_items) + len(changed_journey_items),
                     time_taken,
@@ -840,10 +839,18 @@ class Command(ImportLiveVehiclesCommand):
             bod_status = bod_status[-50:]
             cache.set("bod_avl_status", bod_status, 800)
 
+            attributes = {"source": self.source_name}
+
             sentry_sdk.metrics.count(
-                "vehicle_locations",
-                bod_status[-1].changed_items,
-                attributes={"source": self.source_name},
+                "vehicle_locations", bod_status[-1].changed_items, attributes=attributes
+            )
+
+            # how stale the data was when we got it - the number that matters
+            sentry_sdk.metrics.gauge(
+                "avl_age",
+                bod_status[-1].age.total_seconds(),
+                unit="second",
+                attributes=attributes,
             )
 
             logger.info(f"{time_taken=}")
