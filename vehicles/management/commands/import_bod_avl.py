@@ -1,7 +1,9 @@
 import functools
 import io
 import logging
+import re
 import zipfile
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from time import monotonic
@@ -34,13 +36,20 @@ from ..import_live_vehicles import ImportLiveVehiclesCommand, Status
 logger = logging.getLogger(__name__)
 
 
-class QueryCounter:
-    """counts queries even when DEBUG is off"""
+_TABLE = re.compile(r'(?:FROM|INTO|UPDATE)\s+"(\w+)"')
 
-    count = 0
+
+class QueryCounter:
+    """counts queries, by table, even when DEBUG is off"""
+
+    def __init__(self):
+        self.count = 0
+        self.tables = Counter()
 
     def __call__(self, execute, sql, params, many, context):
         self.count += 1
+        if match := _TABLE.search(sql):
+            self.tables[match.group(1)] += 1
         return execute(sql, params, many)
 
 
@@ -813,6 +822,7 @@ class Command(ImportLiveVehiclesCommand):
                 f"  {fetch_queries=} {quick_queries=} {journey_queries=}"
                 f"  routes_cached={routes_cache.hits}/"
                 f"{routes_cache.hits + routes_cache.misses}"
+                f"  {dict(queries.tables.most_common(6))}"
             )
 
             # stats for last 50 updates:
