@@ -797,6 +797,8 @@ class Command(ImportLiveVehiclesCommand):
             fetch_took = monotonic() - fetch_started
             fetch_queries = queries.count
 
+            handling_started = timezone.now()
+
             with (
                 connection.execute_wrapper(queries),
                 sentry_sdk.start_span(name="handle quick items") as span,
@@ -815,7 +817,7 @@ class Command(ImportLiveVehiclesCommand):
             journey_took = monotonic() - fetch_started - fetch_took - quick_took
             journey_queries = queries.count - fetch_queries - quick_queries
 
-            time_taken = (timezone.now() - now).total_seconds()
+            time_taken = (timezone.now() - handling_started).total_seconds()
 
             # does the cost scale with total_items or with changed items?
             logger.info(
@@ -834,6 +836,7 @@ class Command(ImportLiveVehiclesCommand):
                     total_items,
                     len(changed_items) + len(changed_journey_items),
                     time_taken,
+                    self.last_modified,
                 )
             )
             bod_status = bod_status[-50:]
@@ -867,6 +870,6 @@ class Command(ImportLiveVehiclesCommand):
                     f"{since=:.1f} {wait=:.1f}"
                 )
             else:
-                wait = 11 - time_taken
+                wait = 11 - (timezone.now() - now).total_seconds()
 
             return max(0, wait)

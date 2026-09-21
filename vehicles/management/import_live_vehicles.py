@@ -32,7 +32,16 @@ twelve_hours = timedelta(hours=12)
 
 Status = namedtuple(
     "Status",
-    ("fetched_at", "timestamp", "age", "total_items", "changed_items", "time_taken"),
+    (
+        "fetched_at",
+        "timestamp",
+        "age",
+        "total_items",
+        "changed_items",
+        "time_taken",
+        "last_modified",
+    ),
+    defaults=(None,),
 )
 
 
@@ -478,7 +487,10 @@ class ImportLiveVehiclesCommand(BaseCommand):
             keep_journey = False
             if not concurrent and vehicle_identity in self.journeys_ids_ids:
                 journey_identity_id = self.journeys_ids_ids[vehicle_identity]
-                if vehicle and journey_identity_id == (journey_identity, vehicle.latest_journey_id):
+                if vehicle and journey_identity_id == (
+                    journey_identity,
+                    vehicle.latest_journey_id,
+                ):
                     keep_journey = True  # can dumbly keep same latest_journey
 
             if vehicle:
@@ -587,6 +599,8 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     logger.exception("error getting changed items")
                     return self.wait
 
+            handling_started = timezone.now()
+
             with sentry_sdk.start_span(name="handle quick items") as span:
                 span.set_data("count", len(changed_items))
                 self.handle_items(changed_items, changed_item_identities)
@@ -598,7 +612,8 @@ class ImportLiveVehiclesCommand(BaseCommand):
             # perhaps it's night time?
             return 120
 
-        time_taken = (timezone.now() - now).total_seconds()
+        # just the handling, not the fetch
+        time_taken = (timezone.now() - handling_started).total_seconds()
 
         if self.source_name:
             timestamp = self.source.datetime
@@ -625,8 +640,9 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 attributes={"source": self.source_name},
             )
 
-        if time_taken < wait:
-            return wait - time_taken
+        took = (timezone.now() - now).total_seconds()
+        if took < wait:
+            return wait - took
         return 0  # took longer than minimum wait
 
     def handle(self, immediate=False, *args, **options):
