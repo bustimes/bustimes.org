@@ -126,6 +126,7 @@ gtag('config', 'G-X2Z0KM7Z5C');
         {% if object and not user.is_authenticated %}
             <li><a href="/accounts/login/?next={{ request.path }}">Log in</a></li>
         {% endif %}
+        <li id="footer"></li><!-- Do Not Sell My Personal Information container -->
     </ul>
 </footer>
 {% endblock footer %}

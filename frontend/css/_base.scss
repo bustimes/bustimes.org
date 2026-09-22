@@ -1637,13 +1637,13 @@ body.has-overlay {
             display: inline;
         }
 
-        &::after {
+        &::before {
             color: var(--border-color-darker);
-            content: '  \00B7  ';
+            content: '  \00B7  '; // bullet
             font-weight: bold;
         }
 
-        &:last-child::after {
+        &:first-child::before {
             display: none;
         }
     }
@@ -1713,6 +1713,15 @@ footer {
             padding: 1.2em .25em;
         }
     }
+}
+
+// USA 'Do Not Sell MY Personal Information'
+#footer:empty {
+    display: none;
+}
+
+#footer a {
+    display: inline!important;
 }
 
 .no-ads {
