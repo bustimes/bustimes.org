@@ -1,4 +1,6 @@
 import hashlib
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import UTC, date, datetime, timedelta
 from difflib import Differ
 from itertools import pairwise
@@ -325,6 +327,44 @@ def get_descriptions(routes):
     return inbound_outbound_descriptions, origins_and_destinations
 
 
+class RoutesCache(dict):
+    hits = 0
+    misses = 0
+
+
+_routes_cache: ContextVar[RoutesCache | None] = ContextVar("routes_cache", default=None)
+
+
+@contextmanager
+def cache_routes():
+    """Cache get_routes results for the duration of one live vehicle update.
+
+    Routes change whenever new timetable data is imported, so this must not
+    outlive a single update.
+    """
+    cache = RoutesCache()
+    token = _routes_cache.set(cache)
+    try:
+        yield cache
+    finally:
+        _routes_cache.reset(token)
+
+
+def get_service_routes(service, when) -> list:
+    """get_routes for a service, maybe reusing an earlier result from this update"""
+    cache = _routes_cache.get()
+    if cache is None:
+        return list(get_routes(service.route_set.select_related("source"), when))
+
+    key = (service.id, when)
+    if key in cache:
+        cache.hits += 1
+    else:
+        cache.misses += 1
+        cache[key] = list(get_routes(service.route_set.select_related("source"), when))
+    return cache[key]
+
+
 def get_trip(
     journey,
     datetime=None,
@@ -348,7 +388,7 @@ def get_trip(
         date = timezone.localdate(departure_time or datetime)
 
     # TODO: get routes for previous day, in case journey starts after midnight
-    routes = list(get_routes(journey.service.route_set.select_related("source"), date))
+    routes = get_service_routes(journey.service, date)
     if routes:
         trips = Trip.objects.filter(route__in=routes)
     else:
