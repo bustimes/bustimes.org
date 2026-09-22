@@ -642,7 +642,9 @@ class Command(ImportLiveVehiclesCommand):
         if self.last_modified:
             headers["if-modified-since"] = http_date(self.last_modified.timestamp())
 
-        response = self.session.get(self.source.url, headers=headers, timeout=61)
+        response = self.session.get(
+            self.source.url, headers=headers, timeout=(3.05, 10)
+        )
         self.fetched_at = timezone.now()
 
         self.not_modified = response.status_code == HTTPStatus.NOT_MODIFIED
@@ -779,7 +781,9 @@ class Command(ImportLiveVehiclesCommand):
                     logger.exception("error getting changed items")
                     self.session.close()
                     self.session = requests.Session()
-                    return 30
+                    self.errors += 1
+                    return min(2**self.errors, 30)
+                self.errors = 0
 
             if self.not_modified:
                 # nothing new published yet, and the 304 cost us nothing,
