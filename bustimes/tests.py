@@ -1,6 +1,7 @@
 import os
 from datetime import date, datetime, timedelta, timezone
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from vcr import use_cassette
 
@@ -489,3 +490,27 @@ class BusTimesTest(TestCase):
         self.assertEqual(str(garage), "Lowestoft Town")
         garage.name = "LOW"
         self.assertEqual(str(garage), "LOW")
+
+    def test_timetable_data_source_search(self):
+        source = TimetableDataSource(name="Lynx")
+
+        for search in (
+            "",
+            "LYNX",
+            "noc=LYNX",
+            "noc=LYNX&adminArea=092",
+            "search=Lynx",
+        ):
+            source.search = search
+            source.full_clean()
+
+        for search, error in (
+            ("lynx", "'lynx' is not a NOC or a query string"),
+            ("LYNXES", "'LYNXES' is not a NOC or a query string"),
+            ("nocc=LYNX&noc=LYNX", "nocc is not one of"),
+            ("Search=lynx", "Search is not one of"),
+        ):
+            source.search = search
+            with self.assertRaises(ValidationError) as context:
+                source.full_clean()
+            self.assertIn(error, context.exception.message_dict["search"][0])

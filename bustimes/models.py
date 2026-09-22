@@ -1,6 +1,8 @@
 from datetime import timedelta
+from urllib.parse import parse_qs
 
 from django.contrib.gis.db import models
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.db.models.functions import Upper
 from django.urls import reverse
@@ -10,13 +12,32 @@ from timezone_field import TimeZoneField
 from .fields import SecondsField
 from .formatting import format_timedelta, time_datetime
 
+# https://data.bus-data.dft.gov.uk/guidance/requirements/?section=apireference
+BODS_API_PARAMETERS = (
+    "adminArea",
+    "datasetID",
+    "endDateEnd",
+    "endDateStart",
+    "modifiedDate",
+    "noc",
+    "search",
+    "startDateEnd",
+    "startDateStart",
+)
+
+
+def is_noc(search_term: str) -> bool:
+    return len(search_term) <= 4 and search_term.isupper()
+
 
 class TimetableDataSource(models.Model):
     name = models.CharField(max_length=255)
     search = models.CharField(
         max_length=255,
         blank=True,
-        help_text="for BODS sources, usually one of the operator's NOCs. But remember that searching for 'ANEA' for example will return *all* Arriva datasets, not just the ANEA one",
+        help_text="for BODS sources, usually just one of the operator's NOCs. "
+        "But remember that 'ANEA' for example will return *all* Arriva datasets, not just the ANEA one. "
+        "Valid search parameters are: " + (", ".join(BODS_API_PARAMETERS)),
     )
     url = models.URLField(
         blank=True,
@@ -28,7 +49,10 @@ class TimetableDataSource(models.Model):
         "busstops.Operator", blank=True, through="TimetableDataSourceOperator"
     )
     settings = models.JSONField(null=True, blank=True)
-    complete = models.BooleanField(default=True)
+    complete = models.BooleanField(
+        default=True,
+        help_text="if not, may fill in missing services using Traveline data",
+    )
     active = models.BooleanField(default=True)
     region = models.ForeignKey(
         "busstops.Region", models.DB_SET_NULL, null=True, blank=True
@@ -37,6 +61,21 @@ class TimetableDataSource(models.Model):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        if not self.search or is_noc(self.search):
+            return
+        query = parse_qs(self.search)
+        if not query:
+            raise ValidationError(
+                {"search": f"'{self.search}' is not a NOC or a query string"}
+            )
+        if wrong := [key for key in query if key not in BODS_API_PARAMETERS]:
+            raise ValidationError(
+                {
+                    "search": f"{', '.join(wrong)} is not one of {', '.join(BODS_API_PARAMETERS)}"
+                }
+            )
 
 
 class TimetableDataSourceOperator(models.Model):

@@ -17,7 +17,7 @@ from django.db.models import Exists, OuterRef, Q
 from busstops.models import DataSource, Service
 
 from ...download_utils import download, download_if_modified
-from ...models import Route, TimetableDataSource, Trip
+from ...models import Route, TimetableDataSource, Trip, is_noc
 from ...utils import get_sha1, log_time_taken
 from .import_transxchange import Command as TransXChangeCommand
 
@@ -72,11 +72,6 @@ https://bustimes.org/admin/busstops/service/?route__source__source={timetable_da
         current=True,
         route=None,
     ).update(current=False)
-
-
-def is_noc(search_term: str) -> bool:
-    assert str
-    return len(search_term) <= 4 and search_term.isupper()
 
 
 def get_operator_ids(source) -> list:
