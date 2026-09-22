@@ -332,37 +332,41 @@ class RoutesCache(dict):
     misses = 0
 
 
-_routes_cache: ContextVar[RoutesCache | None] = ContextVar("routes_cache", default=None)
+_routes: ContextVar[RoutesCache | None] = ContextVar("routes_cache", default=None)
+_routes_cache = RoutesCache()
 
 
 @contextmanager
 def cache_routes():
-    """Cache get_routes results for the duration of one live vehicle update.
-
-    Routes change whenever new timetable data is imported, so this must not
-    outlive a single update.
-    """
-    cache = RoutesCache()
-    token = _routes_cache.set(cache)
+    """Reuse get_routes results until the service is reimported"""
+    _routes_cache.hits = _routes_cache.misses = 0
+    token = _routes.set(_routes_cache)
     try:
-        yield cache
+        yield _routes_cache
     finally:
-        _routes_cache.reset(token)
+        _routes.reset(token)
 
 
 def get_service_routes(service, when) -> list:
-    """get_routes for a service, maybe reusing an earlier result from this update"""
-    cache = _routes_cache.get()
+    """get_routes for a service, maybe reusing an earlier result"""
+    cache = _routes.get()
     if cache is None:
         return list(get_routes(service.route_set.select_related("source"), when))
 
-    key = (service.id, when)
-    if key in cache:
+    version = (service.modified_at, when)
+    entry = cache.get(service.id)
+
+    if entry and entry[0] == version:
         cache.hits += 1
     else:
         cache.misses += 1
-        cache[key] = list(get_routes(service.route_set.select_related("source"), when))
-    return cache[key]
+        entry = (
+            version,
+            list(get_routes(service.route_set.select_related("source"), when)),
+        )
+        cache[service.id] = entry
+
+    return entry[1]
 
 
 def get_trip(
