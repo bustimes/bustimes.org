@@ -862,7 +862,9 @@ class Command(ImportLiveVehiclesCommand):
             # - aim for just after the next run
             if self.last_modified:
                 since = (timezone.now() - self.last_modified).total_seconds()
-                wait = 10.5 - since
+                wait = (10.5 - since) % 10
+                if wait > 5:
+                    wait = 0
                 logger.info(
                     f"last-modified={self.last_modified:%H:%M:%S} "
                     f"ResponseTimestamp={self.source.datetime:%H:%M:%S} "
