@@ -1,0 +1,1 @@
+Small changes – like correcting [a bus stop location](fixtures/stops.yaml) or [operator contact detail](fixtures/stops.yaml) – are welcome, but please nothing bigger than that (at least not without discussing it first).
