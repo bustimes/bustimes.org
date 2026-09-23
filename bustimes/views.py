@@ -18,7 +18,7 @@ from django.db.models import (
     Q,
     prefetch_related_objects,
 )
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, Now, TruncDate
 from django.http import (
     FileResponse,
     Http404,
@@ -52,7 +52,7 @@ from vehicles.rtpi import add_progress_and_delay
 
 from .forms import UploadGTFSForm
 from .gtfs_utils import handle_gtfs_upload
-from .models import Route, RouteLink, StopTime, Trip
+from .models import BankHolidayDate, Route, RouteLink, StopTime, Trip
 from .utils import get_calendars, get_other_trips_in_block
 
 
@@ -835,3 +835,134 @@ def upload_gtfs(request):
         return redirect(source)
 
     return render(request, "upload_gtfs.html", context)
+
+
+# see the table in import_transxchange
+BANK_HOLIDAY_GROUPS = {
+    "AllBankHolidays": (
+        "AllHolidaysExceptChristmas",
+        "Christmas",
+        "DisplacementHolidays",
+    ),
+    "AllHolidaysExceptChristmas": ("Holidays", "HolidayMondays"),
+    "HolidayMondays": (
+        "EasterMonday",
+        "MayDay",
+        "SpringBank",
+        "LateSummerBankHolidayNotScotland",
+        "AugustBankHolidayScotland",
+    ),
+    "Christmas": ("ChristmasDay", "BoxingDay"),
+    "DisplacementHolidays": (
+        "ChristmasDayHoliday",
+        "BoxingDayHoliday",
+        "NewYearsDayHoliday",
+        "Jan2ndScotlandHoliday",
+        "StAndrewsDayHoliday",
+    ),
+    "EarlyRunOffDays": ("ChristmasEve", "NewYearsEve"),
+}
+
+BANK_HOLIDAY_ORDER = (
+    "AllBankHolidays",
+    "AllHolidaysExceptChristmas",
+    "Holidays",
+    "NewYearsDay",
+    "Jan2ndScotland",
+    "GoodFriday",
+    "StAndrewsDay",
+    "HolidayMondays",
+    "EasterMonday",
+    "MayDay",
+    "SpringBank",
+    "LateSummerBankHolidayNotScotland",
+    "AugustBankHolidayScotland",
+    "Christmas",
+    "ChristmasDay",
+    "BoxingDay",
+    "DisplacementHolidays",
+    "ChristmasDayHoliday",
+    "BoxingDayHoliday",
+    "NewYearsDayHoliday",
+    "Jan2ndScotlandHoliday",
+    "StAndrewsDayHoliday",
+    "EarlyRunOffDays",
+    "ChristmasEve",
+    "NewYearsEve",
+)
+
+# expected AllBankHolidays.scotland
+BANK_HOLIDAY_SCOTLAND = {
+    "Jan2ndScotland": True,
+    "Jan2ndScotlandHoliday": True,
+    "StAndrewsDay": True,
+    "StAndrewsDayHoliday": True,
+    "AugustBankHolidayScotland": True,
+    "LateSummerBankHolidayNotScotland": False,
+}
+
+
+def check_bank_holidays(table):
+    problems = []
+
+    for parent, children in BANK_HOLIDAY_GROUPS.items():
+        parent_dates = table.get(parent, {})
+        children_dates = set()
+        for child in children:
+            child_dates = table.get(child, {})
+            children_dates.update(child_dates)
+            for date in child_dates:
+                if date not in parent_dates:
+                    problems.append(f"{child} {date} is not in {parent}")
+        for date in parent_dates:
+            if date not in children_dates:
+                problems.append(
+                    f"{parent} {date} is not in any of {', '.join(children)}"
+                )
+
+    all_bank_holidays = table.get("AllBankHolidays", {})
+    for name, scotland in BANK_HOLIDAY_SCOTLAND.items():
+        for date in table.get(name, {}):
+            if date in all_bank_holidays:
+                actual = all_bank_holidays[date].scotland
+                if actual is not scotland:
+                    problems.append(
+                        f"{name} {date} has AllBankHolidays scotland={actual}, expected {scotland}"
+                    )
+
+    return problems
+
+
+def bank_holidays(request):
+    columns = set()
+
+    table = defaultdict(dict)
+
+    for bhd in (
+        BankHolidayDate.objects.select_related("bank_holiday")
+        .filter(date__gte=TruncDate(Now()))
+        .order_by("date")
+    ):
+        columns.add(bhd.date)
+        table[bhd.bank_holiday.name][bhd.date] = bhd
+
+    columns = sorted(columns)
+
+    context = {
+        "problems": check_bank_holidays(table),
+        "columns": columns,
+        "table": [
+            (date, [row.get(column) for column in columns])
+            for date, row in sorted(
+                table.items(),
+                key=lambda item: (
+                    BANK_HOLIDAY_ORDER.index(item[0])
+                    if item[0] in BANK_HOLIDAY_ORDER
+                    else len(BANK_HOLIDAY_ORDER),
+                    item[0],
+                ),
+            )
+        ],
+    }
+
+    return render(request, "bank_holidays.html", context)

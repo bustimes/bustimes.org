@@ -29,4 +29,5 @@ urlpatterns = [
         name="routelink_detail",
     ),
     path("upload", views.upload_gtfs),
+    path("bank_holidays", views.bank_holidays),
 ]

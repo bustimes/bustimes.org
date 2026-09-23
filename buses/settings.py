@@ -273,6 +273,7 @@ elif TEST:
         )
     ]
 
+URLIZE_ASSUME_HTTPS = True
 
 CACHES = {}
 if TEST or DEBUG:

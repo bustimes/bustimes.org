@@ -156,8 +156,8 @@ class Timetable:
             )
 
     def correct_directions(self, trips):
-        # for merged multi-operator routes: reverse the polarity if they disagree which direction is inbound/outbound
-        stops = {}  # stops by source and direction
+        # for merged multi-operator* routes: reverse the polarity if they disagree which direction is inbound/outbound
+        stops = {}  # stops by operator and direction
         for trip in trips:
             if trip.operator_id not in stops:
                 stops[trip.operator_id] = {
@@ -168,6 +168,7 @@ class Timetable:
                 stop.stop_id for stop in trip.times
             )
 
+        # *exactly two operators
         if len(stops) == 2:
             operator_a, operator_b = stops
 

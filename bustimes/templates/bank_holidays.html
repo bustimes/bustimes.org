@@ -1,0 +1,46 @@
+{% extends 'page.html' %}
+
+{% block title %}bank holiday checker{% endblock %}
+
+{% block bodyclass %}{% endblock %}
+
+{% block breadcrumb %}{% endblock %}
+
+{% block content %}
+
+<h1>bank holidays</h1>
+
+{% if problems %}
+    <ul class="bulleted">
+        {% for problem in problems %}
+            <li>{{ problem }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+<table>
+    <thead>
+        <tr>
+            <th></th>
+            {% for date in columns %}
+                <th scope="col">
+                    {% ifchanged date.year %}{{ date.year }}{% endifchanged %}<br>
+                    {% ifchanged date.month %}{{ date.month }}{% endifchanged %}<br>
+                    {{ date.day }}
+                </th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for date, row in table %}
+            <tr>
+                <th scope="row">{{ date }}</th>
+                {% for cell in row %}
+                    <td>{% if cell.scotland %}🏴󠁧󠁢󠁳󠁣󠁴󠁿{% elif cell.scotland is False %}🏴󠁧󠁢󠁥󠁮󠁧󠁿{% elif cell %}✓{% endif %}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock content %}
