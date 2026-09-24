@@ -262,7 +262,7 @@ export default function BusTimesMap(
           mapStyle={mapStyleURL}
           RTLTextPlugin={""}
           attributionControl={false}
-          onError={(e) => captureException(e)}
+          onError={(e) => captureException(e.error)}
           onContextMenu={onContextMenu}
         >
           <AttributionControl compact={false} position="top-right" />

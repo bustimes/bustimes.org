@@ -9,10 +9,19 @@ if (process.env.NODE_ENV === "production") {
     dsn: "https://0d628b6fff45463bb803d045b99aa542@o55224.ingest.sentry.io/1379883",
     allowUrls: [/https:\/\/bustimes\.org\/static\//],
     ignoreErrors: [
-      "'_loaded'",
-      "Load failed",
       "AbortError: The user aborted a request.",
-      "'this.getContainer().ownerDocument'",
+      "ownerDocument",
+      // ads
+      "Can't access contentWindow of an iframe",
+      "Invalid state transition request!",
+      "this._resizeCallback is not a function",
+      "Analytics would be confused",
+      // GPU/browser
+      "WebGL2 is required to display this map",
+      "Could not compile fragment shader",
+      "Program failed to link",
+      "reading the Blob argument to createImageBitmap",
+      "AJAXError: Failed to fetch",
     ],
     integrations: [
       Sentry.globalHandlersIntegration({
