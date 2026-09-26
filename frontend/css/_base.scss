@@ -1544,6 +1544,9 @@ nav {
         position: absolute;
         bottom: 0;
         left: 0;
+        right: 0;
+        white-space: nowrap;
+        overflow: hidden;
 
         a {
             color: inherit;
