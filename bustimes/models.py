@@ -513,7 +513,7 @@ class TripNote(models.Model):
 class StopTime(models.Model):
     id = models.BigAutoField(primary_key=True)
     trip = models.ForeignKey(Trip, models.DB_CASCADE, db_index=False)
-    stop = models.ForeignKey("busstops.StopPoint", models.DO_NOTHING)
+    stop = models.ForeignKey("busstops.StopPoint", models.DO_NOTHING, db_index=False)
     arrival = SecondsField(null=True, blank=True)
     departure = SecondsField(null=True, blank=True)
     sequence = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -528,7 +528,6 @@ class StopTime(models.Model):
             models.Index(
                 fields=["stop", "departure"],
                 include=["trip"],
-                condition=Q(pick_up=True),
                 name="stoptime_stop_dep_covering",
             ),
             models.Index(
