@@ -405,6 +405,7 @@ class PhotoTest(TestCase):
         self.assertEqual(photo.caption, "Lynx 2")
         self.assertEqual(photo.credit, "Norma")
         self.assertEqual(photo.license, "4")
+        self.assertEqual(photo.get_license()[0], "CC BY 2.0")
         self.assertEqual(photo.url, FLICKR_URL)
         self.assertEqual((photo.width, photo.height), (1600, 900))
         self.assertAlmostEqual(photo.location.y, 52.75)

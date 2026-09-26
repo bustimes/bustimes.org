@@ -16,7 +16,7 @@
         <meta property="og:description" content="{% firstof object.vehicle_type object.operator %}{% if object.name %}
 
 {{ object.name }}{% endif %}">
-        {% if photo %}
+        {% if photo and not photo.credit %}
             <meta name="twitter:card" content="summary_large_image">
             <meta property="og:image" content="{{ photo.image_1200_630.url }}">
             <meta property="og:image:width" content="1200">
@@ -32,16 +32,24 @@
 {% if vehicle %}
     {% if photo %}
         <figure class="vehicle-photo">
-            {% if form %}<a href="{% url 'admin:photos_photo_change' photo.id %}">{% endif %}
+            {% if photo.url %}<a href="{{ photo.url }}">{% endif %}
             <img src="{{ photo.image_320.url }}"{% if photo.width and photo.height %} width="{{ photo.width }}" height="{{ photo.height }}"{% endif %} alt="" />
-            {% if photo.credit %}
+            {% if photo.credit or perms.photos.change_photo %}
+                {% with license=photo.get_license %}
                 <figcaption>
-                    {% if photo.url %}
-                        <a href="{{ photo.url }}">{{ photo.credit }}</a>
-                    {% else %}{{ photo.credit }}{% endif %}
+                    {% if perms.photos.change_photo %}
+                        <a href="{% url 'admin:photos_photo_change' photo.id %}" class="edit" title="Edit photo">✎</a>
+                        {% if photo.credit or license %} &middot; {% endif %}
+                    {% endif %}
+                    {{ photo.credit }}
+                    {% if license %}
+                        {% if photo.credit %} &middot; {% endif %}
+                        <a href="{{ license.1 }}" rel="license">{{ license.0 }}</a>
+                    {% endif %}
                 </figcaption>
+                {% endwith %}
             {% endif %}
-            {% if form %}</a>{% endif %}
+            {% if photo.url %}</a>{% endif %}
         </figure>
     {% endif %}
 
