@@ -29,6 +29,25 @@ EMAIL_TIMEOUT = 10
 if TEST:
     EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
+    import ipaddress
+    import socket
+
+    class NetworkAccessInTest(BaseException):
+        """a BaseException so that "except Exception" can't swallow it"""
+
+    def connect(sock, address, _connect=socket.socket.connect):
+        if sock.family in (socket.AF_INET, socket.AF_INET6):
+            host = address[0]
+            try:
+                is_local = ipaddress.ip_address(host).is_loopback
+            except ValueError:
+                is_local = host == "localhost"
+            if not is_local:
+                raise NetworkAccessInTest(address)
+        return _connect(sock, address)
+
+    socket.socket.connect = connect
+
 INSTALLED_APPS = [
     "daphne",
     "channels",
