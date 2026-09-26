@@ -1,9 +1,10 @@
 {
   "private": true,
   "devDependencies": {
-    "@babel/preset-env": "^7.22.10",
-    "@babel/preset-flow": "^7.22.5",
-    "@babel/preset-react": "^7.22.5",
+    "@babel/core": "^8.0.6",
+    "@babel/preset-env": "^8.0.6",
+    "@babel/preset-react": "^8.0.1",
+    "@babel/preset-typescript": "^8.0.1",
     "@parcel/optimizer-data-url": "^2.10.1",
     "@parcel/transformer-inline-string": "^2.10.1",
     "@parcel/transformer-sass": "^2.10.1",
@@ -21,12 +22,12 @@
     "parcel": "^2.9.3",
     "react-test-renderer": "^19.1.1",
     "svgo": "^4.0.0",
-    "typescript": "^5.4.5"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@sentry/react": "^10.28.0",
+    "@sentry/react": "^11.0.0",
     "@types/lodash": "^4.14.197",
-    "@types/node": "^25.0.8",
+    "@types/node": "^24.19.0",
     "htmx.org": "^2.0.4",
     "jest-environment-jsdom": "^30.2.0",
     "loadjs": "^4.2.0",

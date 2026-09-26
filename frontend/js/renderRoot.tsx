@@ -30,6 +30,7 @@ if (process.env.NODE_ENV === "production") {
       }),
     ],
     release: process.env.KAMAL_CONTAINER_NAME,
+    dataCollection: { userInfo: false },
   });
 }
 
