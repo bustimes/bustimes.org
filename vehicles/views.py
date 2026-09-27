@@ -860,7 +860,7 @@ class VehicleDetailView(DetailView):
             context["form"] = self.form or PhotoForm()
 
         if self.request.user.is_staff:
-            context["css"], context["latest_journey_debug"] = format_json(
+            context["latest_journey_debug"] = format_json(
                 self.object.latest_journey_data
             )
 

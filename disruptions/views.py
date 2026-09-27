@@ -38,7 +38,7 @@ def situation(request, id):
     context = {}
 
     if situation.data:
-        context["css"], context["xml"] = format_xml(situation.data)
+        context["xml"] = format_xml(situation.data)
 
     context["stops"] = StopPoint.objects.filter(consequence__situation=situation)
     context["services"] = Service.objects.filter(consequence__situation=situation)

@@ -16,17 +16,15 @@ def minify(template_source):
 
 
 def format_xml(text):
-    formatter = HtmlFormatter()
     ET.register_namespace("", "http://www.siri.org.uk/siri")
     xml = ET.XML(text)
     ET.indent(xml)
     xml = ET.tostring(xml).decode()
-    xml = mark_safe(highlight(xml, XmlLexer(), formatter))
-    return formatter.get_style_defs(), xml
+    formatter = HtmlFormatter(noclasses=True, nobackground=True)
+    return mark_safe(highlight(xml, XmlLexer(), formatter))
 
 
 def format_json(text: dict):
-    formatter = HtmlFormatter()
     text = json.dumps(text, indent=2)
-    text = mark_safe(highlight(text, JsonLexer(), formatter))
-    return formatter.get_style_defs(), text
+    formatter = HtmlFormatter(noclasses=True, nobackground=True)
+    return mark_safe(highlight(text, JsonLexer(), formatter))

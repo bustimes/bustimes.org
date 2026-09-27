@@ -199,6 +199,9 @@ class LiveDeparturesTest(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(f"/stops/{self.london_stop.pk}/debug")
         self.assertContains(response, "<code>")
+        self.assertContains(
+            response, '<pre style="line-height: 125%;"><span></span>[\n'
+        )
 
     def test_blend(self):
         service = Service(line_name="X98")
@@ -326,6 +329,9 @@ class LiveDeparturesTest(TestCase):
         self.assertNotContains(response, "WORCESTER")
 
         self.assertContains(debug_response, "<code>")
+        self.assertContains(
+            debug_response, '<span style="color: #008000; font-weight: bold">&lt;Siri'
+        )
 
         args = (
             None,

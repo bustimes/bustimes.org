@@ -402,7 +402,6 @@ def stop_debug(request, atco_code: str):
     )
 
     responses = []
-    css = ""
 
     for response in cache.get_many(
         [
@@ -410,14 +409,13 @@ def stop_debug(request, atco_code: str):
             f"SiriSmDepartures:{stop.pk}",
         ]
     ).values():
-        response_text = response.text
         # syntax-highlight and pretty-print XML and JSON responses
         try:
             # XML
-            response_text, css = format_xml(response.text)
+            response_text = format_xml(response.text)
         except ET.ParseError:
             # JSON
-            response_text, css = format_json(response.text)
+            response_text = format_json(response.json())
         responses.append(
             {"url": response.url, "text": response_text, "headers": response.headers}
         )
@@ -429,7 +427,6 @@ def stop_debug(request, atco_code: str):
             "object": stop,
             "breadcrumb": [stop.locality, stop],
             "responses": responses,
-            "css": css,
         },
     )
 
