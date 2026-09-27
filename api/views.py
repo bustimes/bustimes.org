@@ -286,12 +286,14 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
 
     @staticmethod
     def trip_from_tfl(instance):
-        # only the latest base_version's data is kept around (older ones get
-        # pruned), so pin every subsequent lookup to whichever base_version
-        # this journey actually belongs to - "idx" columns aren't unique
-        # across base_versions, only within one
         journey = (
-            Journey.objects.filter(idx=instance.code).order_by("-base_version").first()
+            Journey.objects.filter(
+                idx=instance.code,
+                base_version__valid_from__lte=instance.date,
+                base_version__valid_to__gte=instance.date,
+            )
+            .order_by("-base_version")
+            .first()
         )
         if not journey:
             return
