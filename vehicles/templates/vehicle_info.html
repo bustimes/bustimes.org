@@ -29,7 +29,7 @@
     {% if vehicle.vehicle_type %}
         <div>
             <dt>Type</dt>
-            <dd>
+            <dd itemprop="model">
                 {{ vehicle.vehicle_type }}
                 {% if vehicle.vehicle_type.fuel == "electric" %}
                     ⚡
