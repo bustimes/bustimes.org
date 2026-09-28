@@ -73,7 +73,9 @@ class Photo(models.Model):
     credit = models.CharField(max_length=255, blank=True)
     caption = models.CharField(max_length=255, blank=True)
     url = models.URLField(blank=True, verbose_name="URL")
-    license = models.CharField(null=True, blank=True)
+    license = models.CharField(
+        null=True, blank=True, choices=[(a, b) for a, (b, _) in LICENSES.items()]
+    )
     taken_at = models.DateTimeField(null=True, blank=True)
     location = models.PointField(null=True, blank=True)
     metadata = models.JSONField(blank=True, default=dict)

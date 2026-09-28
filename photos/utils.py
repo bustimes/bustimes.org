@@ -79,9 +79,10 @@ def add_flickr_photo(url, vehicle, request):
     if photo.license in ("0", "1", "2", "3", "14", "15", "16"):
         raise WrongLicense()
 
-    photo.credit = (
-        info["photo"]["owner"]["realname"] or info["photo"]["owner"]["username"]
-    )
+    if info["photo"]["owner"]["path_alias"] != "goodwinjoshua":
+        photo.credit = (
+            info["photo"]["owner"]["realname"] or info["photo"]["owner"]["username"]
+        )
     photo.caption = info["photo"]["title"]["_content"]
     photo.metadata["flickr"] = info["photo"]
 

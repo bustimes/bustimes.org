@@ -40,13 +40,13 @@
             <figcaption>
                 {% if perms.photos.change_photo %}
                     <a href="{% url 'admin:photos_photo_change' photo.id %}" class="edit" title="Edit photo">✎</a>
-                    {% if photo.credit or license %} &middot; {% endif %}
-                {% endif %}
-                <span itemprop="creator" itemscope itemtype="https://schema.org/Person">
-                    <span itemprop="name">{{ photo.credit }}</span>
-                </span>
-                {% if license %}
                     {% if photo.credit %} &middot; {% endif %}
+                {% endif %}
+                {% if photo.credit %}
+                    <span itemprop="creator" itemscope itemtype="https://schema.org/Person">
+                        <span itemprop="name">{{ photo.credit }}</span>
+                    </span>
+                    &middot;
                     <a itemprop="license" href="{{ license.1 }}">{{ license.0 }}</a>
                 {% endif %}
                 </figcaption>
