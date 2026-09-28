@@ -93,7 +93,7 @@ class BusStopsAdminTests(TestCase):
         response = self.client.get("/admin/busstops/service/")
         self.assertEqual(
             next(iter(response.context["messages"])).message,
-            "merged <QuerySet [<Service: 129A - Frankby - Moreton - Liscard>]> into 129 - Frankby Cemetery - Liscard",
+            "merged <ServiceQuerySet [<Service: 129A - Frankby - Moreton - Liscard>]> into 129 - Frankby Cemetery - Liscard",
         )
 
         # merged into 1:

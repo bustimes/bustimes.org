@@ -13,8 +13,8 @@ from django.utils.timezone import localdate
 from sql_util.utils import Exists
 
 from .formatting import format_timedelta
-from .models import Calendar, Note, StopTime, Trip
-from .utils import get_calendars, get_descriptions, get_routes
+from .models import Calendar, Note, Route, StopTime, Trip
+from .utils import get_descriptions
 
 differ = Differ(charjunk=lambda _: True)
 
@@ -138,19 +138,23 @@ class Timetable:
 
         # consider revision numbers:
         if self.date:
-            self.current_routes = get_routes(routes, self.date)
+            revisions = any(route.revision_number for route in routes)
+            routes_qs = Route.objects.filter(
+                id__in=[route.id for route in routes]
+            ).select_related("source")
+            self.current_routes = routes_qs.active_on(self.date, revisions)
             self.yesterday = self.date - datetime.timedelta(days=1)
-            self.yesterday_routes = get_routes(routes, self.yesterday)
+            self.yesterday_routes = routes_qs.active_on(self.yesterday, revisions)
 
         if not self.calendar and self.calendars:
             calendar_ids = [calendar.id for calendar in self.calendars]
             self.calendar_ids = list(
-                get_calendars(self.date, calendar_ids, scotland=scotland).values_list(
-                    "id", flat=True
-                )
+                Calendar.objects.active_on(
+                    self.date, calendar_ids, scotland=scotland
+                ).values_list("id", flat=True)
             )
             self.yesterday_calendar_ids = list(
-                get_calendars(
+                Calendar.objects.active_on(
                     self.yesterday, calendar_ids, scotland=scotland
                 ).values_list("id", flat=True)
             )

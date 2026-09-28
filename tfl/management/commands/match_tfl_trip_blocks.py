@@ -9,7 +9,7 @@ from ... import models
 
 # Matches tfl Journeys straight to bustimes Trips by (service, departure time),
 # without needing a VehicleJourney to already exist. Backfills Trip.block from
-# TfL's own block/running numbers, so the existing get_other_trips_in_block()
+# TfL's own block/running numbers, so the existing Trip.get_trips_in_block()
 # block-of-the-day grouping works for TfL-contracted routes.
 #
 # Pattern.direction (1/2) isn't matched against Trip.inbound - it's not clear

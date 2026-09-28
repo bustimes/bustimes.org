@@ -120,11 +120,11 @@ class District(models.Model):
         return reverse("district_detail", args=(self.id,))
 
 
-class LocalityManager(models.Manager):
+class LocalityQuerySet(models.QuerySet):
     def with_documents(self):
         vector = SearchVector("name", weight="A", config="english")
         vector += SearchVector("qualifier_name", weight="B", config="english")
-        return self.get_queryset().annotate(document=vector)
+        return self.annotate(document=vector)
 
 
 class Locality(SearchMixin, models.Model):
@@ -148,7 +148,7 @@ class Locality(SearchMixin, models.Model):
     created_at = models.DateTimeField(null=True, blank=True)
     modified_at = models.DateTimeField(null=True, blank=True)
 
-    objects = LocalityManager()
+    objects = LocalityQuerySet.as_manager()
 
     class Meta:
         ordering = ("name",)
@@ -569,12 +569,12 @@ class OperatorGroup(models.Model):
         return reverse("group_vehicles", args=(self.slug,))
 
 
-class OperatorManager(models.Manager):
+class OperatorQuerySet(models.QuerySet):
     def with_documents(self):
         vector = SearchVector("name", weight="A", config="english")
         vector += SearchVector("noc", weight="A", config="english")
         vector += SearchVector("aka", weight="B", config="english")
-        return self.get_queryset().annotate(document=vector)
+        return self.annotate(document=vector)
 
 
 class Operator(SearchMixin, models.Model):
@@ -620,7 +620,7 @@ class Operator(SearchMixin, models.Model):
     search_vector = SearchVectorField(null=True, blank=True)
     modified_at = models.DateTimeField(auto_now=True)
 
-    objects = OperatorManager()
+    objects = OperatorQuerySet.as_manager()
 
     class Meta:
         ordering = ("name",)
@@ -774,7 +774,7 @@ class ServiceColour(models.Model):
         )
 
 
-class ServiceManager(models.Manager):
+class ServiceQuerySet(models.QuerySet):
     def with_documents(self):
         vector = SearchVector(
             StringAgg("route__line_name", Value(" "), distinct=True, default=""),
@@ -801,10 +801,10 @@ class ServiceManager(models.Manager):
             weight="C",
             config="english",
         )
-        return self.get_queryset().annotate(document=vector)
+        return self.annotate(document=vector)
 
     def with_line_names(self):
-        return self.get_queryset().annotate(
+        return self.annotate(
             line_names=ArrayAgg(
                 Coalesce("route__line_name", "line_name"), distinct=True, default=None
             )
@@ -839,7 +839,7 @@ class Service(models.Model):
 
     colour = models.ForeignKey(ServiceColour, models.SET_NULL, null=True, blank=True)
 
-    objects = ServiceManager()
+    objects = ServiceQuerySet.as_manager()
     update_search_vector = SearchMixin.update_search_vector
 
     class Meta:

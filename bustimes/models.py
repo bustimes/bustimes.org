@@ -1,12 +1,14 @@
 from datetime import timedelta
+from itertools import pairwise
 from urllib.parse import parse_qs
 
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import OuterRef, Q
 from django.db.models.functions import Upper
 from django.urls import reverse
 from django.utils.timezone import localdate
+from sql_util.utils import Exists
 from timezone_field import TimeZoneField
 
 from .fields import SecondsField
@@ -111,6 +113,80 @@ class Version(models.Model):
         return self.name or ""
 
 
+class RouteQuerySet(models.QuerySet):
+    def active_on(self, when, revisions=True):
+        routes = self
+        if revisions:
+            routes = routes.filter(
+                Q(start_date=None) | Q(start_date__lte=when),
+                ~Exists(
+                    Route.objects.filter(
+                        service__isnull=False,
+                        source=OuterRef("source"),
+                        service_code=OuterRef("service_code"),
+                        revision_number_context=OuterRef("revision_number_context"),
+                        start_date__lte=when,
+                        revision_number__gt=OuterRef("revision_number"),
+                    )
+                ),
+            ).order_by("id")
+
+        # complicated way of working out which Passenger .zip applies.
+        # When multiple versions share the same start_date, prefer the one with the
+        # greater name - filenames are like 'lynxbus_<unix-timestamp>.zip' so this
+        # picks the most recently published.
+        routes = routes.filter(
+            Q(version=None)
+            | Q(
+                ~Exists(
+                    Version.objects.filter(
+                        source=OuterRef("version__source"),
+                        start_date__lte=when,
+                        end_date__gte=when,
+                    ).filter(
+                        Q(start_date__gt=OuterRef("version__start_date"))
+                        | Q(
+                            start_date=OuterRef("version__start_date"),
+                            name__gt=OuterRef("version__name"),
+                        )
+                    )
+                ),
+                version__start_date__lte=when,
+                version__end_date__gte=when,
+            )
+        )
+
+        routes = routes.filter(
+            Q(start_date=None) | Q(start_date__lte=when),
+            Q(end_date=None) | Q(end_date__gte=when),
+        )
+
+        # TfL: try to pick the file with the highest Service Change Number, if there are multiple
+        # https://techforum.tfl.gov.uk/t/duplicate-files-in-journey-planner-datastore-is-there-a-way-to-choose-the-right-one/2571
+        # (actually using service_code order, which assumes that the SCNs have the same number of digits)
+        return routes.filter(
+            ~Q(code__contains="tfl_")
+            | ~Exists(
+                Route.objects.filter(
+                    Q(end_date__gte=when) | Q(end_date__isnull=True),
+                    service=OuterRef("service"),
+                    source=OuterRef("source"),
+                    service_code__gt=OuterRef("service_code"),
+                    start_date__lte=when,
+                )
+            )
+        ).filter(
+            ~Exists(
+                Route.objects.filter(
+                    file_hash=OuterRef("file_hash"),
+                    file_hash__isnull=False,
+                    code=OuterRef("code"),
+                    id__gt=OuterRef("id"),
+                )
+            )
+        )
+
+
 class Route(models.Model):
     source = models.ForeignKey("busstops.DataSource", models.DB_CASCADE)
     version = models.ForeignKey(Version, models.DB_CASCADE, null=True, blank=True)
@@ -140,6 +216,8 @@ class Route(models.Model):
     public_use = models.BooleanField(null=True)
     file_hash = models.CharField(max_length=40, null=True, blank=True, db_index=True)
     timezone = TimeZoneField(null=True, blank=True)
+
+    objects = RouteQuerySet.as_manager()
 
     class Meta:
         unique_together = ("source", "code")
@@ -232,6 +310,63 @@ day_keys = (
 )
 
 
+class CalendarQuerySet(models.QuerySet):
+    def active_on(self, when, calendar_ids=None, scotland=None):
+        between_dates = Q(start_date__lte=when) & (
+            Q(end_date__gte=when) | Q(end_date=None)
+        )
+
+        calendars = self.filter(between_dates)
+        calendar_calendar_dates = CalendarDate.objects.filter(calendar=OuterRef("id"))
+        calendar_dates = calendar_calendar_dates.filter(between_dates)
+
+        if calendar_ids is not None:
+            # cunningly make the query faster
+            calendars = calendars.filter(id__in=calendar_ids)
+            calendar_dates = calendar_dates.filter(calendar__in=calendar_ids)
+        exclusions = calendar_dates.filter(operation=False)
+        inclusions = calendar_dates.filter(operation=True)
+        special_inclusions = Exists(inclusions.filter(special=True))
+        only_certain_dates = Exists(
+            calendar_calendar_dates.filter(special=False, operation=True)
+        )
+
+        if scotland is None:
+            calendar_bank_holidays = CalendarBankHoliday.objects.filter(
+                bank_holiday__bankholidaydate__date=when,
+                calendar=OuterRef("id"),
+            )
+        else:
+            calendar_bank_holidays = CalendarBankHoliday.objects.filter(
+                Q(bank_holiday__bankholidaydate__scotland=None)
+                | Q(bank_holiday__bankholidaydate__scotland=scotland),
+                bank_holiday__bankholidaydate__date=when,
+                calendar=OuterRef("id"),
+            )
+
+        bank_holiday_inclusions = Exists(calendar_bank_holidays.filter(operation=True))
+
+        return calendars.annotate(
+            bank_holiday_exclusions=Exists(
+                calendar_bank_holidays.filter(operation=False)
+            )
+        ).filter(
+            Q(
+                Q(**{f"{when:%a}".lower(): True}),  # day of week
+                ~only_certain_dates | Exists(inclusions),  # special dates of operation
+                bank_holiday_exclusions=False,
+            )
+            | special_inclusions
+            | bank_holiday_inclusions & Q(bank_holiday_exclusions=False),
+            ~Exists(exclusions),
+        )
+
+    def for_routes(self, routes):
+        return self.filter(
+            id__in=Trip.objects.filter(route__in=routes).values("calendar_id")
+        )
+
+
 class Calendar(models.Model):
     mon = models.BooleanField(default=False)
     tue = models.BooleanField(default=False)
@@ -247,6 +382,8 @@ class Calendar(models.Model):
     source = models.ForeignKey(
         "busstops.DataSource", models.DB_CASCADE, null=True, blank=True
     )
+
+    objects = CalendarQuerySet.as_manager()
 
     def contains(self, date):
         if (not self.start_date or self.start_date <= date) and (
@@ -423,6 +560,11 @@ class Note(models.Model):
         return self.trip_set.first().get_absolute_url()
 
 
+class TripQuerySet(models.QuerySet):
+    def active_on(self, date):
+        return self.filter(calendar__in=Calendar.objects.active_on(date))
+
+
 class Trip(models.Model):
     route = models.ForeignKey(Route, models.DB_CASCADE, null=True, blank=True)
     inbound = models.BooleanField(default=False)
@@ -447,6 +589,8 @@ class Trip(models.Model):
         "busstops.Operator", models.DB_SET_NULL, null=True, blank=True
     )
     next_trip = models.OneToOneField("Trip", models.DB_SET_NULL, null=True, blank=True)
+
+    objects = TripQuerySet.as_manager()
 
     def __str__(self):
         return format_timedelta(self.start, plus_one=True) or ""
@@ -499,6 +643,126 @@ class Trip(models.Model):
 
     def get_absolute_url(self):
         return reverse("trip_detail", args=(self.id,))
+
+    def get_trips_in_block(self, date):
+        if not self.route_id:
+            return Trip.objects.none()
+
+        trips = Trip.objects.filter(
+            block=self.block,
+            route__source=self.route.source_id,
+            route__version=self.route.version_id,
+            garage=self.garage_id,
+            operator=self.operator_id,
+        )
+        if self.route.service_id:
+            trips = trips.filter(route__service__isnull=False)
+
+        routes = Route.objects.filter(trip__in=trips).select_related("source")
+
+        calendars = Calendar.objects.active_on(
+            date, [trip.calendar_id for trip in trips]
+        )
+        routes = routes.active_on(date)
+        return trips.filter(calendar__in=calendars, route__in=routes).order_by("start")
+
+    def get_parts(self, date=None) -> list:
+        """Get other parts of this trip (if the service has been split into parts)
+
+        counterpart to merge_split_trips
+        """
+
+        if not (self.ticket_machine_code and self.route and self.route.service_id):
+            return [self]
+
+        code_filter = Q(ticket_machine_code=self.ticket_machine_code)
+        if self.vehicle_journey_code:
+            code_filter |= Q(vehicle_journey_code=self.vehicle_journey_code)
+
+        # don't match a superseded version of the timetable
+        route_filter = Q(
+            route__service=self.route.service_id, route__source=self.route.source_id
+        )
+        if self.route.version_id:
+            route_filter &= Q(route__version=self.route.version_id)
+        if date:
+            route_ids = list(
+                Route.objects.filter(service=self.route.service_id)
+                .active_on(date)
+                .values_list("id", flat=True)
+            )
+            route_filter &= Q(route__in=route_ids)
+        else:
+            # no date, so just exclude routes with a higher revision number
+            route_filter &= ~Q(
+                Exists(
+                    Route.objects.filter(
+                        service__isnull=False,
+                        source=OuterRef("route__source"),
+                        service_code=OuterRef("route__service_code"),
+                        revision_number_context=OuterRef(
+                            "route__revision_number_context"
+                        ),
+                        revision_number__gt=OuterRef("route__revision_number"),
+                    )
+                )
+            )
+
+        calendar_filter = Q(calendar=self.calendar_id)
+        # annoyingly, sometimes different parts have different calendar ids
+        # (cos school day variations etc)
+        if date:
+            calendar_filter |= Q(
+                calendar__in=list(
+                    Calendar.objects.active_on(date)
+                    .for_routes(route_ids)
+                    .values_list("id", flat=True)
+                )
+            )
+        elif self.calendar:
+            overlap = Q(calendar__end_date__gte=self.calendar.start_date) | Q(
+                calendar__end_date=None
+            )
+            if self.calendar.end_date:
+                overlap &= Q(calendar__start_date__lte=self.calendar.end_date)
+            days = Q()
+            for day in ("mon", "tue", "wed", "thu", "fri", "sat", "sun"):
+                if getattr(self.calendar, day):
+                    days |= Q(**{f"calendar__{day}": True})
+            calendar_filter |= overlap & days
+
+        trips = (
+            Trip.objects.filter(
+                Q(id=self.id)
+                | Q(
+                    code_filter,
+                    calendar_filter,
+                    route_filter,
+                    Q(start__gte=self.end) | Q(end__lte=self.start),
+                    ~Q(destination_id=self.destination_id),
+                    block=self.block,
+                    inbound=self.inbound,
+                    operator_id=self.operator_id,
+                )
+            )
+            .order_by("start")
+            .distinct("start")
+        )
+        no_minutes = timedelta()
+        fifteen_minutes = timedelta(minutes=15)
+        trips_list = []
+        for trip_a, trip_b in pairwise(trips):
+            if no_minutes <= trip_b.start - trip_a.end < fifteen_minutes:
+                if not trips_list:
+                    trips_list.append(trip_a)
+                trips_list.append(trip_b)
+            elif self in trips_list:
+                return trips_list
+            else:
+                trips_list = []
+        if self in trips_list:
+            return trips_list
+        return [self]
 
 
 class TripNote(models.Model):

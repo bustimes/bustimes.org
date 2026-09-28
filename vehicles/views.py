@@ -55,7 +55,6 @@ from busstops.models import (
 )
 from busstops.utils import get_bounding_box
 from bustimes.models import Garage, Route
-from bustimes.utils import get_other_trips_in_block
 from photos.forms import PhotoForm
 from photos.utils import WrongLicense, add_flickr_photo, add_uploaded_photo
 
@@ -724,10 +723,7 @@ def journeys_list(request, journeys, service=None, vehicle=None) -> dict:
                     trip.block == last_trip.block for trip in trips[-3:-1]
                 ):
                     context["predictions"] = (
-                        get_other_trips_in_block(
-                            last_trip,
-                            date,
-                        )
+                        last_trip.get_trips_in_block(date)
                         .filter(
                             start__gte=last_trip.end,
                         )

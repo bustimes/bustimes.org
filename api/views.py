@@ -18,7 +18,7 @@ from sql_util.utils import Exists
 
 from busstops.models import Locality, Operator, Service, StopPoint
 from bustimes.models import StopTime, Trip
-from bustimes.utils import contiguous_stoptimes_only, get_trips
+from bustimes.utils import contiguous_stoptimes_only
 from tfl.models import Journey, JourneyDriveTime, JourneyWaitTime, Stop, StopInPattern
 from vehicles.models import (
     Livery,
@@ -153,7 +153,7 @@ class TripViewSet(viewsets.ReadOnlyModelViewSet):
 
     @staticmethod
     def get_stops(obj, date=None):
-        trips = get_trips(obj, date)
+        trips = obj.get_parts(date)
         multiple_trips = len(trips) > 1
         if multiple_trips:
             stops = StopTime.objects.filter(trip__in=trips).order_by(

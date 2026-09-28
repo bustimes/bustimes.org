@@ -18,8 +18,11 @@ from .models import (
     Trip,
     Version,
 )
-from .utils import get_routes
 from .views import stop_time_json
+
+
+def active_routes(routes, when):
+    return Route.objects.filter(id__in=[route.id for route in routes]).active_on(when)
 
 
 class BusTimesTest(TestCase):
@@ -305,24 +308,24 @@ class BusTimesTest(TestCase):
 
         # maximum revision number for each source
         self.assertEqual(
-            list(get_routes(routes[:5], when=date(2022, 4, 4))), routes[1:5]
+            list(active_routes(routes[:5], when=date(2022, 4, 4))), routes[1:5]
         )
 
         # Ticketer filename - treat '5B' and '5BH' despite having the same service_code
         self.assertEqual(
-            list(get_routes(routes[5:7], when=date(2022, 4, 4))), routes[5:7]
+            list(active_routes(routes[5:7], when=date(2022, 4, 4))), routes[5:7]
         )
 
         # # from_date - include future versions
         # self.assertEqual(
-        #     get_routes(routes[2:4], from_date=date(2022, 4, 3)), routes[2:4]
+        #     active_routes(routes[2:4], from_date=date(2022, 4, 3)), routes[2:4]
         # )
         # self.assertEqual(
-        #     get_routes(routes[2:4], from_date=date(2022, 4, 4)), routes[2:4]
+        #     active_routes(routes[2:4], from_date=date(2022, 4, 4)), routes[2:4]
         # )
         # # ignore old versions:
         # self.assertEqual(
-        #     get_routes(routes[2:4], from_date=date(2022, 4, 5)), routes[3:4]
+        #     active_routes(routes[2:4], from_date=date(2022, 4, 5)), routes[3:4]
         # )
 
         routes = [
@@ -351,9 +354,11 @@ class BusTimesTest(TestCase):
         Route.objects.bulk_create(routes)
 
         self.assertQuerySetEqual(
-            get_routes(routes, when=date(2023, 2, 22)), routes[1:2]
+            active_routes(routes, when=date(2023, 2, 22)), routes[1:2]
         )
-        self.assertQuerySetEqual(get_routes(routes, when=date(2023, 3, 22)), routes[2:])
+        self.assertQuerySetEqual(
+            active_routes(routes, when=date(2023, 3, 22)), routes[2:]
+        )
 
         # a soft-deleted route (no service) with a higher revision number
         # should not suppress the current route
@@ -365,7 +370,7 @@ class BusTimesTest(TestCase):
             start_date=date(2023, 3, 5),
         )
         self.assertQuerySetEqual(
-            get_routes(routes, when=date(2023, 3, 22)),
+            active_routes(routes, when=date(2023, 3, 22)),
             routes[2:],
         )
 
@@ -401,7 +406,7 @@ class BusTimesTest(TestCase):
         ]
         Route.objects.bulk_create(routes)
 
-        gotten_routes = get_routes(routes, when=date(2023, 2, 12))
+        gotten_routes = active_routes(routes, when=date(2023, 2, 12))
         self.assertEqual(len(gotten_routes), 1)
         self.assertEqual(gotten_routes[0].code, "tfl_86-683-_-y05-60197")
         self.assertEqual(gotten_routes[0], routes[1])
@@ -454,10 +459,10 @@ class BusTimesTest(TestCase):
             ]
         )
 
-        self.assertQuerySetEqual(get_routes(routes, date(2024, 4, 1)), [])
-        self.assertQuerySetEqual(get_routes(routes, date(2024, 4, 29)), [routes[2]])
-        self.assertQuerySetEqual(get_routes(routes, date(2024, 5, 6)), [routes[0]])
-        self.assertQuerySetEqual(get_routes(routes, date(2024, 5, 14)), [routes[1]])
+        self.assertQuerySetEqual(active_routes(routes, date(2024, 4, 1)), [])
+        self.assertQuerySetEqual(active_routes(routes, date(2024, 4, 29)), [routes[2]])
+        self.assertQuerySetEqual(active_routes(routes, date(2024, 5, 6)), [routes[0]])
+        self.assertQuerySetEqual(active_routes(routes, date(2024, 5, 14)), [routes[1]])
 
         # two versions covering the same dates - the one with the higher
         # timestamp in its name wins (most recently published .zip)
@@ -482,7 +487,7 @@ class BusTimesTest(TestCase):
             ]
         )
         self.assertQuerySetEqual(
-            get_routes(routes + extra_routes, date(2024, 4, 29)), [extra_routes[0]]
+            active_routes(routes + extra_routes, date(2024, 4, 29)), [extra_routes[0]]
         )
 
     def test_garage(self):

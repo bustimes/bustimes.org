@@ -10,7 +10,7 @@ from django.contrib.gis.db.models.functions import Distance, LineLocatePoint
 from django.contrib.gis.geos import LineString, Point
 
 from bustimes.models import RouteLink, StopTime, Trip
-from bustimes.utils import contiguous_stoptimes_only, get_trips
+from bustimes.utils import contiguous_stoptimes_only
 from vehicles.utils import calculate_bearing
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ def get_route_bearing(geometry: LineString, progress: float):
 
 def get_stop_times(item, date):
     trip = Trip.objects.select_related("calendar", "route").get(pk=item["trip_id"])
-    trips = get_trips(trip, date)
+    trips = trip.get_parts(date)
 
     stop_times = (
         StopTime.objects.filter(trip__in=trips)

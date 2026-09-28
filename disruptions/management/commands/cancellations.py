@@ -8,8 +8,7 @@ from django.db.transaction import atomic
 from django.utils.timezone import localtime
 
 from busstops.models import DataSource
-from bustimes.models import Trip
-from bustimes.utils import get_calendars
+from bustimes.models import Calendar, Trip
 
 from ...models import AffectedJourney, Call, Situation
 from ...siri_sx import get_period
@@ -35,7 +34,7 @@ def get_trip(avj):
         operator=operator_ref,
         ticket_machine_code=journey_ref,
         start=timedelta(hours=departure_time.hour, minutes=departure_time.minute),
-        calendar__in=get_calendars(departure_time),
+        calendar__in=Calendar.objects.active_on(departure_time),
     )
     print("  ", journey_ref, trips)
     return trips

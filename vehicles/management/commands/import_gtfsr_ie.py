@@ -8,8 +8,7 @@ from google.protobuf import json_format
 from google.transit import gtfs_realtime_pb2
 
 from busstops.models import DataSource, Service
-from bustimes.models import Trip
-from bustimes.utils import get_calendars
+from bustimes.models import Calendar, Trip
 
 from ...models import Vehicle, VehicleJourney, VehicleLocation
 from ..import_live_vehicles import ImportLiveVehiclesCommand
@@ -181,8 +180,11 @@ class Command(ImportLiveVehiclesCommand):
             if trips:
                 if len(trips) > 1:
                     calendar_ids = [trip.calendar_id for trip in trips]
-                    calendars = get_calendars(start_date, calendar_ids)
-                    trips = trips.filter(calendar__in=calendars)
+                    trips = trips.filter(
+                        calendar__in=Calendar.objects.active_on(
+                            start_date, calendar_ids
+                        )
+                    )
                     trip = trips.first()
                 else:
                     trip = trips[0]

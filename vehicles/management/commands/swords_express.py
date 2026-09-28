@@ -5,8 +5,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import Q
 
 from busstops.models import Operator
-from bustimes.models import Route, StopTime
-from bustimes.utils import get_calendars, get_routes
+from bustimes.models import Calendar, Route, StopTime
 
 from ...models import VehicleJourney, VehicleLocation
 from ..import_live_vehicles import ImportLiveVehiclesCommand
@@ -71,12 +70,9 @@ class Command(ImportLiveVehiclesCommand):
         when = self.get_datetime(item)
         date = when.date()
 
-        routes = get_routes(
-            Route.objects.filter(
-                service__operator=self.operator, service__current=True
-            ),
-            date,
-        )
+        routes = Route.objects.filter(
+            service__operator=self.operator, service__current=True
+        ).active_on(date)
         ten_minutes = timedelta(minutes=10)
         now = timedelta(hours=when.hour, minutes=when.minute)
         time_range = (now - ten_minutes, now + ten_minutes)
@@ -84,7 +80,7 @@ class Command(ImportLiveVehiclesCommand):
         stop_times = StopTime.objects.filter(
             Q(departure__range=time_range) | Q(arrival__range=time_range),
             trip__route__in=routes,
-            trip__calendar__in=get_calendars(date),
+            trip__calendar__in=Calendar.objects.active_on(date),
             stop__latlong__dwithin=(get_latlong(item), 0.01),
         ).select_related("trip__route__service")
 

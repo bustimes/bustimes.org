@@ -53,7 +53,6 @@ from vehicles.rtpi import add_progress_and_delay
 from .forms import UploadGTFSForm
 from .gtfs_utils import handle_gtfs_upload
 from .models import BankHolidayDate, Route, RouteLink, StopTime, Trip
-from .utils import get_calendars, get_other_trips_in_block
 
 
 class ServiceDebugView(DetailView):
@@ -515,7 +514,7 @@ def trip_block(request, pk: int):
     else:
         date = timezone.localdate()
 
-    trips = get_other_trips_in_block(trip, date)
+    trips = trip.get_trips_in_block(date)
 
     trips = trips.annotate(
         destination_name=Coalesce(
@@ -790,8 +789,7 @@ def operator_blocks(request, slug):
     else:
         date = timezone.localdate()
 
-    calendars = get_calendars(date)
-    trips = trips.filter(calendar__in=calendars).order_by("block", "start")
+    trips = trips.active_on(date).order_by("block", "start")
 
     if trips:
         start = min(trip.start.total_seconds() for trip in trips)
