@@ -1547,9 +1547,11 @@ nav {
         right: 0;
         white-space: nowrap;
         overflow: hidden;
+        pointer-events: none;
 
         a {
             color: inherit;
+            pointer-events: auto;
         }
     }
 }

@@ -35,9 +35,9 @@
     {% if photo %}
         <figure itemprop="image" itemscope itemtype="https://schema.org/ImageObject" class="vehicle-photo">
             {% if photo.url %}<a href="{{ photo.url }}" itemprop="url">{% endif %}
-            <img itemprop="contentUrl" src="{{ photo.image_320.url }}"{% if photo.width and photo.height %} width="{{ photo.width }}" height="{{ photo.height }}"{% endif %} alt="" />
-            {% with license=photo.get_license %}
-            <figcaption>
+                <img itemprop="contentUrl" src="{{ photo.image_320.url }}"{% if photo.width and photo.height %} width="{{ photo.width }}" height="{{ photo.height }}"{% endif %} alt="" />
+            {% if photo.url %}</a>{% endif %}
+            <figcaption>{% with license=photo.get_license %}
                 {% if perms.photos.change_photo %}
                     <a href="{% url 'admin:photos_photo_change' photo.id %}" class="edit" title="Edit photo">✎</a>
                     {% if photo.credit %} &middot; {% endif %}
@@ -49,9 +49,7 @@
                     &middot;
                     <a itemprop="license" href="{{ license.1 }}">{{ license.0 }}</a>
                 {% endif %}
-                </figcaption>
-            {% endwith %}
-            {% if photo.url %}</a>{% endif %}
+            {% endwith %}</figcaption>
         </figure>
     {% endif %}
 
