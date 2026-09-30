@@ -152,7 +152,9 @@ class Command(GTFSRCommand):
             for journey_id, vehicle_id in VehicleJourney.objects.filter(
                 id__in=journeys, vehicle__isnull=False
             ).values_list("id", "vehicle_id"):
-                journeys[journey_id].vehicle_id = vehicle_id
+                journey = journeys[journey_id]
+                journey.vehicle_id = vehicle_id
+                import_live_vehicles.redis_client.delete(f"vehicle{-journey.id}")
 
     def get_journey(self, trip_code, start_date, start_time):
         date = datetime.strptime(start_date, "%Y%m%d").date()  # noqa: DTZ007
