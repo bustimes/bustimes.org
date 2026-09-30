@@ -37,8 +37,8 @@ class Command(ImportLiveVehiclesCommand):
         return (
             item["DayOfOperation"],
             item["JourneyIdentifier"],
-            item["DirectionText"],
-            item["LineText"],
+            item.get("DirectionText"),
+            item.get("LineText"),
         )
 
     @staticmethod
@@ -78,8 +78,8 @@ class Command(ImportLiveVehiclesCommand):
     def get_journey(self, item, vehicle):
         journey = VehicleJourney(
             code=item["JourneyIdentifier"],
-            destination=item["DirectionText"],
-            route_name=item["LineText"],
+            destination=item.get("DirectionText", ""),
+            route_name=item.get("LineText", ""),
         )
 
         if "#" in journey.code:
