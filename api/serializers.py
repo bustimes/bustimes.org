@@ -232,16 +232,19 @@ class TripSerializer(serializers.ModelSerializer):
         with sentry_sdk.start_span(name="list stop times"):
             for stop_time in obj.stops:
                 stop = stop_time.stop
+
                 if hasattr(stop_time, "note_codes"):
                     notes = stop_time.note_codes
                 else:
                     notes = None
+
                 if date:
                     aimed_arrival = stop_time.arrival_datetime(date, tzinfo)
                     aimed_departure = stop_time.departure_datetime(date, tzinfo)
                 else:
                     aimed_arrival = stop_time.arrival_time()
                     aimed_departure = stop_time.departure_time()
+
                 time = {
                     "id": stop_time.id,
                     "stop": {
@@ -256,23 +259,21 @@ class TripSerializer(serializers.ModelSerializer):
                     "timing_status": stop_time.timing_status(),
                     "pick_up": stop_time.pick_up,
                     "set_down": stop_time.set_down,
-                    "expected_arrival_time": getattr(
-                        stop_time, "expected_arrival", None
-                    ),
-                    "expected_departure_time": getattr(
-                        stop_time, "expected_departure", None
-                    ),
-                    "actual_arrival_time": getattr(
-                        stop_time, "actual_arrival_time", None
-                    ),
-                    "actual_departure_time": getattr(
-                        stop_time, "actual_departure_time", None
-                    ),
                     # "call_condition": stop_time.call_condition,
                     "note_codes": notes,
                 }
+                for key in (
+                    "expected_arrival_time",
+                    "expected_departure_time",
+                    "actual_arrival_time",
+                    "actual_departure_time",
+                ):
+                    if hasattr(stop_time, key):
+                        time[key] = getattr(stop_time, key)
+
                 if route_link := route_links.get((previous_stop_id, stop_time.stop_id)):
                     time["track"] = route_link.geometry.coords
+
                 times.append(time)
                 previous_stop_id = stop_time.stop_id
 

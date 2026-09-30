@@ -121,9 +121,9 @@ function Row({
   const liveActual = stop.expected_departure_time || stop.expected_arrival_time; // Irish live departures
 
   if (liveActual) {
-    actual = liveActual.slice(11, 16);
+    actual = formatTime(liveActual);
   } else if (vehicle?.progress && vehicle.progress.id === stop.id) {
-    actual = vehicle.datetime.slice(11, 16);
+    actual = <strong>{vehicle.datetime.slice(11, 16)}</strong>;
     if (vehicle.progress.progress > 0.1) {
       actualRowSpan = (actualRowSpan || 1) + 1;
     }

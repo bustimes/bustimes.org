@@ -51,6 +51,20 @@ def get_trip_updates(feed_name) -> dict:
     return cache.get(f"{feed_name}_trip_updates")
 
 
+def maybe_get_and_apply_trip_update(trip, stops: list):
+    match trip.route and trip.route.source.name:
+        case "Realtime Transport Operators":
+            feed_name = "ntaie"
+        case "Ember" | "FlixBus" as e:
+            feed_name = e.lower()
+        case _:  # source not supported
+            return False
+
+    if trip_update := get_trip_update(trip, feed_name):
+        apply_trip_update(stops, trip_update)
+        return True
+
+
 def get_trip_update(trip, feed_name: str) -> dict:
     if (
         (trip_id := trip.ticket_machine_code)
@@ -68,7 +82,7 @@ def get_expected_time(scheduled_time, stop_time_update, key):
         elif "time" in update:
             return datetime.fromtimestamp(
                 int(update["time"]), tz=ZoneInfo("Europe/Dublin")
-            ).strftime("%H:%M")
+            )
         else:
             return
         return format_timedelta(expected_time)
@@ -101,10 +115,10 @@ def apply_trip_update(stops, trip_update: dict) -> None:
             stop_time.update = stop_time_update
             if stop_time_update.get("scheduleRelationship") == "SKIPPED":
                 continue
-            stop_time.expected_arrival = get_expected_time(
+            stop_time.expected_arrival_time = get_expected_time(
                 stop_time.arrival, stop_time_update, "arrival"
             )
-            stop_time.expected_departure = get_expected_time(
+            stop_time.expected_departure_time = get_expected_time(
                 stop_time.departure, stop_time_update, "departure"
             )
 

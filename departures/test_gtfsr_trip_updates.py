@@ -161,13 +161,15 @@ class GTFSRTTest(TestCase):
             "stopSequence": 24,
         }
 
+        time = timedelta(hours=8, minutes=20)
+
         self.assertEqual(
-            gtfsr.get_expected_time(timedelta(hours=8, minutes=20), update, "arrival"),
-            "08:39",
+            str(gtfsr.get_expected_time(time, update, "arrival")),
+            "2024-09-03 08:39:18+01:00",
         )
+
+        time += timedelta(minutes=10)
         self.assertEqual(
-            gtfsr.get_expected_time(
-                timedelta(hours=8, minutes=30), update, "departure"
-            ),
+            str(gtfsr.get_expected_time(time, update, "departure")),
             "08:39",
         )

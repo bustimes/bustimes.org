@@ -466,17 +466,7 @@ class TripDetailView(DetailView):
             if stops[-1].stop:
                 context["destination"] = stops[-1].stop.locality
 
-            if route and (
-                route.source.name == "Realtime Transport Operators"
-                or route.source.name == "Ember"
-            ):
-                feed_name = "ember" if route.source.name == "Ember" else "ntaie"
-                trip_update = gtfsr.get_trip_update(self.object, feed_name)
-                if trip_update:
-                    context["trip_update"] = trip_update
-                    gtfsr.apply_trip_update(stops, trip_update)
-
-            else:
+            if gtfsr.maybe_get_and_apply_trip_update(self.object, stops) is False:
                 # no real-time data - cache for an hour
                 context["max_age"] = 3600
 

@@ -19,6 +19,7 @@ from sql_util.utils import Exists
 from busstops.models import Locality, Operator, Service, StopPoint
 from bustimes.models import StopTime, Trip
 from bustimes.utils import contiguous_stoptimes_only
+from departures.gtfsr import maybe_get_and_apply_trip_update
 from tfl.models import Journey, JourneyDriveTime, JourneyWaitTime, Stop, StopInPattern
 from vehicles.models import (
     Livery,
@@ -186,6 +187,9 @@ class TripViewSet(viewsets.ReadOnlyModelViewSet):
     def get_object(self):
         obj = super().get_object()
         obj.stops = self.get_stops(obj)
+
+        maybe_get_and_apply_trip_update(obj, obj.stops)
+
         return obj
 
 
@@ -484,6 +488,9 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                 instance.trip.stops = list(
                     TripViewSet.get_stops(instance.trip, instance.date)
                 )
+
+                maybe_get_and_apply_trip_update(instance.trip, instance.trip.stops)
+
             if locations:
                 self.set_actual_times(instance.trip.stops, locations)
             trip_serializer = serializers.TripSerializer(
