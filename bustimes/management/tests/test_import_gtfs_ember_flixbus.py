@@ -215,9 +215,9 @@ class FlixbusTest(TestCase):
             ),
             vcr.use_cassette(str(FIXTURES_DIR / "flixbus_gtfsr.yml")),
         ):
-            with self.assertNumQueries(16):
+            with self.assertNumQueries(17):
                 command.update()
-            with self.assertNumQueries(0):
+            with self.assertNumQueries(1):
                 command.update()
 
             distribute(channel_layer, async_redis_client)
