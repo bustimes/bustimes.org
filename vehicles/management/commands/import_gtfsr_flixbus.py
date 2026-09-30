@@ -146,10 +146,12 @@ class Command(GTFSRCommand):
                 journey.service.save(update_fields=["tracking"])
 
             # existing journey with a vehicle id (Scotland)
-            if existing_journey := (
-                journey.service.vehiclejourney_set.filter(
-                    code=trip_id, date=journey.date, datetime=journey.datetime
-                ).first()
+            if trip and (
+                existing_journey := (
+                    journey.service.vehiclejourney_set.filter(
+                        trip=trip, date=journey.date, datetime=journey.datetime
+                    ).first()
+                )
             ):
                 existing_journey.service = journey.service
                 return existing_journey

@@ -11,7 +11,7 @@ from django.utils import timezone
 from huey import crontab
 from huey.contrib.djhuey import db_periodic_task, db_task
 
-from busstops.models import DataSource, Operator
+from busstops.models import DataSource, Operator, Service
 
 from .management.commands import import_bod_avl
 from .models import (
@@ -91,7 +91,9 @@ def handle_siri_post(uuid, data: dict):
 
 
 @db_task()
-def log_vehicle_journey(service, data, time, destination, source_name, url, trip_id):
+def log_vehicle_journey(
+    service: int, data: dict, time, destination, source_name, url, trip_id: int
+):
     operator_ref = data.get("OperatorRef")
     if operator_ref == "SWB":  # Stagecoach
         return
@@ -210,6 +212,11 @@ def log_vehicle_journey(service, data, time, destination, source_name, url, trip
         destination=destination,
         trip_id=trip_id,
     )
+
+    if operator_ref == "FLIX" and not service:
+        journey.service = Service.objects.filter(
+            line_name=f"UK{route_name}", operator=operator_ref, current=True
+        ).first()
 
     if existing:  # FlixBus journey with no vehicle id yet
         journey.id = existing.id
