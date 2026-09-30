@@ -251,7 +251,7 @@ class FlixbusTest(TestCase):
 
             self.assertEqual(
                 [item["id"] for item in items],
-                [journey.vehicle_id or journey.id for journey in journeys],
+                sorted(journey.vehicle_id or -journey.id for journey in journeys),
             )
             self.assertIn("url", items[0]["service"])
             self.assertIsNone(items[0]["heading"])  # not moved yet
@@ -265,11 +265,11 @@ class FlixbusTest(TestCase):
             entity.vehicle.position.longitude = -0.14
             entity.vehicle.timestamp = 1711980350
             with self.assertNumQueries(0):
-                command.handle_item(entity, command.source.datetime)
+                command.handle_item(entity)
 
             distribute(channel_layer, async_redis_client)
 
-            item = json.loads(redis_client.get(f"vehicle{journeys[1].id}"))
+            item = json.loads(redis_client.get(f"vehicle{-journeys[1].id}"))
             self.assertEqual(item["heading"], 33)
             self.assertEqual(
                 redis_client.get(journeys[1].get_redis_key()),

@@ -227,7 +227,7 @@ class Command(GTFSRCommand):
 
         redis_client = import_live_vehicles.redis_client
 
-        vehicle_or_journey_id = journey.vehicle_id or journey.id
+        vehicle_or_journey_id = journey.vehicle_id or -journey.id
 
         latest = redis_client.get(f"vehicle{vehicle_or_journey_id}")
         if latest:
