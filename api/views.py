@@ -139,7 +139,9 @@ class StopViewSet(viewsets.ReadOnlyModelViewSet):
 
 class TripViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = (
-        Trip.objects.select_related("route__service", "operator", "calendar")
+        Trip.objects.select_related(
+            "route__service", "route__source", "operator", "calendar"
+        )
         .prefetch_related("notes")
         .annotate(
             destination_name=Coalesce(
@@ -203,7 +205,12 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         if self.action == "details":
-            qs = qs.select_related("service", "trip__route__service", "trip__operator")
+            qs = qs.select_related(
+                "service",
+                "trip__route__service",
+                "trip__route__source",
+                "trip__operator",
+            )
         return qs
 
     @staticmethod

@@ -147,6 +147,7 @@ class Command(BaseCommand):
                 route=existing_routes[row.route_id],
                 calendar=calendars[row.service_id],
                 inbound=journey_number % 2 == 0,
+                ticket_machine_code=row.trip_id,
                 vehicle_journey_code=row.trip_id,
                 headsign=row.trip_headsign if pd.notna(row.trip_headsign) else None,
                 operator=operator,

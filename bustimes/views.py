@@ -700,6 +700,9 @@ def tfl_vehicle(request, reg: str):
 
 
 trip_updates_sources = {
+    "flixbus": {
+        "source_name": "FlixBus",
+    },
     "ember": {
         "source_name": "Ember",
     },

@@ -80,7 +80,9 @@ class Command(GTFSRCommand):
                 if item.HasField("vehicle"):
                     positions.append(item)
                 else:
-                    self.trip_updates[(trip.trip_id, trip.start_date)] = item
+                    self.trip_updates[(trip.trip_id, trip.start_date)] = (
+                        item.trip_update
+                    )
 
         current = {self.get_vehicle_identity(item) for item in positions}
         # remove old journeys from cache
@@ -89,6 +91,15 @@ class Command(GTFSRCommand):
         }
 
         yield from positions
+
+        cache.set(
+            "flixbus_trip_updates",
+            {
+                trip_id: json_format.MessageToDict(trip_update)
+                for (trip_id, _), trip_update in self.trip_updates.items()
+            },
+            300,
+        )
 
         cache.set("flixbus_feed", json_format.MessageToDict(feed))
 
