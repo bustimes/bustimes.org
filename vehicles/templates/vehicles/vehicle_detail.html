@@ -30,12 +30,10 @@
 {% block content %}
 
 {% if vehicle %}
-    <div itemscope itemtype="https://schema.org/BusOrCoach">
-
     {% if photo %}
-        <figure itemprop="image" itemscope itemtype="https://schema.org/ImageObject" class="vehicle-photo">
-            {% if photo.url %}<a href="{{ photo.url }}" itemprop="url">{% endif %}
-                <img itemprop="contentUrl" src="{{ photo.image_320.url }}"{% if photo.width and photo.height %} width="{{ photo.width }}" height="{{ photo.height }}"{% endif %} alt="" />
+        <figure itemscope itemtype="https://schema.org/ImageObject" class="vehicle-photo">
+            {% if photo.url %}<a href="{{ photo.url }}" itemprop="acquireLicensePage">{% endif %}
+                <img src="{{ photo.image_320.url }}"{% if photo.width and photo.height %} width="{{ photo.width }}" height="{{ photo.height }}"{% endif %} alt="" itemprop="contentUrl">
             {% if photo.url %}</a>{% endif %}
             <figcaption>{% with license=photo.get_license %}
                 {% if perms.photos.change_photo %}
@@ -43,17 +41,21 @@
                     {% if photo.credit %} &middot; {% endif %}
                 {% endif %}
                 {% if photo.credit %}
-                    <span itemprop="creator" itemscope itemtype="https://schema.org/Person">
-                        <span itemprop="name">{{ photo.credit }}</span>
+                    <span itemprop="creditText">
+                        <span itemprop="creator" itemscope itemtype="https://schema.org/Person">
+                            <span itemprop="name">{{ photo.credit }}</span>
+                        </span>
                     </span>
-                    &middot;
-                    <a itemprop="license" href="{{ license.1 }}">{{ license.0 }}</a>
+                    {% if license %}
+                        &middot;
+                        <a itemprop="license" href="{{ license.1 }}">{{ license.0 }}</a>
+                    {% endif %}
                 {% endif %}
             {% endwith %}</figcaption>
         </figure>
     {% endif %}
 
-    <h1 itemprop="name">
+    <h1>
         {% if vehicle.reg %}
             {% if vehicle.fleet_code or vehicle.fleet_number %}
                 {% if vehicle.withdrawn %}<s>{% endif %}
@@ -93,8 +95,6 @@
         </ul>
     </div>
     {% endif %}
-
-    </div>
 
     {% if tracking %}
         <p><a href="{{ tracking }}" class="button">Track this bus</a></p>
