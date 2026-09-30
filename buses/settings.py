@@ -20,15 +20,19 @@ DEBUG = bool(os.environ.get("DEBUG"))
 
 DEFAULT_FROM_EMAIL = '"bustimes.org" <bustimes.org@bustimes.org>'
 
-EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
-EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
-EMAIL_PORT = 465
-EMAIL_USE_SSL = True
-EMAIL_TIMEOUT = 10
-if TEST:
-    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+MAILERS = {
+    "default": {
+        "OPTIONS": {
+            "host": os.environ.get("EMAIL_HOST", ""),
+            "username": os.environ.get("EMAIL_HOST_USER", ""),
+            "password": os.environ.get("EMAIL_HOST_PASSWORD", ""),
+            "use_tls": True,
+            "timeout": 5,
+        }
+    }
+}
 
+if TEST:
     import ipaddress
     import socket
 
