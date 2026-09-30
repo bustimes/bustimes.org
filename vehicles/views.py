@@ -475,7 +475,7 @@ def get_vehicle_locations(
                     if vehicle.service_slug:
                         journey["service"] = {
                             "url": f"/services/{vehicle.service_slug}",
-                            "line_name": vehicle.service_line_name.removeprefix("UK")
+                            "line_name": vehicle.service_line_name
                             or item.get("service")
                             and item["service"]["line_name"],
                         }
