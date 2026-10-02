@@ -985,6 +985,37 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         self.assertEqual(vehicle.livery, livery)
         self.assertEqual(vehicle.reg, "SN16OLO")
 
+        # BODS adds TfL's seconds to local midnight, not noon minus 12 hours,
+        # so is an hour out on the days the clocks change
+        for vehicle_ref, recorded_at, departure, expected in (
+            (
+                "LJ16NAC",  # random day
+                "2026-10-24T09:05:00+00:00",
+                "2026-10-24T09:00:00.000Z",
+                "2026-10-24 09:00:00+00:00",
+            ),
+            (
+                "LJ16NAA",  # clocks went back at midnight
+                "2026-10-25T10:05:00+00:00",
+                "2026-10-25T09:00:00.000Z",
+                "2026-10-25 10:00:00+00:00",
+            ),
+            (
+                "LJ16NAB",  # clocks went forward at midnight
+                "2026-03-29T09:05:00+00:00",
+                "2026-03-29T10:00:00.000Z",
+                "2026-03-29 09:00:00+00:00",
+            ),
+        ):
+            item["RecordedAtTime"] = recorded_at
+            item["MonitoredVehicleJourney"]["VehicleRef"] = vehicle_ref
+            item["MonitoredVehicleJourney"]["OriginAimedDepartureTime"] = departure
+            with patch_redis_client():
+                command.handle_item(item)
+                command.save()
+            journey = VehicleJourney.objects.get(vehicle__reg=vehicle_ref)
+            self.assertEqual(str(journey.datetime), expected)
+
     @patch_redis_client()
     def test_nottingham(self):
         command = import_bod_avl.Command()

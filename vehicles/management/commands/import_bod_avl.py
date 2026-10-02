@@ -462,6 +462,14 @@ class Command(ImportLiveVehiclesCommand):
             except ValueError:
                 pass
 
+        if operator_ref == "TFLO" and origin_aimed_departure_time:
+            # BODS adds TfL's seconds to local midnight, not noon minus 12 hours,
+            # so is an hour out on the days the clocks change
+            local = timezone.localtime(origin_aimed_departure_time)
+            origin_aimed_departure_time += (
+                local.replace(hour=0).utcoffset() - local.replace(hour=12).utcoffset()
+            )
+
         if origin_aimed_departure_time:
             difference = origin_aimed_departure_time - dt
             twenty_hours = timedelta(hours=20)
