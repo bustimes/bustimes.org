@@ -1260,19 +1260,17 @@ input:not(:checked) + label {
         border-bottom: 1px solid var(--border-color);
     }
 
-    .stop-name {
-        width: auto;
-    }
-
     td {
-        border-left: 1px solid var(--border-color);
+        text-align: center;
     }
 
-    td:last-child {
+    th:last-child {
        padding-right: 0;
     }
 
     .stop-name {
+        text-align: left;
+        width: auto;
         border-left: 0;
         padding-left: 0;
 
