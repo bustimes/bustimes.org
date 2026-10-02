@@ -55,6 +55,8 @@ function Row({
   onMouseEnter,
   vehicle,
   aimedColumn,
+  expectedColumn,
+  // actualColumn,
   highlightedStop,
   first = false,
   last = false,
@@ -62,7 +64,9 @@ function Row({
   stop: TripTime;
   onMouseEnter?: (stop: TripTime) => void;
   vehicle?: Vehicle | null;
-  aimedColumn?: boolean;
+  aimedColumn: boolean;
+  expectedColumn: boolean;
+  // actualColumn: boolean;
   highlightedStop?: string;
   first: boolean;
   last: boolean;
@@ -89,21 +93,6 @@ function Row({
     [stop, onMouseEnter],
   );
 
-  let className: string | undefined;
-
-  let stopName: string | ReactElement = stop.stop.name;
-  if (stop.stop.atco_code) {
-    const url = `/stops/${stop.stop.atco_code}`;
-    if (url === highlightedStop) {
-      className = "is-highlighted";
-    }
-    stopName = <a href={url}>{stopName}</a>;
-  }
-
-  if (stop.timing_status && stop.timing_status !== "PTP") {
-    className = className ? `${className} minor` : "minor";
-  }
-
   let rowSpan: number | undefined;
   if (
     aimedColumn &&
@@ -114,15 +103,27 @@ function Row({
     rowSpan = 2;
   }
 
+  let aimed: ReactElement | null | string = null;
+  if (aimedColumn) {
+    aimed = formatTime(stop.aimed_arrival_time || stop.aimed_departure_time);
+    aimed = <td>{aimed}</td>;
+  }
+
   let actual: string | null | ReactElement | undefined;
   let actualRowSpan = rowSpan;
   let actualDeparture: string | null = null; // shown on the second row, when split
 
-  const liveActual = stop.expected_departure_time || stop.expected_arrival_time; // Irish live departures
+  let expected = null;
 
-  if (liveActual) {
-    actual = formatTime(liveActual);
-  } else if (vehicle?.progress && vehicle.progress.id === stop.id) {
+  if (expectedColumn) {
+    expected = (
+      <td rowSpan={2}>
+        {formatTime(stop.expected_departure_time || stop.expected_arrival_time)}
+      </td>
+    );
+  }
+
+  if (vehicle?.progress && vehicle.progress.id === stop.id) {
     actual = <strong>{vehicle.datetime.slice(11, 16)}</strong>;
     if (vehicle.progress.progress > 0.1) {
       actualRowSpan = (actualRowSpan || 1) + 1;
@@ -164,16 +165,33 @@ function Row({
     <strong key={note_code}>{note_code}</strong>
   ));
 
-  let aimed: ReactElement | null | string = null;
-  if (aimedColumn) {
-    aimed = formatTime(stop.aimed_arrival_time || stop.aimed_departure_time);
-    aimed = (
-      <td>
-        {aimed}
+  if (caveat || notes?.length) {
+    caveat = (
+      <div className="note">
         {caveat}
         {notes}
-      </td>
+      </div>
     );
+  }
+
+  let className: string | undefined;
+
+  let stopName: string | ReactElement = stop.stop.name;
+  if (stop.stop.atco_code) {
+    const url = `/stops/${stop.stop.atco_code}`;
+    if (url === highlightedStop) {
+      className = "is-highlighted";
+    }
+    stopName = (
+      <a href={url}>
+        {caveat}
+        {stopName}
+      </a>
+    );
+  }
+
+  if (stop.timing_status && stop.timing_status !== "PTP") {
+    className = className ? `${className} minor` : "minor";
   }
 
   return (
@@ -183,6 +201,7 @@ function Row({
           {stopName}
         </td>
         {aimed}
+        {expected}
         {actual}
       </tr>
       {rowSpan ? (
@@ -208,20 +227,16 @@ const TripTimetable = React.memo(function TripTimetable({
 }) {
   const [showEarlierStops, setShowEarlierStops] = React.useState(false);
 
-  const aimedColumn: boolean = trip.times?.some(
-    (item: TripTime) => item.aimed_arrival_time || item.aimed_departure_time,
+  const aimedColumn: boolean = trip.times.some(
+    (item) => item.aimed_arrival_time || item.aimed_departure_time,
   );
 
-  let actualColumn: string | null = null;
-  if (
-    trip.times?.some(
-      (item) => item.expected_arrival_time || item.expected_departure_time,
-    )
-  ) {
-    actualColumn = "Ex\u00ADpected";
-  } else if (vehicle || trip.times.some((item) => item.actual_departure_time)) {
-    actualColumn = "Actual";
-  }
+  const expectedColumn: boolean = trip.times.some(
+    (item) => item.expected_arrival_time || item.expected_departure_time,
+  );
+
+  const actualColumn =
+    vehicle || trip.times.some((item) => item.actual_departure_time);
 
   let earlierStops = false;
 
@@ -252,7 +267,8 @@ const TripTimetable = React.memo(function TripTimetable({
           <tr>
             <th className="stop-name" />
             {aimedColumn ? <th>Sched&shy;uled</th> : null}
-            {actualColumn ? <th>{actualColumn}</th> : null}
+            {expectedColumn ? <th>Ex&shy;pected</th> : null}
+            {actualColumn ? <th>Actual</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -260,6 +276,7 @@ const TripTimetable = React.memo(function TripTimetable({
             <Row
               key={stop.id || i}
               aimedColumn={aimedColumn}
+              expectedColumn={expectedColumn}
               stop={stop}
               onMouseEnter={onMouseEnter}
               vehicle={vehicle}

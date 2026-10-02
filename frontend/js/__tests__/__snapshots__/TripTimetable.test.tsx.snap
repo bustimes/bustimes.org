@@ -148,7 +148,9 @@ exports[`renders trip timetable 2`] = `
           10:13
         </td>
         <td>
-          09:17
+          <strong>
+            09:17
+          </strong>
         </td>
       </tr>
       <tr>
@@ -257,7 +259,9 @@ exports[`renders trip timetable 3`] = `
           10:13
         </td>
         <td>
-          09:17
+          <strong>
+            09:17
+          </strong>
         </td>
       </tr>
       <tr>
