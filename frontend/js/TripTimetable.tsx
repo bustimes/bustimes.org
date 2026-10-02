@@ -114,13 +114,25 @@ function Row({
   let actualDeparture: string | null = null; // shown on the second row, when split
 
   let expected = null;
+  let expectedDeparture = null;
 
   if (expectedColumn) {
-    expected = (
-      <td rowSpan={2}>
-        {formatTime(stop.expected_departure_time || stop.expected_arrival_time)}
-      </td>
+    expected = formatTime(
+      stop.expected_arrival_time || stop.aimed_departure_time,
     );
+    if (rowSpan === 2) {
+      if (
+        stop.expected_departure_time &&
+        stop.expected_departure_time !== stop.expected_arrival_time
+      ) {
+        expected = <td>{expected}</td>;
+        expectedDeparture = <td>{formatTime(stop.expected_departure_time)}</td>;
+      } else {
+        expected = <td rowSpan={2}>{expected}</td>;
+      }
+    } else {
+      expected = <td>{expected}</td>;
+    }
   }
 
   if (vehicle?.progress && vehicle.progress.id === stop.id) {
@@ -207,6 +219,7 @@ function Row({
       {rowSpan ? (
         <tr className={className} onPointerEnter={handlePointerEnter}>
           <td>{formatTime(stop.aimed_departure_time)}</td>
+          {expectedDeparture}
           {actualDeparture ? <td>{actualDeparture}</td> : null}
         </tr>
       ) : null}

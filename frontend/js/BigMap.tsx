@@ -572,7 +572,9 @@ function getStopName({
   common_name,
   locality_name,
   indicator,
-}: { [name: string]: string }) {
+}: {
+  [name: string]: string;
+}) {
   let name = common_name;
   if (indicator) {
     if (

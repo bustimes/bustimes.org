@@ -496,7 +496,8 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                     TripViewSet.get_stops(instance.trip, instance.date)
                 )
 
-                maybe_get_and_apply_trip_update(instance.trip, instance.trip.stops)
+                if current_trip or not instance.vehicle_id:
+                    maybe_get_and_apply_trip_update(instance.trip, instance.trip.stops)
 
             if locations:
                 self.set_actual_times(instance.trip.stops, locations)
