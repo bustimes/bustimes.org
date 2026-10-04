@@ -76,3 +76,52 @@ class FirstTest(TestCase):
         self.assertEqual(str(vehicle), "11111")
         self.assertEqual(location.journey.route_name, "B")
         self.assertEqual(location.journey.code, "0615")
+
+    def test_unchanged_location(self):
+        cmd = Command()
+        cmd.source = self.source
+
+        def item(recorded_at_time, code="0615"):
+            return {
+                "dir": "outbound",
+                "line": "B",
+                "status": {
+                    "bearing": 61,
+                    "location": {
+                        "type": "Point",
+                        "coordinates": [1.267833, 52.614746],
+                    },
+                    "vehicle_id": f"BDGR-outbound-2025-09-21-{code}-11111-B",
+                    "recorded_at_time": recorded_at_time,
+                },
+                "stops": [
+                    {
+                        "date": "2025-09-21",
+                        "time": f"{code[:2]}:{code[2:]}",
+                        "locality": "Woody Knoll",
+                        "atcocode": "",
+                    }
+                ],
+                "operator": "BDGR",
+                "line_name": "B",
+                "description": "",
+                "operator_name": "Badgerline",
+            }
+
+        redis_client = fakeredis.FakeStrictRedis(version=7)
+
+        with mock.patch(
+            "vehicles.management.import_live_vehicles.redis_client", redis_client
+        ):
+            self.assertIsNotNone(cmd.handle_item(item("2026-09-21T07:00:17Z")))
+            cmd.save()
+
+            # same place, same journey - nothing new
+            self.assertIsNone(cmd.handle_item(item("2026-09-21T07:01:17Z")))
+
+            # same place, but a different journey
+            location, _ = cmd.handle_item(item("2026-09-21T07:02:17Z", "0715"))
+            self.assertEqual(location.journey.code, "0715")
+            self.assertEqual(
+                location.datetime, datetime(2026, 9, 21, 7, 0, 17, tzinfo=UTC)
+            )

@@ -26,13 +26,15 @@ class PolylineWrapper:
         self.last_time = 0
 
     def extend(self, lat, lng, time):
-        before = len(self.polyline)
-        self.polyline = extend_time_aware_polyline(
-            self.polyline,
+        extension = extend_time_aware_polyline(
+            "",
             ((lat, lng, time),),
             (self.last_lat, self.last_lng, self.last_time),
         )
-        self.pending += self.polyline[before:]
+        if extension == "???":
+            return  # no change
+        self.polyline += extension
+        self.pending += extension
         self.last_lat = lat
         self.last_lng = lng
         self.last_time = time

@@ -91,3 +91,13 @@ class DistributeVehicleLocationsTest(SimpleTestCase):
             decode_time_aware_polyline(polyline),
             [[1.0, 51.0, 1000], [1.001, 51.001, 1010], [1.002, 51.002, 1020]],
         )
+
+    async def test_ignores_duplicate_point(self):
+        uuid = str(uuid4())
+        await self.redis.set(uuid, encode_time_aware_polyline([[1.0, 51.0, 1000]]))
+
+        await self.command.handle_items([(uuid, 1000, 1.000001, 51.0)])
+        await self.command.handle_items([(uuid, 1000, 1.0, 51.0)])
+
+        polyline = (await self.redis.get(uuid)).decode()
+        self.assertEqual(decode_time_aware_polyline(polyline), [[1.0, 51.0, 1000]])

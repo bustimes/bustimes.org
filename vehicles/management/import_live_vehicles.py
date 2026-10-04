@@ -158,6 +158,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 return
 
         latest_datetime = None
+        location_unchanged = False
 
         if latest is None:
             latest = redis_client.get(f"vehicle{vehicle.id}")
@@ -184,6 +185,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
                         # - so assume the data is old
                         # – if the vehicle was really stationary the location would "drift" a bit
                         dt = latest_datetime
+                        location_unchanged = location is not None
                     else:
                         return
 
@@ -313,6 +315,13 @@ class ImportLiveVehiclesCommand(BaseCommand):
 
         location.id = vehicle.id
         location.journey = journey
+
+        if (
+            location_unchanged
+            and json.loads(json.dumps(location.get_redis_json(tz=self.tzinfo)))
+            == latest
+        ):
+            return  # nothing new
 
         self.to_save.append((location, vehicle))
 
