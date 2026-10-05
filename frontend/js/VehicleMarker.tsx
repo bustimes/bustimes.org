@@ -32,7 +32,6 @@ export type Vehicle = {
   datetime: string;
   destination: string;
   block?: string;
-  tfl_code?: string;
   trip_id?: number;
   service_id?: number;
   service?: {

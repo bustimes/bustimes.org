@@ -788,7 +788,6 @@ class VehicleLocation:
         self.wheelchair_capacity = None
         self.occupancy_thresholds = None
         self.block = block
-        self.tfl_code = None
         self.datetime = None
 
     def __str__(self):
@@ -858,8 +857,6 @@ class VehicleLocation:
         if self.delay is not None:
             json["delay"] = self.delay.total_seconds()
 
-        if self.tfl_code:
-            json["tfl_code"] = self.tfl_code
         if journey.trip_id:
             json["date"] = journey.date.isoformat()
             json["trip_id"] = journey.trip_id

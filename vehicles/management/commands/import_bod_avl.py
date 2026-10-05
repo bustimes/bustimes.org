@@ -626,8 +626,6 @@ class Command(ImportLiveVehiclesCommand):
             occupancy=occupancies.get(monitored_vehicle_journey.get("Occupancy")),
             block=monitored_vehicle_journey.get("BlockRef"),
         )
-        if monitored_vehicle_journey["OperatorRef"] == "TFLO":
-            location.tfl_code = monitored_vehicle_journey["VehicleRef"]
         extensions = item.get("Extensions")
         if extensions:
             extensions = extensions.get("VehicleJourney") or extensions.get(
