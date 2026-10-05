@@ -96,7 +96,7 @@ class Progress:
         }
 
 
-def get_delay(progress, date, when, tzinfo=None) -> int:
+def get_delay(progress, date, when, tzinfo=None) -> int | None:
     prev = progress.prev_stop_time
     next_ = progress.next_stop_time
 
@@ -108,6 +108,8 @@ def get_delay(progress, date, when, tzinfo=None) -> int:
     next_arr = next_.arrival_datetime(date, tzinfo)
     if next_arr is None:
         next_arr = next_.departure_datetime(date, tzinfo)
+    if prev_dep is None or next_arr is None:
+        return None
 
     # if the bus is at prev stop and within its scheduled dwell, it's on time
     if progress.progress <= 0.1:
@@ -247,10 +249,14 @@ def get_progress(
                 next_closest[2].distance,
             )
             alt.delay = get_delay(alt, date, when, tzinfo)
-            if abs(alt.delay) < abs(progress.delay):
+            if progress.delay is None or (
+                alt.delay is not None and abs(alt.delay) < abs(progress.delay)
+            ):
                 progress = alt
 
-        if abs(progress.delay) > 43200:  # more than 12 hours
+        if (
+            progress.delay is not None and abs(progress.delay) > 43200
+        ):  # more than 12 hours
             logger.warning("%s delay is %s", item, progress.delay)
 
     return progress
