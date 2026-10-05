@@ -13,7 +13,7 @@ export type Stop = {
     expected_departure_time?: string | null;
     actual_departure_time?: string | null;
   };
-  geometry: {
+  geometry?: {
     type: "Point";
     coordinates: [number, number];
   };
@@ -88,6 +88,10 @@ function StopTimes({ properties }: { properties: Stop["properties"] }) {
 
 export default function StopPopup({ item, onClose }: StopPopupProps) {
   let name: ReactElement;
+
+  if (!item.geometry) {
+    return;
+  }
 
   if (item.properties.url) {
     name = (

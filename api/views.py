@@ -402,9 +402,9 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
             cache.set(cache_key, data, 60)
 
         stops = instance.trip.stops
-        trip_stop_ids = {stop_time.stop_id for stop_time in stops}
+        trip_stops = {stop_time.stop_id: stop_time.stop for stop_time in stops}
         other_stops = StopPoint.objects.in_bulk(
-            [item["naptanId"] for item in data if item["naptanId"] not in trip_stop_ids]
+            [item["naptanId"] for item in data if item["naptanId"] not in trip_stops]
         )
 
         position = 0
@@ -423,8 +423,10 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                 None,
             )
             if index is None:
-                stop = other_stops.get(atco_code) or StopPoint(
-                    atco_code=atco_code, common_name=item["stationName"]
+                stop = (
+                    other_stops.get(atco_code)
+                    or trip_stops.get(atco_code)
+                    or StopPoint(common_name=item["stationName"])
                 )
                 stop_time = StopTime(stop=stop)
                 stop_time.expected_arrival_time = expected_arrival

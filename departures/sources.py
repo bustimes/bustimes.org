@@ -360,11 +360,11 @@ class SiriSmDepartures(RemoteDepartures):
     def get_poorly_key(self):
         return self.source.get_poorly_key()
 
-    def departures_from_response(self, response):
-        if not response.text or "Client.AUTHENTICATION_FAILED" in response.text:
+    def departures_from_response(self, res):
+        if not res.text or "Client.AUTHENTICATION_FAILED" in res.text:
             self.set_poorly(1800)  # back off for 30 minutes
             return
-        data = xmltodict.parse(response.text)
+        data = xmltodict.parse(res.text)
         try:
             data = data["Siri"]["ServiceDelivery"]["StopMonitoringDelivery"][
                 "MonitoredStopVisit"

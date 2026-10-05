@@ -101,3 +101,14 @@ unsafe-fixes = true
 [tool.ruff.lint]
 extend-select = ["SIM117"]
 ignore = ["RUF012"]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+reportAttributeAccessIssue = false
+reportArgumentType = false
+reportOptionalContextManager = false
+reportOperatorIssue = false
+reportIndexIssue = false
+reportGeneralTypeIssues = false
+reportCallIssue = false
+reportAssignmentType = false
