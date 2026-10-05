@@ -118,7 +118,7 @@ function Row({
 
   if (expectedColumn) {
     expected = formatTime(
-      stop.expected_arrival_time || stop.aimed_departure_time,
+      stop.expected_arrival_time || stop.expected_departure_time,
     );
     if (rowSpan === 2) {
       if (
