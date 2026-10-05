@@ -21,7 +21,7 @@ from busstops.models import (
     StopUsage,
 )
 from bustimes.models import Calendar, Route, StopTime, Trip
-from vehicles.models import Vehicle, VehicleJourney
+from vehicles.models import Vehicle, VehicleCode, VehicleJourney
 from vehicles.tasks import log_vehicle_journey
 
 from . import live, sources
@@ -133,6 +133,23 @@ class LiveDeparturesTest(TestCase):
         trip = Trip.objects.create(route=route, start="0", end="1")
         StopTime.objects.create(trip=trip, stop=self.london_stop)
 
+        vehicle_1 = Vehicle.objects.create(code="LTZ1414", reg="LTZ1414")
+        VehicleCode.objects.create(
+            vehicle=vehicle_1, code="TFLO:LTZ1414", scheme="BODS"
+        )
+        vehicle_2 = Vehicle.objects.create(code="LTZ1243", reg="LTZ1243")
+        VehicleCode.objects.create(
+            vehicle=vehicle_2, code="TFLO:LTZ1243", scheme="BODS"
+        )
+        journey = VehicleJourney.objects.create(
+            vehicle=vehicle_2,
+            datetime="2016-07-26T17:00:00Z",
+            date="2016-07-26",
+            source=self.source,
+        )
+        vehicle_2.latest_journey = journey
+        vehicle_2.save(update_fields=["latest_journey"])
+
         with (
             override_settings(TFL={}),
             vcr.use_cassette("fixtures/vcr/tfl_arrivals.yaml"),
@@ -149,7 +166,7 @@ class LiveDeparturesTest(TestCase):
 
         self.assertContains(
             response,
-            """
+            f"""
                 <table>
                     <thead><tr>
                             <th></th>
@@ -158,38 +175,38 @@ class LiveDeparturesTest(TestCase):
                     </tr></thead>
                     <tbody>
                     <tr><td><a href="/services/8">8</a></td><td>Bow Church
-                        <div class="vehicle">LTZ1414</div></td>
-                        <td><a href="/vehicles/tfl/LTZ1414">18:22</a></td></tr>
+                        <div class="vehicle"><a href="/vehicles/{vehicle_1.slug}">LTZ 1414</a></div></td>
+                        <td>18:22</td></tr>
                     <tr><td>D3</td><td>Bethnal Green, Chest Hospital
                         <div class="vehicle">LX59AOM</div></td>
-                        <td><a href="/vehicles/tfl/LX59AOM">18:23</a></td></tr>
+                        <td>18:23</td></tr>
                     <tr><td><a href="/services/8">8</a></td><td>Bow Church
-                        <div class="vehicle">LTZ1243</div></td>
-                        <td><a href="/vehicles/tfl/LTZ1243">18:26</a></td></tr>
+                        <div class="vehicle"><a href="/vehicles/{vehicle_2.slug}">LTZ 1243</a></div></td>
+                        <td><a href="/journeys/{journey.id}">18:26</a></td></tr>
                     <tr><td>388</td><td>Stratford City
                         <div class="vehicle">YR59NPF</div></td>
-                        <td><a href="/vehicles/tfl/YR59NPF">18:26</a></td></tr>
+                        <td>18:26</td></tr>
                     <tr><td><a href="/services/8">8</a></td><td>Bow Church
                         <div class="vehicle">LTZ1407</div></td>
-                        <td><a href="/vehicles/tfl/LTZ1407">18:33</a></td></tr>
+                        <td>18:33</td></tr>
                     <tr><td>D3</td><td>Bethnal Green, Chest Hospital
                         <div class="vehicle">LX59AOL</div></td>
-                        <td><a href="/vehicles/tfl/LX59AOL">18:33</a></td></tr>
+                        <td>18:33</td></tr>
                     <tr><td><a href="/services/8">8</a></td><td>Bow Church
                         <div class="vehicle">LTZ1412</div></td>
-                        <td><a href="/vehicles/tfl/LTZ1412">18:37</a></td></tr>
+                        <td>18:37</td></tr>
                     <tr><td>388</td><td>Stratford City
                         <div class="vehicle">PF52TFX</div></td>
-                        <td><a href="/vehicles/tfl/PF52TFX">18:44</a></td></tr>
+                        <td>18:44</td></tr>
                     <tr><td>D3</td><td>Bethnal Green, Chest Hospital
                         <div class="vehicle">LX59AOA</div></td>
-                        <td><a href="/vehicles/tfl/LX59AOA">18:44</a></td></tr>
+                        <td>18:44</td></tr>
                     <tr><td><a href="/services/8">8</a></td><td>Bow Church
                         <div class="vehicle">LTZ1269</div></td>
-                        <td><a href="/vehicles/tfl/LTZ1269">18:44</a></td></tr>
+                        <td>18:44</td></tr>
                     <tr><td><a href="/services/8">8</a></td><td>Bow Church
                         <div class="vehicle">LTZ1393</div></td>
-                        <td><a href="/vehicles/tfl/LTZ1393">18:49</a></td></tr>
+                        <td>18:49</td></tr>
                 </tbody></table>
         """,
             html=True,

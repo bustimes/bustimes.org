@@ -21,7 +21,7 @@ from xmltodict import unparse
 
 from bustimes.utils import get_stop_times
 from disruptions.models import Call
-from vehicles.models import VehicleJourney
+from vehicles.models import VehicleCode, VehicleJourney
 
 TIMEZONE = ZoneInfo("Europe/London")
 
@@ -154,24 +154,32 @@ class TflDepartures(RemoteDepartures):
         return {"User-Agent": "bustimes.org"}
 
     def get_row(self, item):
-        if item["modeName"] == "tube":
-            vehicle = None
-            link = None
-        else:
-            vehicle = item["vehicleId"]
-            link = f"/vehicles/tfl/{vehicle}"
-        return {
+        row = {
             "live": parse_datetime(item.get("expectedArrival")),
             "service": self.get_service(item.get("lineName")),
             "destination": item.get("destinationName"),
-            "link": link,
-            "vehicle": vehicle,
         }
+        if item["modeName"] == "bus":
+            row["vehicle"] = item["vehicleId"]
+        return row
 
     def departures_from_response(self, res) -> list:
-        return sorted(
-            [self.get_row(item) for item in res.json()], key=lambda row: row["live"]
-        )
+        data = res.json()
+        rows = [self.get_row(item) for item in data]
+        prefix = "TFLO:"
+        codes = [f"{prefix}{row['vehicle']}" for row in rows if "vehicle" in row]
+        codes = VehicleCode.objects.filter(scheme="BODS", code__in=codes)
+        vehicles = {
+            code.code.removeprefix(prefix): code.vehicle
+            for code in codes.select_related("vehicle")
+        }
+        for row in rows:
+            if (vehicle := row.get("vehicle")) and (vehicle := vehicles.get(vehicle)):
+                row["vehicle"] = vehicle
+                if vehicle.latest_journey_id:
+                    row["link"] = f"/journeys/{vehicle.latest_journey_id}"
+        rows.sort(key=lambda row: row["live"])
+        return rows
 
 
 class TimetableDepartures(Departures):

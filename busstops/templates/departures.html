@@ -44,7 +44,9 @@
             </td>
             <td>
                 {{ item.destination }}
-                {% if item.vehicle %}<div class="vehicle">{{ item.vehicle }}</div>{% endif %}
+                {% if item.vehicle %}
+                    <div class="vehicle">{% if item.vehicle.slug %}<a href="{{ item.vehicle.get_absolute_url }}">{{ item.vehicle }}</a>{% else %}{{ item.vehicle }}{% endif %}</div>
+                {% endif %}
             </td>
             {% if has_scheduled %}
                 <td>{% if item.link %}<a href="{{ item.link }}">{% endif %}

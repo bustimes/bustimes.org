@@ -23,13 +23,6 @@ export default function MapRouter() {
           <BigMap mode={MapMode.Journey} journeyId={params.journeyId} />
         )}
       </Route>
-      <Route path="/vehicles/tfl/:reg">
-        <BigMap
-          mode={MapMode.Trip}
-          trip={tripData}
-          vehicleId={window.VEHICLE_ID}
-        />
-      </Route>
       <Route path="/operators/:operatorSlug/map">
         <BigMap
           mode={MapMode.Operator}

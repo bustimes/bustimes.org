@@ -238,7 +238,6 @@ Disallow: /trips/
 Disallow: /api/
 Disallow: /accounts/
 Disallow: /fares/
-Disallow: /vehicles/tfl/
 Disallow: /vehicles/*?date=*
 Disallow: /stops/*?date=*
 Disallow: /services/*?date=*

@@ -1361,12 +1361,6 @@ input:not(:checked) + label {
         margin: 0;
     }
 
-    .credit {
-        font-size: .75em;
-        margin: .3em 0 0;
-        text-align: right;
-    }
-
      // datetime picker
     form {
         display: flex;
@@ -1380,6 +1374,13 @@ input:not(:checked) + label {
 
     .vehicle {
         font-size: .75em;
+
+        a {
+            display: inline;
+            margin: 0;
+            padding: 0;
+            color: inherit;
+        }
     }
 }
 

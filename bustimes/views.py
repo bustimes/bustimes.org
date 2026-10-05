@@ -12,10 +12,7 @@ from django.core.cache import cache
 from django.core.files.storage import storages
 from django.db.models import (
     Count,
-    F,
-    FilteredRelation,
     Prefetch,
-    Q,
     prefetch_related_objects,
 )
 from django.db.models.functions import Coalesce, Now, TruncDate
@@ -42,7 +39,6 @@ from busstops.models import (
     Locality,
     Operator,
     Service,
-    StopArea,
     StopPoint,
 )
 from departures import avl, gtfsr, live
@@ -566,137 +562,11 @@ def tfl_vehicle(request, reg: str):
         code=reg, vehiclecode__code=f"TFLO:{reg}", vehiclecode__scheme="BODS"
     ).first()
 
-    data = tfl_vehicle_arrivals(reg)
-
-    if not data:
-        if vehicle:
-            if vehicle.latest_journey and vehicle.latest_journey.trip_id:
-                return redirect(vehicle.latest_journey.trip)
-            return redirect(vehicle)
-        raise Http404
-
-    line_name = data[0]["lineName"]
-
-    try:
-        service = Service.objects.get(
-            line_name__iexact=line_name, current=True, source__name="L"
-        )
-    except (Service.DoesNotExist, Service.MultipleObjectsReturned):
-        service = None
-
-    atco_codes = []
-    for item in data:
-        atco_code = item["naptanId"]
-        # try "03700168" as well as "3700168"
-        if atco_code[:3] == "370" and atco_code.isdigit():
-            atco_codes.append(f"0{atco_code}")
-        atco_codes.append(atco_code)
-
-    if service:
-        try:
-            operator = service.operator.get()
-        except (Operator.DoesNotExist, Operator.MultipleObjectsReturned):
-            operator = None
-
-        stops = StopPoint.objects.annotate(
-            stopusages=FilteredRelation(
-                "stopusage", condition=Q(stopusage__service=service)
-            ),
-            sequence=F("stopusages__order"),
-        ).in_bulk(atco_codes)
-
-        # sort by sequence, cos sometimes the arrival predictions are out of order
-        prev_sequence = prev_trip_sequence = 0
-        prev_destination = None
-        for item in data:
-            if item.get("destinationName") != prev_destination:
-                prev_trip_sequence = prev_sequence
-
-            atco_code = item["naptanId"]
-
-            if stop := (stops.get(atco_code) or stops.get(f"0{atco_code}")):
-                item["sequence"] = (stop.sequence or 0) + prev_trip_sequence
-            else:
-                item["sequence"] = prev_sequence
-
-            prev_destination = item.get("destinationName")
-            prev_sequence = item["sequence"]
-        data.sort(key=lambda item: item.get("sequence", 0))
-    else:
-        stops = StopPoint.objects.in_bulk(atco_codes)
-
-    if not stops:
-        stops = StopArea.objects.in_bulk(atco_codes)
-
-    route_links = {
-        (link.from_stop_id, link.to_stop_id): link
-        for link in (
-            service.routelink_set.filter(from_stop__in=atco_codes) if service else ()
-        )
-    }
-
-    times = []
-    prev_stop = None
-    for i, item in enumerate(data):
-        expected_arrival = timezone.localtime(
-            datetime.fromisoformat(item["expectedArrival"])
-        )
-        expected_arrival = round(expected_arrival.timestamp() / 60) * 60
-        expected_arrival = datetime.fromtimestamp(
-            expected_arrival, tz=timezone.get_current_timezone()
-        )
-        time = {
-            "id": i,
-            "stop": {
-                "name": item["stationName"],
-            },
-            "expected_arrival_time": expected_arrival,
-        }
-        atco_code = item["naptanId"]
-
-        if stop := (stops.get(atco_code) or stops.get(f"0{atco_code}")):
-            if type(stop) is StopPoint:
-                time["stop"]["atco_code"] = stop.atco_code
-                time["stop"]["bearing"] = stop.get_heading()
-
-                if prev_stop:
-                    route_link = route_links.get((prev_stop.atco_code, stop.atco_code))
-                    if route_link:
-                        time["track"] = route_link.geometry.coords
-                prev_stop = stop
-
-            if stop.latlong:
-                time["stop"]["location"] = stop.latlong.coords
-
-        if item["platformName"] and item["platformName"] != "null":
-            time["stop"]["icon"] = item["platformName"]
-
-        times.append(time)
-
-    stops_data = {"times": times}
-    if service:
-        stops_data["service"] = {
-            # "id": service.id,
-            "line_name": service.line_name,
-            "slug": service.slug,
-        }
-        if operator:
-            stops_data["operator"] = {
-                "noc": operator.noc,
-                "name": operator.name,
-                "slug": operator.slug,
-            }
-
-    return render(
-        request,
-        "tfl_vehicle.html",
-        {
-            "breadcrumb": [service],
-            "data": data,
-            "object": vehicle,
-            "stops_data": stops_data,
-        },
-    )
+    if vehicle:
+        if vehicle.latest_journey:
+            return redirect(vehicle.latest_journey)
+        return redirect(vehicle)
+    raise Http404
 
 
 trip_updates_sources = {

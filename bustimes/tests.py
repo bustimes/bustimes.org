@@ -1,9 +1,7 @@
-import os
 from datetime import date, datetime, timedelta, timezone
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase, override_settings
-from vcr import use_cassette
+from django.test import TestCase
 
 from busstops.models import DataSource, Service
 from vehicles.models import Livery, Vehicle, VehicleCode
@@ -32,32 +30,9 @@ class BusTimesTest(TestCase):
         v = Vehicle.objects.create(code="LTZ1243", reg="LTZ1243")
         VehicleCode.objects.create(vehicle=v, code="TFLO:LTZ1243", scheme="BODS")
 
-        with (
-            override_settings(TFL={}),
-            use_cassette(
-                os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)),
-                    "vcr",
-                    "tfl_vehicle.yaml",
-                ),
-                decode_compressed_response=True,
-            ),
-        ):
-            with self.assertNumQueries(5):
-                response = self.client.get("/vehicles/tfl/LTZ1243")
-
-            self.assertEqual("LTZ1243", response.context["object"].reg)
-            self.assertContains(response, "Old Ford Road")
-            self.assertContains(response, '"OB"')
-            self.assertContains(response, '"2021-03-17T18:56:00Z"')
-
-            response = self.client.get("/vehicles/tfl/LJ53NHP")
-            self.assertEqual(response.status_code, 404)
-
-            # Vehicle.objects.create(code="LJ53NHP", reg="LJ53NHP")
-            # cassette.rewind()
-            # response = self.client.get("/vehicles/tfl/LJ53NHP")
-            # self.assertContains(response, "LJ53 NHP")
+        with self.assertNumQueries(1):
+            response = self.client.get("/vehicles/tfl/LTZ1243")
+        self.assertRedirects(response, f"/vehicles/{v.slug}")
 
     def test_calendar(self):
         calendar = Calendar(
