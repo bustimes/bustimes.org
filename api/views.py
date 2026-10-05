@@ -3,7 +3,10 @@ from datetime import datetime, timedelta
 from math import atan2, cos, degrees, radians, sin
 
 import numpy as np
+import requests
+from django.conf import settings
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.core.cache import cache
 from django.db.models import Prefetch, Q
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -380,6 +383,59 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
 
         return trip
 
+    @staticmethod
+    def tfl_arrivals(instance, reg):
+        cache_key = f"TflVehicle:{reg}"
+
+        if (data := cache.get(cache_key)) is None:
+            data = []
+            try:
+                response = requests.get(
+                    f"https://api.tfl.gov.uk/Vehicle/{reg}/Arrivals",
+                    params=settings.TFL,
+                    timeout=8,
+                )
+                response.raise_for_status()
+                data = response.json()
+            except (requests.RequestException, ValueError):
+                logger.warning("TfL arrivals error", exc_info=True)
+            cache.set(cache_key, data, 60)
+
+        stops = instance.trip.stops
+        trip_stop_ids = {stop_time.stop_id for stop_time in stops}
+        other_stops = StopPoint.objects.in_bulk(
+            [item["naptanId"] for item in data if item["naptanId"] not in trip_stop_ids]
+        )
+
+        position = 0
+        pending = []  # unmatched, to be inserted before the next matched stop
+        for item in sorted(data, key=lambda item: item["expectedArrival"]):
+            expected_arrival = timezone.localtime(
+                datetime.fromisoformat(item["expectedArrival"])
+            )
+            atco_code = item["naptanId"]
+            index = next(
+                (
+                    i
+                    for i in range(position, len(stops))
+                    if stops[i].stop_id == atco_code
+                ),
+                None,
+            )
+            if index is None:
+                stop = other_stops.get(atco_code) or StopPoint(
+                    atco_code=atco_code, common_name=item["stationName"]
+                )
+                stop_time = StopTime(stop=stop)
+                stop_time.expected_arrival_time = expected_arrival
+                pending.append(stop_time)
+            else:
+                stops[index].expected_arrival_time = expected_arrival
+                stops[index:index] = pending
+                position = index + len(pending) + 1
+                pending = []
+        stops[position:position] = pending
+
     @action(detail=True)
     def details(self, request, pk=None, **kwargs):
         instance = self.get_object()
@@ -474,17 +530,16 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
             instance.vehicle_id and instance.id == instance.vehicle.latest_journey_id
         )
 
-        if not instance.trip and instance.code.isdigit():
-            try:
-                if (
-                    instance.vehicle.latest_journey_data["MonitoredVehicleJourney"][
-                        "OperatorRef"
-                    ]
-                    == "TFLO"
-                ):
-                    instance.trip = self.trip_from_tfl(instance)
-            except (AttributeError, TypeError, KeyError, ValueError):
-                pass
+        mvj = None
+        is_tfl = False
+        try:
+            mvj = instance.vehicle.latest_journey_data["MonitoredVehicleJourney"]
+            is_tfl = mvj["OperatorRef"] == "TFLO"
+        except (AttributeError, TypeError, KeyError, ValueError):
+            pass
+
+        if is_tfl and not instance.trip and instance.code.isdigit():
+            instance.trip = self.trip_from_tfl(instance)
 
         if current_trip and not instance.trip:
             instance.trip = self.trip_from_siri(instance)
@@ -498,6 +553,9 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
 
                 if current_trip or not instance.vehicle_id:
                     maybe_get_and_apply_trip_update(instance.trip, instance.trip.stops)
+
+            if is_tfl and current_trip:
+                self.tfl_arrivals(instance, mvj["VehicleRef"])
 
             if locations:
                 self.set_actual_times(instance.trip.stops, locations)

@@ -4,8 +4,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import folium
-import requests
-from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.cache import cache
@@ -534,23 +532,6 @@ def trip_block(request, pk: int):
             "trip": trip,
         },
     )
-
-
-def tfl_vehicle_arrivals(reg: str):
-    reg = reg.upper()
-
-    cache_key = f"TflVehicle:{reg}"
-
-    if (cached := cache.get(cache_key)) is not None:
-        return cached
-
-    response = requests.get(
-        f"https://api.tfl.gov.uk/Vehicle/{reg}/Arrivals", params=settings.TFL, timeout=8
-    )
-    if response.ok:
-        data = response.json()
-        cache.set(cache_key, data, 60)
-        return data
 
 
 @require_GET
