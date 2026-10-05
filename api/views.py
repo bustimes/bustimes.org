@@ -601,7 +601,11 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                     )
                 )
 
-        if not instance.trip and instance.vehicle_id and instance.vehicle.operator:
+        if (
+            not (instance.trip and instance.trip.operator)
+            and instance.vehicle_id
+            and instance.vehicle.operator
+        ):
             extra_data["operator"] = {
                 "noc": instance.vehicle.operator.noc,
                 "slug": instance.vehicle.operator.slug,
