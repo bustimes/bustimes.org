@@ -98,6 +98,11 @@ a {
     }
 }
 
+a[href^="https://www.awin1.com/"]::before,
+a[href^="https://nationalexpress.prf.hn/"]::before {
+    content: "(ad) ";
+}
+
 abbr {
     cursor: help;
     font-weight: bold;

@@ -1049,11 +1049,6 @@ class OperatorDetailView(DetailView):
             )
         else:
             match self.object.name:
-                case "FlixBus":
-                    context["tickets_link"] = flixbus_affiliate_link(
-                        clickref="ot",
-                        ued="https://www.flixbus.co.uk/bus-routes/london-london-stansted-airport",
-                    )
                 case "Flibco":
                     context["tickets_link"] = flibco_affiliate_link(clickref="ot")
                 case "National Express":
@@ -1404,7 +1399,7 @@ class ServiceDetailView(DetailView):
                     context["links"].append(
                         {
                             "url": context["tickets_link"],
-                            "text": "(ad) Buy tickets at National Express",
+                            "text": "Buy tickets at National Express",
                         }
                     )
                     break
@@ -1413,28 +1408,7 @@ class ServiceDetailView(DetailView):
                     context["links"].append(
                         {
                             "url": context["tickets_link"],
-                            "text": "(ad) Buy tickets at Flibco",
-                        }
-                    )
-                    break
-                elif (
-                    operator.name == "FlixBus"
-                    or self.object.service_code == "PF0000508:488"
-                ):
-                    query = {"clickref": self.object.line_name}
-                    if (
-                        region := context["breadcrumb"][0]
-                    ) and region.name == "Scotland":
-                        query["ued"] = "https://www.flixbus.co.uk/scotland"
-                    elif self.object.service_code == "PF0000508:488":  # Green Line 757
-                        query["ued"] = (
-                            "https://www.flixbus.co.uk/coach/london-luton-airport"
-                        )
-                    context["tickets_link"] = flixbus_affiliate_link(**query)
-                    context["links"].append(
-                        {
-                            "url": context["tickets_link"],
-                            "text": "(ad) Buy tickets at FlixBus",
+                            "text": "Buy tickets at Flibco",
                         }
                     )
                     break

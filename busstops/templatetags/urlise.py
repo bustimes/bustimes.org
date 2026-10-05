@@ -5,6 +5,8 @@ from django.template.defaultfilters import stringfilter
 from django.utils.html import urlize
 from django.utils.safestring import mark_safe
 
+from busstops.views import flibco_affiliate_link
+
 register = template.Library()
 
 
@@ -29,8 +31,8 @@ def urlise(value, autoescape=None):
             "https://nationalexpress.prf.hn/click/camref:1011ljPYw",
         ),
         (
-            "https://www.flixbus.co.uk",
-            "https://www.awin1.com/cread.php?awinmid=110896&awinaffid=242611&clickref=u",
+            "https://www.flibco.com",
+            flibco_affiliate_link(),
         ),
     ):
         url = f'"{url}"'
