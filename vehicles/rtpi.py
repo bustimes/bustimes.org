@@ -58,8 +58,8 @@ def get_route_bearing(geometry: LineString, progress: float):
     return calculate_bearing(p1, p2)
 
 
-def get_stop_times(item, date):
-    trip = Trip.objects.select_related("calendar", "route").get(pk=item["trip_id"])
+def get_stop_times(trip_id, date):
+    trip = Trip.objects.select_related("calendar", "route").get(pk=trip_id)
     trips = trip.get_parts(date)
 
     stop_times = (
@@ -145,9 +145,9 @@ def get_progress(
             for st in stop_time.trip.stoptime_set.all()  # prefetched earlier
             if st.stop_id and st.stop.latlong
         ]
-    else:
+    elif "trip_id" in item:
         try:
-            trip, stop_times = get_stop_times(item, date)
+            trip, stop_times = get_stop_times(item["trip_id"], date)
         except Trip.DoesNotExist:
             return
         stop_times = list(stop_times)

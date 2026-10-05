@@ -381,6 +381,7 @@ def get_vehicle_locations(
     service_ids=None,
     operator_ids=None,
     trip_id=None,
+    journey_id=None,
     stop_times=None,
     tzinfo=None,
 ):
@@ -487,12 +488,13 @@ def get_vehicle_locations(
                         )
                     item.update(journey)
 
-            matching_trip = trip_id is not None and item.get("trip_id") == trip_id
-            if (
-                "progress" not in item
-                and "trip_id" in item
-                and (len(vehicle_ids) == 1 or matching_trip)
-            ):
+            matching_trip = (
+                trip_id is not None
+                and item.get("trip_id") == trip_id
+                or journey_id is not None
+                and item.get("journey_id") == journey_id
+            )
+            if "progress" not in item and (len(vehicle_ids) == 1 or matching_trip):
                 add_progress_and_delay(
                     item,
                     stop_times=stop_times if matching_trip else None,

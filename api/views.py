@@ -575,12 +575,11 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
             if instance.service_id:
                 params = {
                     "service_ids": [instance.service_id],
-                    "trip_id": instance.trip_id,
                 }
             else:
                 params = {"vehicle_ids": [instance.vehicle_id or instance.id]}
             if instance.trip:
-                params["trip_id"] = instance.trip_id
+                params["journey_id"] = instance.id
                 params["stop_times"] = instance.trip.stops
             this = None
             if live := get_vehicle_locations(**params, tzinfo=tzinfo):

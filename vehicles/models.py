@@ -851,14 +851,16 @@ class VehicleLocation:
             "heading": self.get_heading(),
             "datetime": timezone.localtime(self.datetime, timezone=tz).isoformat(),
             "destination": journey.destination,
-            "block": self.block,
+            "date": journey.date.isoformat(),
         }
+
+        if self.block:
+            json["block"] = self.block
 
         if self.delay is not None:
             json["delay"] = self.delay.total_seconds()
 
         if journey.trip_id:
-            json["date"] = journey.date.isoformat()
             json["trip_id"] = journey.trip_id
         if journey.service_id:
             json["service_id"] = journey.service_id
