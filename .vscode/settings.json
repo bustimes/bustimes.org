@@ -1,8 +1,0 @@
-{
-    "python.testing.unittestEnabled": true,
-    "python.testing.unittestArgs": [
-        "--keepdb",
-        // "--debug-mode",
-        // "--verbose 3",
-    ],
-}
