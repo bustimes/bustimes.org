@@ -179,5 +179,6 @@ class Command(BaseCommand):
                 for locality in localities_with_parents:
                     if locality.parent_id not in localities:
                         locality.save()
+        iterator.close()
 
         source.save(update_fields=["datetime"])

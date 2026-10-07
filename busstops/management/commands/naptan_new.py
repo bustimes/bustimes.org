@@ -270,18 +270,17 @@ class Command(BaseCommand):
         if not modified:
             return
 
-        for event, element in ET.iterparse(path, ["start"]):
-            # the ModificationDateTime attribute of the root element
-            # seems to be a reliable way of telling if the data has changed
-            assert (
-                event == "start" and element.tag == "{http://www.naptan.org.uk/}NaPTAN"
-            )
-            modified_at = get_datetime(element.attrib["ModificationDateTime"])
-            if modified_at == source.datetime:
-                return
+        iterator = ET.iterparse(path, ["start"])
+        event, element = next(iterator)
+        iterator.close()
+        # the ModificationDateTime attribute of the root element
+        # seems to be a reliable way of telling if the data has changed
+        assert event == "start" and element.tag == "{http://www.naptan.org.uk/}NaPTAN"
+        modified_at = get_datetime(element.attrib["ModificationDateTime"])
+        if modified_at == source.datetime:
+            return
 
-            source.datetime = modified_at
-            break
+        source.datetime = modified_at
 
         # set up overrides/corrections
         overrides_path = settings.BASE_DIR / "fixtures" / "stops.yaml"
@@ -308,7 +307,8 @@ class Command(BaseCommand):
 
         self.stop_areas = {}
 
-        for event, element in ET.iterparse(path):
+        iterator = ET.iterparse(path)
+        for event, element in iterator:
             element.tag = element.tag.removeprefix("{http://www.naptan.org.uk/}")
 
             if element.text:
@@ -341,6 +341,7 @@ class Command(BaseCommand):
                 stop_area = get_stop_area(element)
                 self.stop_areas[stop_area.id] = stop_area
                 element.clear()
+        iterator.close()
 
         self.update_and_create()
 
