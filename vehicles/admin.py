@@ -1,3 +1,5 @@
+import contextlib
+
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -205,12 +207,10 @@ class VehicleAdmin(M2MThroughMixin, admin.ModelAdmin):
             duplicate.vehiclecode_set.update(vehicle=vehicle)
             duplicate.vehiclerevision_set.update(vehicle=vehicle)
 
-            try:
+            with contextlib.suppress(IntegrityError):
                 models.VehicleCode.objects.create(
                     vehicle=vehicle, scheme="slug", code=vehicle.slug
                 )
-            except IntegrityError:
-                pass
 
             vehicle.slug = duplicate.slug
             vehicle.code = duplicate.code

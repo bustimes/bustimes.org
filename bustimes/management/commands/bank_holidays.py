@@ -65,7 +65,7 @@ class Command(BaseCommand):
                             date=bank_holiday["date"],
                         )
                     )
-                if title == "ChristmasDay" or title == "BoxingDay":
+                if title in {"ChristmasDay", "BoxingDay"}:
                     bank_holiday_dates.append(
                         BankHolidayDate(
                             bank_holiday=bhs["Christmas"],

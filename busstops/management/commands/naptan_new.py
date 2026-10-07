@@ -35,7 +35,7 @@ def get_point(element):
         easting = element.findtext("Translation/Easting")
         northing = element.findtext("Translation/Northing")
         grid_type = element.findtext("Translation/GridType")
-    if easting and not ((easting == "0" or easting == "7") and northing == "0"):
+    if easting and not ((easting in {"0", "7"}) and northing == "0"):
         match grid_type:
             case "ITM":
                 srid = 2157
@@ -178,12 +178,11 @@ class Command(BaseCommand):
                         # )
                         self.stops_to_update.append(stop)
                         break
-                    else:
-                        # logger.info(
-                        #     f"{atco_code} {key}: {getattr(existing, key)!r} → {getattr(stop, key)!r}"
-                        # )
-                        self.stops_to_update.append(stop)
-                        break
+                    # logger.info(
+                    #     f"{atco_code} {key}: {getattr(existing, key)!r} → {getattr(stop, key)!r}"
+                    # )
+                    self.stops_to_update.append(stop)
+                    break
         else:
             stop.created_at = stop.modified_at
             self.stops_to_create.append(stop)

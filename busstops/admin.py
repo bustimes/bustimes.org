@@ -627,13 +627,6 @@ class DataSourceAdmin(admin.ModelAdmin):
             '<a href="{}?source__id__exact={}">{}</a>', url, obj.id, obj.services
         )
 
-    # @admin.display(ordering="journeys")
-    # def journeys(self, obj):
-    #     url = reverse("admin:vehicles_vehiclejourney_changelist")
-    #     return format_html(
-    #         '<a href="{}?source__id__exact={}">{}</a>', url, obj.id, obj.journeys
-    #     )
-
     def delete_routes(self, request, queryset):
         result = Route.objects.filter(source__in=queryset).update(service=None)
         self.message_user(request, result)

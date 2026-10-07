@@ -56,7 +56,7 @@ def handle_situation(element, source, current_situations):
             situation.data = xml
             situation.save()
             return situation
-        elif situation.data == xml:
+        if situation.data == xml:
             return situation
 
         # diff the XML to see why it changed

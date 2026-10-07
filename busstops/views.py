@@ -1,5 +1,6 @@
 """View definitions."""
 
+import contextlib
 import csv
 import datetime
 import logging
@@ -1070,12 +1071,10 @@ class OperatorDetailView(DetailView):
         if redis_client and (
             context["vehicles"] or any(s.tracking for s in context["services"])
         ):
-            try:
+            with contextlib.suppress(ConnectionError):
                 context["map"] = redis_client.exists(
                     f"operator{self.object.noc}vehicles"
                 )
-            except ConnectionError:
-                pass
 
         context["ad_hoc_services"] = [
             {
@@ -1189,7 +1188,7 @@ class ServiceDetailView(DetailView):
             if alternative:
                 return alternative
 
-            raise Http404()
+            raise Http404
 
         return service
 
@@ -1403,7 +1402,7 @@ class ServiceDetailView(DetailView):
                         }
                     )
                     break
-                elif operator.name == "Flibco":
+                if operator.name == "Flibco":
                     context["tickets_link"] = flibco_affiliate_link()
                     context["links"].append(
                         {

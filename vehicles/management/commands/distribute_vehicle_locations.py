@@ -65,7 +65,7 @@ class Command(BaseCommand):
             if not polyline.polyline
         ]
 
-        for uuid, polyline in unknowns:
+        for uuid, _ in unknowns:
             pipeline.type(uuid)
 
         types = await pipeline.execute()

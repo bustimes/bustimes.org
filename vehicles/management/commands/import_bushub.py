@@ -155,7 +155,7 @@ class Command(ImportLiveVehiclesCommand):
 
     def create_vehicle_location(self, item):
         bearing = item["Bearing"]
-        if bearing == "-1" or bearing == "0":
+        if bearing in {"-1", "0"}:
             bearing = None
         return VehicleLocation(
             latlong=GEOSGeometry(f"POINT({item['Longitude']} {item['Latitude']})"),

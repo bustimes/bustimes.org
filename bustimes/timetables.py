@@ -703,11 +703,10 @@ class Grouping:
                 # terminus stop) stay grouped near their branch point rather
                 # than being stranded at the bottom of the timetable.
                 return (True, -chain_length(k), adj, sequences.get(k, 0))
-            else:
-                # Initial selection or no direct-successor relationship:
-                # use sequence number only (chain_length would wrongly prefer
-                # short-chain route-starts over long-chain route-starts).
-                return (False, 0, adj, sequences.get(k, 0))
+            # Initial selection or no direct-successor relationship:
+            # use sequence number only (chain_length would wrongly prefer
+            # short-chain route-starts over long-chain route-starts).
+            return (False, 0, adj, sequences.get(k, 0))
 
         # Kahn's algorithm, but when multiple nodes are ready,
         # prefer the direct successor of the last emitted node
@@ -808,7 +807,7 @@ class Grouping:
             if origin == destination:
                 continue
 
-            for j, trip_b in enumerate(self.trips[i + 1 :]):
+            for trip_b in self.trips[i + 1 :]:
                 if (
                     trip_b.times
                     and trip_a.route_id != trip_b.route_id
@@ -1044,10 +1043,7 @@ class Row:
 
     @cached_property
     def has_waittimes(self) -> bool:
-        for cell in self.times:
-            if type(cell) is Cell and cell.wait_time:
-                return True
-        return False
+        return any(type(cell) is Cell and cell.wait_time for cell in self.times)
 
     @cached_property
     def set_down_only(self) -> bool:

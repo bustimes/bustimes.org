@@ -1,3 +1,4 @@
+import contextlib
 import functools
 import io
 import logging
@@ -254,7 +255,7 @@ class Command(ImportLiveVehiclesCommand):
         try:
             vehicle, created = vehicles.get_or_create(defaults)
         except (Vehicle.MultipleObjectsReturned, IntegrityError) as e:
-            print(e, operator_ref, vehicle_ref)
+            logger.warning("%s %s %s", e, operator_ref, vehicle_ref)
             vehicle = vehicles.first()
             created = False
         else:
@@ -408,12 +409,10 @@ class Command(ImportLiveVehiclesCommand):
         journey_ref = monitored_vehicle_journey.get("VehicleJourneyRef")
 
         if not journey_ref:
-            try:
+            with contextlib.suppress(KeyError, ValueError):
                 journey_ref = monitored_vehicle_journey["FramedVehicleJourneyRef"][
                     "DatedVehicleJourneyRef"
                 ]
-            except (KeyError, ValueError):
-                pass
 
         if journey_ref == "UNKNOWN":
             journey_ref = None
@@ -455,12 +454,10 @@ class Command(ImportLiveVehiclesCommand):
 
         # treat the weird Nottingham City Transport data specially
         if operator_ref == "NCTR" and origin_aimed_departure_time is None:
-            try:
+            with contextlib.suppress(ValueError):
                 origin_aimed_departure_time = timezone.make_aware(
                     datetime.fromisoformat(journey_ref[-30:-11])
                 )
-            except ValueError:
-                pass
 
         if operator_ref == "TFLO" and origin_aimed_departure_time:
             # BODS adds TfL's seconds to local midnight, not noon minus 12 hours,
@@ -522,20 +519,15 @@ class Command(ImportLiveVehiclesCommand):
 
         if operator_ref == "TFLO":
             journey.destination = monitored_vehicle_journey.get("DestinationName", "")
+        elif destination_ref and (destination := get_destination_name(destination_ref)):
+            # stop locality name - usually more descriptive than "Bus_Station"
+            journey.destination = destination
+
+        elif destination_name := monitored_vehicle_journey.get("DestinationName", ""):
+            journey.destination = destination_name.replace("_", " ")
+
         else:
-            if destination_ref and (
-                destination := get_destination_name(destination_ref)
-            ):
-                # stop locality name - usually more descriptive than "Bus_Station"
-                journey.destination = destination
-
-            elif destination_name := monitored_vehicle_journey.get(
-                "DestinationName", ""
-            ):
-                journey.destination = destination_name.replace("_", " ")
-
-            else:
-                journey.direction = monitored_vehicle_journey.get("DirectionRef", "")
+            journey.direction = monitored_vehicle_journey.get("DirectionRef", "")
 
         if not journey.service_id and route_name:
             operators = self.get_operator(operator_ref)
@@ -546,19 +538,15 @@ class Command(ImportLiveVehiclesCommand):
             if not operators and journey.service and journey.service.operator.all():
                 # create new OperatorCode
                 operator = journey.service.operator.all()[0]
-                try:
+                with contextlib.suppress(IntegrityError):
                     OperatorCode.objects.create(
                         source=self.source, operator=operator, code=operator_ref
                     )
-                except IntegrityError:
-                    pass
 
                 if not vehicle.operator_id:
                     vehicle.operator = operator
-                    try:
+                    with contextlib.suppress(IntegrityError):
                         vehicle.save(update_fields=["operator"])
-                    except IntegrityError:
-                        pass
 
             # match trip (timetable) to journey:
             if journey.service and (origin_aimed_departure_time or journey_ref):

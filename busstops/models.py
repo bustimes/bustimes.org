@@ -68,8 +68,7 @@ class Region(models.Model):
         with the definite article prepended if appropriate"""
         if self.name[-2:] in ("ds", "st"):
             return "the " + self.name
-        else:
-            return self.name
+        return self.name
 
     def get_absolute_url(self):
         return reverse("region_detail", args=(self.id,))
@@ -295,7 +294,7 @@ class DataSource(models.Model):
                 text = "National Transport Authority"
         elif urlparse(self.url).hostname == "opendata.ticketer.com":
             text = self.url
-        elif self.name == "MET" or self.name == "ULB":
+        elif self.name in {"MET", "ULB"}:
             url = self.url
             text = "Translink open data"
         else:
@@ -908,7 +907,7 @@ class Service(models.Model):
     def get_line_name_order(line_name):
         prefix, number, suffix = SERVICE_ORDER_REGEX.match(line_name).groups()
         number = number.zfill(4)
-        if prefix == "X" or prefix == "N":
+        if prefix in {"X", "N"}:
             return ("", number, prefix, suffix)
         return (prefix, number, suffix)
 
@@ -955,16 +954,6 @@ class Service(models.Model):
         ids = self.link_from.values("to_service").union(
             self.link_to.values("from_service")
         )
-
-        # if self.service_code:
-        #     ids = ids.union(
-        #         Service.objects.filter(
-        #             ~Q(id=self.id),
-        #             source=self.source_id,
-        #             service_code=self.service_code
-        #         ).values("id")
-        #     )
-        # else:
 
         ids = ids.union(
             Route.objects.filter(

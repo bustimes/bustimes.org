@@ -26,7 +26,7 @@ class Command(BaseCommand):
             if name.endswith(".zip") and name != "L.zip"
         ]
         files.sort(key=lambda item: int(item[1]["size"]))  # smallest files first
-        return {name: details for name, details in files}
+        return dict(files)
 
     def do_files(self, files: dict):
         for name, details in files.items():

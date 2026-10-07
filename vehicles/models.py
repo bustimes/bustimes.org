@@ -207,8 +207,7 @@ class Livery(models.Model):
         div = f'<div style="height:1.5em;width:2.25em;background:{background}"'
         if name:
             return format_html(div + "></div> {}", self.name)
-        else:
-            return format_html(div + ' title="{}"></div>', self.name)
+        return format_html(div + ' title="{}"></div>', self.name)
 
     def save(self, *args, update_fields=None, **kwargs):
         if update_fields is None:
@@ -669,7 +668,7 @@ class VehicleRevision(models.Model):
             for key in self.changes:
                 before, after = self.changes[key].split("\n+")
                 before = before[1:]
-                if key == "reg" or key == "name":
+                if key in {"reg", "name"}:
                     if getattr(vehicle, key) == after:
                         setattr(vehicle, key, before)
                         fields.append("reg")

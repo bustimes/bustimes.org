@@ -549,7 +549,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
         vehicle_identities = set()
         self.duplicate_vehicles = set()
 
-        for i, item in enumerate(items or self.get_items() or ()):
+        for item in items or self.get_items() or ():
             vehicle_identity = self.get_vehicle_identity(item)
 
             journey_identity = self.get_journey_identity(item)

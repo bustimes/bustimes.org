@@ -45,7 +45,7 @@ def operator_tickets(request, slug):
     try:
         categories = response["_links"]["topup:category"]
     except KeyError:
-        raise Http404
+        raise Http404 from None
     groupings = response["_embedded"]["render"]["group_by"]
     for grouping in groupings:
         grouping["categories"] = [

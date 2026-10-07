@@ -445,7 +445,7 @@ class Calendar(models.Model):
         start_date = self.start_date
         end_date = self.end_date
 
-        for i in range(6):
+        for _ in range(6):
             if not self.allows(start_date):
                 start_date += timedelta(days=1)
 
@@ -461,7 +461,7 @@ class Calendar(models.Model):
                     # "until 30 may 2020, but not from 20 may to 30 may" - simplify to "until 19 may"
                     end_date = calendar_date.start_date - timedelta(days=1)
 
-            for i in range(6):
+            for _ in range(6):
                 if not self.allows(end_date):
                     end_date -= timedelta(days=1)
 

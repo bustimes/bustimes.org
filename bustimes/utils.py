@@ -134,7 +134,7 @@ def get_descriptions(routes):
                     origins_and_destinations[i + j] = other_parts + parts[1:]
                     origins_and_destinations[i] = None
                     break
-                elif parts[-1] == other_parts[0]:
+                if parts[-1] == other_parts[0]:
                     origins_and_destinations[i + j] = parts + other_parts[1:]
                     origins_and_destinations[i] = None
                     break
@@ -395,11 +395,10 @@ def contiguous_stoptimes_only(stoptimes, trip_id):
             if a.stop_id != b.stop_id:
                 # trips are not contiguous, return only the stops for trip_id
                 return [stop for stop in stoptimes if stop.trip_id == trip_id]
-            else:
-                # merge a and b - they describe the same stop
-                a.departure = b.departure
-                a.pick_up = b.pick_up
-                stoptimes_list.remove(b)
+            # merge a and b - they describe the same stop
+            a.departure = b.departure
+            a.pick_up = b.pick_up
+            stoptimes_list.remove(b)
 
     # trips were contiguous, return all stops
     return stoptimes_list

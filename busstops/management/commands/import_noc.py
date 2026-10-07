@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def get_region_id(region_id):
     if region_id in {"ADMIN", "Admin", "Taxi", ""}:
         return "GB"
-    elif region_id.upper() in {"SC", "YO", "WA", "LO"}:
+    if region_id.upper() in {"SC", "YO", "WA", "LO"}:
         return region_id[0]
     return region_id
 

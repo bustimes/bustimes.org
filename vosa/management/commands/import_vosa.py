@@ -163,13 +163,9 @@ class Command(BaseCommand):
                 status = line["Registration Status"]
                 registration.registration_status = status
 
-                if status == "New" or status == "Registered" or status == "Variation":
+                if status in {"New", "Registered", "Variation"}:
                     registration.registered = True
-                elif (
-                    status == "Admin Cancelled"
-                    or status == "Cancellation"
-                    or status == "Cancelled"
-                ):
+                elif status in {"Admin Cancelled", "Cancellation", "Cancelled"}:
                     registration.registered = False
 
                 registration.start_point = line["start_point"]

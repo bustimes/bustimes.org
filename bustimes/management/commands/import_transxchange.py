@@ -4,6 +4,7 @@ Usage:
     ./manage.py import_transxchange EA.zip [EM.zip etc]
 """
 
+import contextlib
 import datetime
 import hashlib
 import logging
@@ -426,7 +427,7 @@ def get_description(txc_service):
                     via = vias[0]
                     if "via " in via:
                         return f"{description} {via}"
-                    elif "," in via or " and " in via or "&" in via:
+                    if "," in via or " and " in via or "&" in via:
                         return f"{description} via {via}"
                 description = " - ".join([origin] + vias + [destination])
     return description
@@ -874,12 +875,11 @@ class Command(BaseCommand):
                 else:
                     operation = not operation
                     dates = sodt.serviced_organisation.holidays
+            elif sodt.serviced_organisation.holidays:
+                dates = sodt.serviced_organisation.holidays
             else:
-                if sodt.serviced_organisation.holidays:
-                    dates = sodt.serviced_organisation.holidays
-                else:
-                    operation = not operation
-                    dates = sodt.serviced_organisation.working_days
+                operation = not operation
+                dates = sodt.serviced_organisation.working_days
 
             calendar_dates += [
                 get_calendar_date(date_range=date_range, operation=operation)
@@ -1189,7 +1189,7 @@ class Command(BaseCommand):
                 ).exists()
 
             return False
-        elif self.source.name == "L" or not operators:  # TfL data is always best
+        if self.source.name == "L" or not operators:  # TfL data is always best
             return False
 
         if self.source.name != "TfGM" and any(
@@ -1511,12 +1511,10 @@ class Command(BaseCommand):
                 ticket_machine_service_code
                 and ticket_machine_service_code != line.line_name
             ):
-                try:
+                with contextlib.suppress(IntegrityError):
                     ServiceCode.objects.create(
                         scheme="SIRI", code=ticket_machine_service_code, service=service
                     )
-                except IntegrityError:
-                    pass
 
             # a code used in Traveline Cymru URLs:
             if self.source.name == "W" and "_" not in txc_service.service_code:

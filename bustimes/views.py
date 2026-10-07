@@ -165,7 +165,7 @@ def open_source_file(source, code):
     try:
         return storages["archive"].open(source.get_archive_path()), code
     except FileNotFoundError:
-        raise Http404(f"{source} hasn't been archived")
+        raise Http404(f"{source} hasn't been archived") from None
 
 
 @require_GET
@@ -203,7 +203,7 @@ def route_xml(request, source, code=""):
     try:
         return FileResponse(archive.open(code), content_type="application/xml")
     except KeyError as e:
-        raise Http404(e)
+        raise Http404(e) from None
 
 
 def stop_time_json(stop_time, date) -> dict:

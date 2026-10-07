@@ -1,3 +1,4 @@
+import contextlib
 from difflib import SequenceMatcher
 
 from django.core.management.base import BaseCommand
@@ -19,11 +20,9 @@ class Command(BaseCommand):
             ideal_slug = slugify(service)[:50]
             if ideal_slug != service.slug and similar(service.slug, ideal_slug) < 0.5:
                 print(service.slug, ideal_slug)
-                try:
+                with contextlib.suppress(IntegrityError):
                     ServiceCode.objects.create(
                         service=service, code=service.slug, scheme="slug"
                     )
-                except IntegrityError:
-                    pass
                 service.slug = ideal_slug
                 service.save(update_fields=["slug"])

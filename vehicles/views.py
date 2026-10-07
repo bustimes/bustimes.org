@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import logging
 import subprocess
@@ -404,7 +405,7 @@ def get_vehicle_locations(
     try:
         vehicle_ids = [int(vehicle_id) for vehicle_id in vehicle_ids]
     except ValueError:
-        raise BadRequest
+        raise BadRequest from None
 
     if not vehicle_ids:
         return []
@@ -972,12 +973,10 @@ def edit_vehicle(request, **kwargs):
 
     revision = None
 
-    try:
+    with contextlib.suppress(KeyError, TypeError):
         context["vehicle_unique_id"] = vehicle.latest_journey_data["Extensions"][
             "VehicleJourney"
         ]["VehicleUniqueId"]
-    except (KeyError, TypeError):
-        pass
 
     form = forms.EditVehicleForm(
         form_data,
@@ -1077,7 +1076,7 @@ def vehicle_revision_action(request, revision_id, action):
     if action == "disapprove" and request.user.id == revision.user_id:
         revision.delete()  # cancel one's own edit
         return HttpResponse("")
-    elif not request.user.trusted:
+    if not request.user.trusted:
         raise PermissionDenied
 
     revision.disapproved_reason = unquote(request.headers.get("HX-Prompt", ""))
@@ -1143,10 +1142,8 @@ def latest_journey_debug(request, **kwargs):
     vehicle = get_object_or_404(Vehicle, **kwargs, latest_journey_data__isnull=False)
 
     # redact possible personal information
-    try:
+    with contextlib.suppress(KeyError, TypeError):
         del vehicle.latest_journey_data["Extensions"]["VehicleJourney"]["DriverRef"]
-    except (KeyError, TypeError):
-        pass
 
     return JsonResponse(vehicle.latest_journey_data)
 

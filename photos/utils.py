@@ -1,3 +1,4 @@
+import contextlib
 import hashlib
 from datetime import UTC, datetime
 from io import BytesIO
@@ -77,7 +78,7 @@ def add_flickr_photo(url, vehicle, request):
 
     photo.license = info["photo"]["license"]
     if photo.license in ("0", "1", "2", "3", "14", "15", "16"):
-        raise WrongLicense()
+        raise WrongLicense
 
     if info["photo"]["owner"]["path_alias"] != "goodwinjoshua":
         photo.credit = (
@@ -92,12 +93,10 @@ def add_flickr_photo(url, vehicle, request):
             float(location["longitude"]), float(location["latitude"]), srid=4326
         )
 
-    try:
+    with contextlib.suppress(ValueError):
         photo.taken_at = datetime.strptime(
             info["photo"]["dates"]["taken"], "%Y-%m-%d %H:%M:%S"
         ).replace(tzinfo=UTC)
-    except ValueError:
-        pass
 
     response = session.get(
         "https://api.flickr.com/services/rest",

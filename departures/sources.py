@@ -145,7 +145,7 @@ class TflDepartures(RemoteDepartures):
         return settings.TFL
 
     def get_request_url(self) -> str:
-        if self.stop.stop_type == "FBT" or self.stop.stop_type == "PLT":
+        if self.stop.stop_type in {"FBT", "PLT"}:
             assert self.stop.stop_area_id
             return f"https://api.tfl.gov.uk/StopPoint/{self.stop.stop_area_id}/arrivals"
         return f"https://api.tfl.gov.uk/StopPoint/{self.stop.pk}/arrivals"

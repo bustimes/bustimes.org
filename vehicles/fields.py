@@ -8,7 +8,7 @@ def validate_colour(value):
         try:
             html5_parse_simple_color(value)
         except ValueError as e:
-            raise ValidationError(str(e))
+            raise ValidationError(str(e)) from e
 
 
 def validate_colours(value):

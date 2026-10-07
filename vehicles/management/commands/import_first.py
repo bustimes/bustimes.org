@@ -119,20 +119,19 @@ class Command(ImportLiveVehiclesCommand):
         if vehicle.startswith(prefix) and vehicle.endswith(suffix):
             vehicle = vehicle.removesuffix(suffix).removeprefix(prefix)
             return vehicle[11:].split("-", 1)
-        else:
-            logger.warning(
-                "vehicle %s doesn't have prefix %s and/or suffix %s",
-                vehicle,
-                prefix,
-                suffix,
-                exc_info=True,
-            )
-            parts = vehicle.split("-")
-            assert len(parts) >= 8
-            item["line_name"] = parts[-1]
-            item["operator"] = parts[0]
-            item["dir"] = parts[1]
-            return parts[5], "-".join(parts[6:-1])
+        logger.warning(
+            "vehicle %s doesn't have prefix %s and/or suffix %s",
+            vehicle,
+            prefix,
+            suffix,
+            exc_info=True,
+        )
+        parts = vehicle.split("-")
+        assert len(parts) >= 8
+        item["line_name"] = parts[-1]
+        item["operator"] = parts[0]
+        item["dir"] = parts[1]
+        return parts[5], "-".join(parts[6:-1])
 
     def add_arguments(self, parser):
         super().add_arguments(parser)
