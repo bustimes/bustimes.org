@@ -64,9 +64,6 @@ class Command(ImportLiveVehiclesCommand):
             ).first()
 
         if vehicle:
-            if vehicle.code != vehicle_code:
-                vehicle.code = vehicle_code
-                vehicle.save(update_fields=["code"])
             return vehicle, False
 
         return Vehicle.objects.get_or_create(

@@ -637,7 +637,7 @@ class Command(ImportLiveVehiclesCommand):
             headers["if-modified-since"] = http_date(self.last_modified.timestamp())
 
         response = self.session.get(
-            self.source.url, headers=headers, timeout=(3.05, 10)
+            self.source.url, headers=headers, timeout=(11, 31)
         )
         self.fetched_at = timezone.now()
 
@@ -790,7 +790,7 @@ class Command(ImportLiveVehiclesCommand):
             age = int((self.fetched_at - self.source.datetime).total_seconds())
             if age > 0:
                 logger.info(
-                    f"{now.second=} {age=}  {total_items=}  {len(changed_items)=}  {len(changed_journey_items)=}"
+                    f"{total_items=}	{len(changed_items)=}	{len(changed_journey_items)=}"
                 )
 
             fetch_took = monotonic() - fetch_started
@@ -821,11 +821,11 @@ class Command(ImportLiveVehiclesCommand):
 
             # does the cost scale with total_items or with changed items?
             logger.info(
-                f"{fetch_took=:.1f} {quick_took=:.1f} {journey_took=:.1f}"
-                f"  {fetch_queries=} {quick_queries=} {journey_queries=}"
-                f"  routes_cached={routes_cache.hits}/"
-                f"{routes_cache.hits + routes_cache.misses}"
-                f"  {dict(queries.tables.most_common(6))}"
+                f"{fetch_took=:.1f} {quick_took=:.1f} {journey_took=:.1f}	"
+                f"{fetch_queries=} {quick_queries=} {journey_queries=}	"
+                f"routes_cached={routes_cache.hits}/"
+                f"{routes_cache.hits + routes_cache.misses}	"
+                f"{dict(queries.tables.most_common(6))}"
             )
 
             # stats for last 50 updates:
@@ -858,7 +858,6 @@ class Command(ImportLiveVehiclesCommand):
                 attributes=attributes,
             )
 
-            logger.info(f"{time_taken=}")
 
             # BODS `create_siri_zip` runs every 10 seconds
             # - aim for just after the next run
@@ -868,10 +867,10 @@ class Command(ImportLiveVehiclesCommand):
                 if wait > 5:
                     wait = 0
                 logger.info(
-                    f"last-modified={self.last_modified:%H:%M:%S} "
-                    f"ResponseTimestamp={self.source.datetime:%H:%M:%S} "
-                    f"age={bod_status[-1].age.total_seconds():.1f} "
-                    f"{since=:.1f} {wait=:.1f}"
+                    f"last-modified={self.last_modified:%H:%M:%S}	"
+                    f"ResponseTimestamp={self.source.datetime:%H:%M:%S}	"
+                    f"age={bod_status[-1].age.total_seconds():.1f}	"
+                    f"{since=:.1f} {wait=:.1f}\n	"
                 )
             else:
                 wait = 11 - (timezone.now() - now).total_seconds()

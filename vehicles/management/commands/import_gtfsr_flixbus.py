@@ -142,7 +142,7 @@ class Command(GTFSRCommand):
         if not self.interval:
             return self.wait
 
-        wait = self.interval - age.total_seconds() + 10
+        wait = self.interval - age.total_seconds()
         return min(max(wait, 10), self.wait)
 
     @staticmethod
