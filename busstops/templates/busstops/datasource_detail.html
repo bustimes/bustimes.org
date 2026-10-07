@@ -7,11 +7,11 @@
 {% block content %}
 
 <style>
-    thead {
+    .diagonal {
         height: 80px;
     }
 
-    .short {
+    .diagonal .short {
         transform: rotate(315deg);
         transform-origin: 0px 60px;
         white-space: nowrap;
@@ -45,8 +45,29 @@
 
 <p>{{ object.datetime }}</p>
 
+<h2>updates</h2>
+
 <table>
     <thead>
+        <th scope="col" class="shortish">started at</th>
+        <th scope="col" class="shortish">finished at</th>
+        <th scope="col" class="shortish">data quality observations</th>
+    </thead>
+    <tbody>
+    {% for task in object.importtask_set.all %}
+        <tr>
+            <td>{{ task.started_at }}</td>
+            <td>{{ task.finished_at }}</td>
+            <td></td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<h2>routes</h2>
+
+<table>
+    <thead class="diagonal">
         <th scope="col" class="shortish">service code</th>
         <th scope="col" class="short">line name</th>
         {% if routes.0.version %}<th scope="col" class="shortish">version</th>{% endif %}

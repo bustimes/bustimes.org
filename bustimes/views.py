@@ -149,6 +149,8 @@ class SourceDetailView(DetailView):
             )
             .select_related("service", "version")
         )
+        if not context["routes"]:
+            raise Http404
 
         context["breadcrumb"] = [
             {"get_line_name_and_brand": "Sources", "get_absolute_url": "/sources"}
