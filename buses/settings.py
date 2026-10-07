@@ -233,7 +233,7 @@ STORAGES = {
             "location": BASE_DIR / "archive",
         },
     }
-    if DEBUG
+    if DEBUG or "AWS_ACCESS_KEY_ID" not in os.environ
     else {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
