@@ -75,6 +75,7 @@ class ImportTransXChangeTest(TestCase):
         OperatorCode.objects.bulk_create(
             [
                 OperatorCode(operator=cls.megabus, source=cls.nocs, code="MEGA"),
+                OperatorCode(operator=cls.fecs, source=cls.nocs, code="FECS"),
                 OperatorCode(operator=cls.fabd, source=cls.nocs, code="FABD"),
                 OperatorCode(operator=cls.fabd, source=cls.nocs, code="SDVN"),
                 OperatorCode(operator=cls.fabd, source=cls.nocs, code="CBNL"),
@@ -381,11 +382,9 @@ class ImportTransXChangeTest(TestCase):
         self.assertFalse(timetable.groupings[0].rows[43].has_waittimes)
         # self.assertTrue(timetable.groupings[1].rows[44].has_waittimes)
         # self.assertFalse(timetable.groupings[1].rows[45].has_waittimes)
-        (
-            self.assertEqual(
-                str(timetable.groupings[1].rows[0].times[:6]),
-                "[05:20, 06:20, 07:15, 08:10, 09:10, 10:10]",
-            ),
+        self.assertEqual(
+            str(timetable.groupings[1].rows[0].times[:6]),
+            "[05:20, 06:20, 07:15, 08:10, 09:10, 10:10]",
         )
 
         self.assertEqual(149, service.stopusage_set.order_by().distinct("stop").count())
@@ -1588,15 +1587,29 @@ class ImportTransXChangeTest(TestCase):
             response = self.client.get("/api/trips/?date=2025-10-12").json()
             self.assertEqual(len(response["results"]), 46)
 
-        with self.assertNumQueries(6):
+        # all trips in block
+        with self.assertNumQueries(7):
             response = self.client.get(f"/trips/{trip.id}/block")
         self.assertContains(response, "07:55")
         self.assertContains(response, "12:25")
 
-        with self.assertNumQueries(6):
+        with self.assertNumQueries(7):
             response = self.client.get(f"/trips/{trip.id}/block?date=2025-01-26")
         self.assertContains(response, "15:05")
         self.assertContains(response, "16:00")
+
+        # operator block view
+        with self.assertNumQueries(2):
+            response = self.client.get(f"/operators/{self.fecs.slug}/blocks")
+            self.assertContains(response, "23 Oct 2023")
+            self.assertContains(response, ">6001</a>")
+
+        with self.assertNumQueries(2):
+            response = self.client.get(
+                f"/operators/{self.fecs.slug}/blocks?date=2025-10-12"
+            )
+            self.assertContains(response, "12 Oct 2025")
+            self.assertContains(response, ">6001</a>")
 
         # test "next trips in block"
         v = Vehicle.objects.create(code="BB69BUS")

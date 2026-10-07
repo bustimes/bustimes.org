@@ -90,3 +90,7 @@ class BankHolidaysTest(TestCase):
                 bank_holiday__name="Northern Ireland bank holidays"
             ).count(),
         )
+
+        # debug view
+        response = self.client.get("/bank_holidays")
+        self.assertContains(response, "SpringBank 2027-05-31 is not in HolidayMondays")

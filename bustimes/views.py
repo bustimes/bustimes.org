@@ -637,14 +637,14 @@ def operator_blocks(request, slug):
 
     if trips:
         start = min(trip.start.total_seconds() for trip in trips)
-        end = min(trip.end.total_seconds() for trip in trips)
+        end = max(trip.end.total_seconds() for trip in trips)
         length_of_day = end - start
 
     blocks = defaultdict(list)
 
     for trip in trips:
-        trip.left = int((trip.start.total_seconds() - start) / length_of_day * 200)
-        trip.width = int((trip.end - trip.start).total_seconds() / length_of_day * 200)
+        trip.left = int((trip.start.total_seconds() - start) / length_of_day * 2000)
+        trip.width = int((trip.end - trip.start).total_seconds() / length_of_day * 2000)
 
         if trip.block:
             blocks[trip.block].append(trip)
@@ -653,7 +653,7 @@ def operator_blocks(request, slug):
         "object": operator,
         "breadcrumb": [operator],
         "date": date,
-        "blocks": blocks,
+        "blocks": dict(blocks),
     }
 
     return render(request, "operator_blocks.html", context)
