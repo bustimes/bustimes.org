@@ -70,7 +70,7 @@ from .models import (
 )
 from .rtpi import add_progress_and_delay
 from .tasks import handle_siri_post
-from .utils import apply_revision, get_revision, redis_client  # calculate_bearing,
+from .utils import apply_revision, get_revision, redis_client
 
 logger = logging.getLogger(__name__)
 

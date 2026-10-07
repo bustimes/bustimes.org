@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime, timedelta
-from math import atan2, cos, degrees, radians, sin
 
 import numpy as np
 import requests
@@ -35,22 +34,12 @@ from vehicles.time_aware_polyline import (
     decode_time_aware_polyline,
     encode_time_aware_polyline,
 )
-from vehicles.utils import redis_client
+from vehicles.utils import calculate_bearing, redis_client
 from vehicles.views import get_vehicle_locations
 
 from . import filters, serializers
 
 logger = logging.getLogger(__name__)
-
-
-def calculate_bearing(a, b):
-    """Bearing in degrees from point a to point b, each [longitude, latitude]"""
-    lng1, lat1 = radians(a[0]), radians(a[1])
-    lng2, lat2 = radians(b[0]), radians(b[1])
-    delta_lng = lng2 - lng1
-    y = sin(delta_lng) * cos(lat2)
-    x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(delta_lng)
-    return (degrees(atan2(y, x)) + 360) % 360
 
 
 class BadException(APIException):

@@ -46,10 +46,9 @@ def archive_avl_data(source, data: bytes | str, filename: str):
 
 
 def calculate_bearing(a, b):
-    a_lat = math.radians(a.y)
-    a_lon = math.radians(a.x)
-    b_lat = math.radians(b.y)
-    b_lon = math.radians(b.x)
+    """Bearing in degrees from point a to point b, each (longitude, latitude)"""
+    a_lon, a_lat = math.radians(a[0]), math.radians(a[1])
+    b_lon, b_lat = math.radians(b[0]), math.radians(b[1])
 
     y = math.sin(b_lon - a_lon) * math.cos(b_lat)
     x = math.cos(a_lat) * math.sin(b_lat) - math.sin(a_lat) * math.cos(
@@ -192,7 +191,7 @@ def apply_revision(revision, features=None):
             changed_fields.append("withdrawn")
 
         else:
-            assert False
+            raise ValueError(field)
 
     vehicle.save(update_fields=changed_fields)
 
