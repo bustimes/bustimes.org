@@ -794,9 +794,6 @@ class VehicleLocation:
             return f"{self.datetime:%-d %b %Y %H:%M:%S}"
         return ""
 
-    class Meta:
-        ordering = ("id",)
-
     def get_heading(self):
         """Some sources give a float or a string - always return an int (or None)"""
         if self.heading is None or type(self.heading) is int:
