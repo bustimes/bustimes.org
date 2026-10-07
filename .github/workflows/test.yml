@@ -115,17 +115,12 @@ jobs:
       with:
         persist-credentials: false
 
-    - name: install system dependencies
-      run: |
-        apt-get update && \
-        apt-get install -y --no-install-recommends gdal-bin git gcc g++ libc6-dev libpq-dev proj-bin libproj-dev file make libgeos-dev
-
     - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
       with:
         prune-cache: true
         cache-local-path: /__w/setup-uv-cache
 
-    - run: uv sync --group test --frozen --no-install-package psycopg-binary --no-install-package onnxruntime --python 3.15 --python-preference only-system && mkdir staticfiles
+    - run: uv sync --group test --frozen --no-install-package psycopg-c --python 3.15 --python-preference only-system && mkdir staticfiles
 
     - name: run tests
       env:
