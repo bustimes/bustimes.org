@@ -118,7 +118,12 @@ jobs:
     - name: install system dependencies
       run: |
         apt-get update && \
-        apt-get install -y --no-install-recommends git rustc cargo libgeos-dev file make
+        apt-get install -y --no-install-recommends git libgeos-dev file make curl
+
+    - name: install a current Rust toolchain
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
     - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
       with:
