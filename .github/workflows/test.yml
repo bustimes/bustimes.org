@@ -118,7 +118,7 @@ jobs:
     - name: install system dependencies
       run: |
         apt-get update && \
-        apt-get install -y --no-install-recommends git gcc g++ libc6-dev libgeos-dev file make curl
+        apt-get install -y --no-install-recommends gdal-bin git gcc g++ libc6-dev libgeos-dev file make curl
 
     - name: install a current Rust toolchain
       run: |
