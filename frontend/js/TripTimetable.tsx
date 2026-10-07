@@ -135,12 +135,26 @@ function Row({
     }
   }
 
-  if (vehicle?.progress && vehicle.progress.id === stop.id) {
+  // distance (number of stops) between bus and this stop
+  let diff = null;
+  if (vehicle?.progress) {
+    if (stop.id && vehicle.progress.id) {
+      diff = stop.id - vehicle.progress.id;
+    } else if (stop.stop.atco_code) {
+      if (vehicle.progress.prev_stop === stop.stop.atco_code) {
+        diff = 0;
+      } else if (vehicle.progress.next_stop === stop.stop.atco_code) {
+        diff = 1;
+      }
+    }
+  }
+
+  if (vehicle?.progress && diff === 0) {
     actual = <strong>{vehicle.datetime.slice(11, 16)}</strong>;
     if (vehicle.progress.progress > 0.1) {
       actualRowSpan = (actualRowSpan || 1) + 1;
     }
-  } else if (!vehicle?.progress || vehicle.progress.id + 1 !== stop.id) {
+  } else if (diff !== 1) {
     // vehicle history
     if (
       rowSpan === 2 &&
