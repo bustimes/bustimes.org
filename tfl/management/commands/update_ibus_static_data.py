@@ -29,7 +29,16 @@ def get_client():
     )
 
 
-def get_current_base_version(client):
+def get_versions(client):
+    response = client.list_objects_v2(
+        Bucket=BUCKET, Prefix="Base_Version_", Delimiter="/"
+    )
+    return sorted(
+        int(prefix["Prefix"][13:-1]) for prefix in response.get("CommonPrefixes", [])
+    )
+
+
+def get_latest_base_version(client):
     obj = client.get_object(Bucket=BUCKET, Key="Base_Version.xml")
     root = ElementTree.fromstring(obj["Body"].read())
     version = int(root.find("{*}Base_Version").text)
@@ -75,12 +84,25 @@ class Command(BaseCommand):
 
     def handle(self, **options):
         client = get_client()
-        version, valid_from, valid_to = get_current_base_version(client)
+        latest_version, valid_from, valid_to = get_latest_base_version(client)
 
+        # Base_Version.xml can point to the next version before the AVL uses it,
+        # so keep the previous one too (the API checks which one matches)
+        versions = [v for v in get_versions(client) if v <= latest_version][-2:]
+        for version in versions:
+            if version == latest_version:
+                self.import_version(client, version, valid_from, valid_to)
+            else:
+                self.import_version(client, version)
+
+        models.BaseVersion.objects.filter(pk__lt=versions[0]).delete()
+
+    def import_version(self, client, version, valid_from=None, valid_to=None):
         if models.BaseVersion.objects.filter(pk=version).exists():
             self.stdout.write(f"{version} already imported")
             return
 
+        self.stdout.write(f"importing {version}")
         base_version = models.BaseVersion.objects.create(
             version=version, valid_from=valid_from, valid_to=valid_to
         )
@@ -102,8 +124,6 @@ class Command(BaseCommand):
         for i, key in enumerate(pattern_keys):
             self.stdout.write(f"pattern {i + 1}/{len(pattern_keys)}: {key}")
             self.load_pattern(client, base_version, key)
-
-        self.prune_old_versions(version)
 
     def discover_keys(self, client, prefix):
         """Find which operators have schedule data, and which per-line
@@ -448,6 +468,3 @@ class Command(BaseCommand):
                 for row in stops_in_pattern
             ),
         )
-
-    def prune_old_versions(self, keep_version):
-        models.BaseVersion.objects.exclude(pk=keep_version).delete()

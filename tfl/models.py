@@ -1,4 +1,5 @@
 from django.contrib.gis.db import models
+from django.utils import timezone
 
 from bustimes.fields import SecondsField
 
@@ -145,7 +146,11 @@ class Block(models.Model):
     running_no = models.PositiveSmallIntegerField()
 
     class Meta:
-        indexes = [models.Index(fields=["base_version", "idx"])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["base_version", "idx"], name="tfl_block_unique"
+            )
+        ]
 
 
 class BlockCalendarDay(models.Model):
@@ -165,11 +170,22 @@ class Pattern(models.Model):
     direction = models.PositiveSmallIntegerField()
     type = models.PositiveSmallIntegerField()
 
+    line = models.ForeignObject(
+        Line,
+        models.DO_NOTHING,
+        from_fields=["base_version", "contract_line_no"],
+        to_fields=["base_version", "contract_line_no"],
+        null=True,
+        related_name="+",
+    )
+
     class Meta:
-        indexes = [
-            models.Index(fields=["base_version", "idx"]),
-            models.Index(fields=["base_version", "contract_line_no"]),
+        constraints = [
+            models.UniqueConstraint(
+                fields=["base_version", "idx"], name="tfl_pattern_unique"
+            )
         ]
+        indexes = [models.Index(fields=["base_version", "contract_line_no"])]
 
 
 class StopInPattern(models.Model):
@@ -181,11 +197,38 @@ class StopInPattern(models.Model):
     sequence_no = models.PositiveSmallIntegerField()
     timing_point_code = models.CharField(max_length=10, blank=True)
 
+    pattern = models.ForeignObject(
+        Pattern,
+        models.DO_NOTHING,
+        from_fields=["base_version", "pattern_idx"],
+        to_fields=["base_version", "idx"],
+        null=True,
+        related_name="+",
+    )
+    stop = models.ForeignObject(
+        Stop,
+        models.DO_NOTHING,
+        from_fields=["base_version", "stop_idx"],
+        to_fields=["base_version", "idx"],
+        null=True,
+        related_name="+",
+    )
+    destination = models.ForeignObject(
+        Destination,
+        models.DO_NOTHING,
+        from_fields=["base_version", "destination_idx"],
+        to_fields=["base_version", "idx"],
+        null=True,
+        related_name="+",
+    )
+
     class Meta:
-        indexes = [
-            models.Index(fields=["base_version", "idx"]),
-            models.Index(fields=["base_version", "pattern_idx"]),
+        constraints = [
+            models.UniqueConstraint(
+                fields=["base_version", "idx"], name="tfl_stopinpattern_unique"
+            )
         ]
+        indexes = [models.Index(fields=["base_version", "pattern_idx"])]
 
 
 class Journey(models.Model):
@@ -197,12 +240,46 @@ class Journey(models.Model):
     type = models.PositiveSmallIntegerField()
     start_time = SecondsField()  # time past midnight, can exceed 24 hours
 
+    pattern = models.ForeignObject(
+        Pattern,
+        models.DO_NOTHING,
+        from_fields=["base_version", "pattern_idx"],
+        to_fields=["base_version", "idx"],
+        null=True,
+        related_name="+",
+    )
+    block = models.ForeignObject(
+        Block,
+        models.DO_NOTHING,
+        from_fields=["base_version", "block_idx"],
+        to_fields=["base_version", "idx"],
+        null=True,
+        related_name="+",
+    )
+
     class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["base_version", "idx"], name="tfl_journey_unique"
+            )
+        ]
         indexes = [
-            models.Index(fields=["base_version", "idx"]),
             models.Index(fields=["base_version", "block_idx"]),
             models.Index(fields=["base_version", "pattern_idx"]),
         ]
+
+    def matches(self, line_name, departure):
+        """Journey idxs are reused between base versions, so check this is
+        the same journey the AVL means (requires select_related("pattern__line"))
+        """
+        line = self.pattern and self.pattern.line
+        if not line or line.service_line_no.lower() != line_name.lower():
+            return False
+        if departure:
+            departure = timezone.localtime(departure)
+            seconds = departure.hour * 3600 + departure.minute * 60
+            return self.start_time.total_seconds() % 86400 == seconds
+        return True
 
 
 class JourneyDriveTime(models.Model):

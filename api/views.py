@@ -289,16 +289,14 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
 
     @staticmethod
     def trip_from_tfl(instance):
-        journey = (
-            Journey.objects.filter(
-                idx=instance.code,
-                base_version__valid_from__lte=instance.date,
-                base_version__valid_to__gte=instance.date,
-            )
+        for journey in (
+            Journey.objects.filter(idx=instance.code)
+            .select_related("pattern__line")
             .order_by("-base_version")
-            .first()
-        )
-        if not journey:
+        ):
+            if journey.matches(instance.route_name, instance.datetime):
+                break
+        else:
             return
 
         base_version_id = journey.base_version_id
