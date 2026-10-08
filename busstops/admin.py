@@ -8,6 +8,7 @@ from django.db.models.functions import Cast, Now, TruncDate
 from django.forms import ModelForm, Textarea
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from sql_util.utils import SubqueryCount
 
 from buses.admin_utils import M2MThroughMixin
@@ -356,6 +357,17 @@ class ServiceAdmin(M2MThroughMixin, GISModelAdmin):
         if lookup == "route__source__source":
             return True
         return super().lookup_allowed(lookup, value, request)
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        match db_field.name:
+            case "public_use":
+                kwargs["help_text"] = mark_safe(
+                    "set this to Yes to override an errant "
+                    "&lt;PublicUse&gt;false&lt;/PublicUse&gt; in the TransXChange file"
+                )
+            case "current":
+                kwargs["help_text"] = "untick to (effectively) delete, tick to undelete"
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     @admin.display(ordering="routes")
     def routes(self, obj):
