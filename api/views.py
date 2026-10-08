@@ -407,6 +407,16 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                 stops[index:index] = pending
                 position = index + len(pending) + 1
                 pending = []
+        if pending:
+            # don't put unmatched predictions before stops scheduled earlier
+            midnight = timezone.make_aware(
+                datetime.combine(instance.date, datetime.min.time())
+            )
+            while position < len(stops) and (
+                (scheduled := stops[position].departure_or_arrival()) is not None
+                and midnight + scheduled < pending[0].expected_arrival_time
+            ):
+                position += 1
         stops[position:position] = pending
 
     @action(detail=True)

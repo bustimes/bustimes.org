@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,6 +11,8 @@ from vcr import use_cassette
 from busstops.models import DataSource, StopPoint
 from bustimes.models import Route, StopTime, Trip
 from vehicles.models import Vehicle, VehicleJourney
+
+from .views import VehicleJourneyViewSet
 
 
 class ApiTest(TestCase):
@@ -140,3 +143,41 @@ class ApiTest(TestCase):
             # failure is cached
             self.client.get(f"/api/vehiclejourneys/{journey.id}/details/")
             mocked_get.assert_called_once()
+
+    @override_settings(
+        CACHES={
+            "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+        },
+    )
+    def test_tfl_arrivals_none_matched(self):
+        # trip from SIRI - just origin and destination, neither predicted
+        origin = StopPoint(atco_code="490003637N", common_name="Barnet Hospital")
+        dest = StopPoint(atco_code="490008296M", common_name="Nags Head")
+        trip = Trip()
+        trip.stops = [
+            StopTime(stop=origin, departure=timedelta(hours=18, minutes=23)),
+            StopTime(stop=dest),
+        ]
+        journey = VehicleJourney(trip=trip, date=date(2026, 10, 8))
+        cache.set(
+            "TflVehicle:LV74TJU",
+            [
+                {
+                    "naptanId": "490009082S",
+                    "stationName": "Leisure Way",
+                    "expectedArrival": "2026-10-08T17:55:20Z",
+                },
+                {
+                    "naptanId": "490015327S",
+                    "stationName": "Granville Road",
+                    "expectedArrival": "2026-10-08T17:54:17Z",
+                },
+            ],
+        )
+
+        VehicleJourneyViewSet.tfl_arrivals(journey, "LV74TJU")
+
+        self.assertEqual(
+            [stop_time.stop.common_name for stop_time in trip.stops],
+            ["Barnet Hospital", "Granville Road", "Leisure Way", "Nags Head"],
+        )
