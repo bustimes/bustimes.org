@@ -1575,7 +1575,7 @@ class ImportTransXChangeTest(TestCase):
         self.assertContains(response, "Peterborough Bus Station")
 
         # test modern trip API too:
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(6):
             response = self.client.get(f"/api/trips/{trip.id}.json")
         self.assertEqual(response.json()["block"], "6001")
 
@@ -1585,17 +1585,17 @@ class ImportTransXChangeTest(TestCase):
 
         with self.assertNumQueries(2):
             response = self.client.get("/api/trips/?date=2025-10-12").json()
-            self.assertEqual(len(response["results"]), 46)
+            self.assertEqual(len(response["results"]), 24)
 
         # all trips in block
         with self.assertNumQueries(7):
             response = self.client.get(f"/trips/{trip.id}/block")
-        self.assertContains(response, "07:55")
+        self.assertContains(response, "07:00")
         self.assertContains(response, "12:25")
 
         with self.assertNumQueries(7):
             response = self.client.get(f"/trips/{trip.id}/block?date=2025-01-26")
-        self.assertContains(response, "15:05")
+        self.assertContains(response, "07:25")
         self.assertContains(response, "16:00")
 
         # operator block view
@@ -1613,7 +1613,9 @@ class ImportTransXChangeTest(TestCase):
 
         # test "next trips in block"
         v = Vehicle.objects.create(code="BB69BUS")
-        trip_1 = Trip.objects.get(vehicle_journey_code="VJ2937")
+        # VJ2937 is now merged into VJ3065 (they're two declared parts of one
+        # physical journey - see Command.merge_split_trips)
+        trip_1 = Trip.objects.get(vehicle_journey_code="VJ3065")
         trip_2 = Trip.objects.get(vehicle_journey_code="VJ2938")
         vj_1 = VehicleJourney.objects.create(
             trip=trip_1,
@@ -1635,7 +1637,7 @@ class ImportTransXChangeTest(TestCase):
         v.save(update_fields=["latest_journey_id"])
 
         response = self.client.get(v.get_absolute_url())
-        self.assertEqual(5, len(response.context_data["predictions"]))
+        self.assertEqual(2, len(response.context_data["predictions"]))
 
         response = self.client.get(f"/api/vehiclejourneys/{vj_1.id}/details/").json()
 

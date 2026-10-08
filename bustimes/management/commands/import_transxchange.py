@@ -20,7 +20,7 @@ from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry, Point
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
-from django.db.models import Count, Exists, OuterRef, Q
+from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.db.models.functions import Now, Upper
 from django.utils.timezone import localdate
 from haversine import Unit, haversine
@@ -40,7 +40,8 @@ from busstops.models import (
     StopUsage,
 )
 from busstops.utils import get_coord_transform, get_datetime
-from vehicles.models import get_text_colour
+from disruptions.models import AffectedJourney
+from vehicles.models import VehicleJourney, get_text_colour
 from vosa.models import Registration
 
 from ...models import (
@@ -58,6 +59,7 @@ from ...models import (
     TimetableDataSource,
     Trip,
     VehicleType,
+    chain_split_trips,
 )
 
 logger = logging.getLogger(__name__)
@@ -730,6 +732,119 @@ class Command(BaseCommand):
 
         self.finish_task()
 
+    def merge_split_trips(self, service_id):
+        """Merge Trips that are part of the same physical journey,
+        but registered as separate services.
+
+        Trips with different calendars are dealt with "on the fly" later
+        (see get_parts and chain_split_trips).
+        """
+        stops = StopTime.objects.filter(
+            Q(pick_up=True) | Q(set_down=True), trip=OuterRef("id")
+        ).values("stop")
+        trips = (
+            Trip.objects.filter(route__service=service_id, route__source=self.source)
+            .select_related("route")
+            .annotate(
+                first_stop=Subquery(stops.order_by("id")[:1]),
+                last_stop=Subquery(stops.order_by("-id")[:1]),
+            )
+            .order_by("start")
+        )
+
+        by_calendar = defaultdict(list)
+        for trip in trips:
+            by_calendar[trip.calendar_id].append(trip)
+
+        for calendar_trips in by_calendar.values():
+            for trip_a, *parts in chain_split_trips(
+                calendar_trips, lambda trip: (trip.first_stop, trip.last_stop)
+            ):
+                if parts:
+                    self.merge_trips(trip_a, parts)
+
+    def merge_trips(self, trip_a, parts):
+        stop_times_a = list(trip_a.stoptime_set.order_by("id"))
+
+        for trip_b in parts:
+            stop_times_b = list(trip_b.stoptime_set.order_by("id"))
+
+            if (
+                not stop_times_a
+                or not stop_times_b
+                or stop_times_a[-1].stop_id != stop_times_b[0].stop_id
+            ):
+                return
+
+            # splice trip_b onto the end of trip_a
+            last, first_b = stop_times_a[-1], stop_times_b[0]
+            last.departure = first_b.departure
+            last.pick_up = first_b.pick_up
+            last.save(update_fields=["departure", "pick_up"])
+
+            # Some things rely on sorting StopTimes by id (not time or sequence)
+            rest = stop_times_b[1:]
+            old_ids = [stop_time.id for stop_time in rest]
+            notes_by_old_id = defaultdict(list)
+            for through in StopTime.notes.through.objects.filter(
+                stoptime_id__in=old_ids
+            ):
+                notes_by_old_id[through.stoptime_id].append(through.note_id)
+
+            sequence = (last.sequence or 0) + 1
+            new_rest = []
+            for stop_time in rest:
+                new_stop_time = StopTime(
+                    trip=trip_a,
+                    stop_id=stop_time.stop_id,
+                    arrival=stop_time.arrival,
+                    departure=stop_time.departure,
+                    sequence=sequence if stop_time.sequence is not None else None,
+                    timing_point=stop_time.timing_point,
+                    pick_up=stop_time.pick_up,
+                    set_down=stop_time.set_down,
+                )
+                new_stop_time._old_id = stop_time.id
+                new_rest.append(new_stop_time)
+                if stop_time.sequence is not None:
+                    sequence += 1
+            StopTime.objects.bulk_create(new_rest)
+
+            note_links = [
+                StopTime.notes.through(stoptime=new_stop_time, note_id=note_id)
+                for new_stop_time in new_rest
+                for note_id in notes_by_old_id.get(new_stop_time._old_id, ())
+            ]
+            if note_links:
+                StopTime.notes.through.objects.bulk_create(note_links)
+
+            StopTime.objects.filter(id__in=[first_b.id, *old_ids]).delete()
+
+            stop_times_a = stop_times_a[:-1] + [last] + new_rest
+
+            trip_a.end = trip_b.end
+            trip_a.destination_id = trip_b.destination_id
+            if trip_b.headsign:
+                trip_a.headsign = trip_b.headsign
+            trip_a.save(update_fields=["end", "destination", "headsign"])
+
+            # reassign things that point at trip_b
+            existing_note_ids = set(
+                Trip.notes.through.objects.filter(trip_id=trip_a.id).values_list(
+                    "note_id", flat=True
+                )
+            )
+            Trip.notes.through.objects.filter(
+                trip_id=trip_b.id, note_id__in=existing_note_ids
+            ).delete()
+            Trip.notes.through.objects.filter(trip_id=trip_b.id).update(
+                trip_id=trip_a.id
+            )
+            VehicleJourney.objects.filter(trip_id=trip_b.id).update(trip_id=trip_a.id)
+            AffectedJourney.objects.filter(trip_id=trip_b.id).update(trip_id=trip_a.id)
+
+            trip_b.delete()
+
     def finish_services(self):
         """update/create StopUsages, search_vector and geometry fields"""
 
@@ -737,6 +852,8 @@ class Command(BaseCommand):
         services = services.annotate(operator_count=Count("operator"))
 
         for service in services:
+            self.merge_split_trips(service.id)
+
             service.do_stop_usages()
 
             # using StopUsages

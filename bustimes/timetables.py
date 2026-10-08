@@ -13,7 +13,7 @@ from django.utils.timezone import localdate
 from sql_util.utils import Exists
 
 from .formatting import format_timedelta
-from .models import Calendar, Note, Route, StopTime, Trip
+from .models import Calendar, Note, Route, StopTime, Trip, chain_split_trips
 from .utils import get_descriptions
 
 differ = Differ(charjunk=lambda _: True)
@@ -781,60 +781,35 @@ class Grouping:
             row.times = [row.times[i] for i in indices]
 
     def merge_split_trips(self):
-        zero = datetime.timedelta()
-        fifteen = datetime.timedelta(minutes=15)
         prev_trip = None
+        trips = []
 
-        for i, trip_a in enumerate(self.trips):
-            if not trip_a.times:
+        for trip in self.trips:
+            if not trip.times:
                 continue
 
             # remove duplicates
             if (
                 prev_trip
-                and prev_trip.start == trip_a.start
-                and prev_trip.end == trip_a.end
-                and prev_trip.destination_id == trip_a.destination_id
-                and len(prev_trip.times) == len(trip_a.times)
+                and prev_trip.start == trip.start
+                and prev_trip.end == trip.end
+                and prev_trip.destination_id == trip.destination_id
+                and len(prev_trip.times) == len(trip.times)
             ):
-                trip_a.times = None
                 continue
-            prev_trip = trip_a
+            prev_trip = trip
+            trips.append(trip)
 
-            # don't merge circular trips (start and finish at same stop))
-            origin = trip_a.times[0].stop_id
-            destination = trip_a.times[-1].stop_id
-            if origin == destination:
-                continue
-
-            for trip_b in self.trips[i + 1 :]:
-                if (
-                    trip_b.times
-                    and trip_a.route_id != trip_b.route_id
-                    and trip_a.route.source_id == trip_b.route.source_id
-                    and trip_a.route.line_name == trip_b.route.line_name
-                    and (
-                        trip_a.route.service_code != trip_b.route.service_code
-                        or trip_a.ticket_machine_code == trip_b.ticket_machine_code
-                    )
-                    and trip_a.operator_id == trip_b.operator_id
-                    and destination == trip_b.times[0].stop_id
-                    and origin != trip_b.times[-1].stop_id  # not circular
-                    and destination != trip_b.times[-1].stop_id  # not circular
-                    and zero
-                    <= (trip_b.start - trip_a.end)
-                    <= fifteen  # short wait time
-                ):
-                    # merge trip_a and trip_b
-                    origin = trip_b.times[0].stop_id
-                    destination = trip_b.times[-1].stop_id
-                    trip_a.times[-1].departure = trip_b.times[0].departure
-                    trip_a.times[-1].pick_up = trip_b.times[0].pick_up
-                    trip_a.times += trip_b.times[1:]
-                    trip_a.end = trip_b.end
-                    trip_b.times = None
-
-        self.trips = [trip for trip in self.trips if trip.times]
+        self.trips = []
+        for trip_a, *parts in chain_split_trips(
+            trips, lambda trip: (trip.times[0].stop_id, trip.times[-1].stop_id)
+        ):
+            for trip_b in parts:
+                trip_a.times[-1].departure = trip_b.times[0].departure
+                trip_a.times[-1].pick_up = trip_b.times[0].pick_up
+                trip_a.times += trip_b.times[1:]
+                trip_a.end = trip_b.end
+            self.trips.append(trip_a)
 
     def handle_trip(self, trip):
         rows = self.rows

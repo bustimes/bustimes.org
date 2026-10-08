@@ -436,14 +436,15 @@ def handle_gtfs_upload(source_name, file, note=None):
 
             if row.route_id in existing_routes:
                 route = existing_routes[row.route_id]
-                service = route.service
             else:
                 route = Route(code=row.route_id, source=source)
+
+            if not (service := route.service):
                 service = Service()
+                route.service = service
 
             service.line_name = line_name
             service.source = source
-            route.service = service
             route.line_name = line_name
             service.description = route.description = description
             service.current = True
