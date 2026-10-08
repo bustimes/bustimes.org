@@ -23,64 +23,39 @@ class Command(BaseCommand):
     help = "Matches tfl Journeys to bustimes Trips by service and departure time, and fills in Trip.block"
 
     def handle(self, **options):
-        base_version = models.BaseVersion.objects.order_by("-version").first()
-        if not base_version:
-            self.stdout.write("no tfl data imported")
-            return
+        services = defaultdict(list)
+        for service in Service.objects.filter(current=True, region_id="L").only(
+            "line_name"
+        ):
+            services[service.line_name].append(service)
+
+        line_names = models.Line.objects.values_list(
+            "service_line_no", flat=True
+        ).distinct()
 
         matched = 0
-        for line in models.Line.objects.filter(base_version=base_version):
-            services = list(
-                Service.objects.filter(
-                    line_name=line.service_line_no, current=True, region_id="L"
-                )
-            )
-            if len(services) != 1:
-                continue
-            matched += self.match_line(base_version, line, services[0])
+        for line_name in line_names:
+            if len(services[line_name]) == 1:
+                matched += self.match_line(line_name, services[line_name][0])
 
         self.stdout.write(f"matched {matched} trips")
 
-    def match_line(self, base_version, line, service):
-        patterns = list(
-            models.Pattern.objects.filter(
-                base_version=base_version, contract_line_no=line.contract_line_no
-            ).values_list("idx", flat=True)
-        )
-        if not patterns:
+    def match_line(self, line_name, service):
+        # every imported base version - see which one fits our timetable best
+        journeys_by_version = defaultdict(list)
+        for journey in models.Journey.objects.filter(
+            pattern__line__service_line_no=line_name
+        ).select_related("block"):
+            journeys_by_version[journey.base_version_id].append(journey)
+        if not journeys_by_version:
             return 0
 
-        journeys = list(
-            models.Journey.objects.filter(
-                base_version=base_version, pattern_idx__in=patterns
-            )
-        )
-        if not journeys:
-            return 0
-
-        first_stops_in_pattern = {
-            sip.pattern_idx: sip.stop_idx
-            for sip in models.StopInPattern.objects.filter(
-                base_version=base_version, pattern_idx__in=patterns, sequence_no=1
-            )
+        first_atco_codes = {
+            (base_version_id, pattern_idx): atco_code
+            for base_version_id, pattern_idx, atco_code in models.StopInPattern.objects.filter(
+                pattern__line__service_line_no=line_name, sequence_no=1
+            ).values_list("base_version", "pattern_idx", "stop__naptan_code")
         }
-        atco_codes = dict(
-            models.Stop.objects.filter(
-                base_version=base_version,
-                idx__in=first_stops_in_pattern.values(),
-            ).values_list("idx", "naptan_code")
-        )
-        first_atco_code_by_pattern = {
-            pattern_idx: atco_codes.get(stop_idx)
-            for pattern_idx, stop_idx in first_stops_in_pattern.items()
-        }
-
-        block_numbers = dict(
-            models.Block.objects.filter(
-                base_version=base_version,
-                idx__in=[j.block_idx for j in journeys],
-            ).values_list("idx", "block_no")
-        )
 
         trips = list(Trip.objects.filter(route__service=service))
         trips_by_start = defaultdict(list)
@@ -94,23 +69,37 @@ class Command(BaseCommand):
             .values_list("trip_id", "stop_id")
         )
 
-        to_update = []
-        for journey in journeys:
-            candidates = trips_by_start.get(journey.start_time, [])
-            if len(candidates) > 1:
-                first_atco_code = first_atco_code_by_pattern.get(journey.pattern_idx)
-                candidates = [
-                    trip
-                    for trip in candidates
-                    if first_stop_by_trip.get(trip.id) == first_atco_code
-                ]
-            if len(candidates) != 1:
-                continue  # no match, or still ambiguous - don't guess
+        def get_blocks(journeys):
+            blocks = {}
+            for journey in journeys:
+                candidates = trips_by_start.get(journey.start_time, [])
+                if len(candidates) > 1:
+                    first_atco_code = first_atco_codes.get(
+                        (journey.base_version_id, journey.pattern_idx)
+                    )
+                    candidates = [
+                        trip
+                        for trip in candidates
+                        if first_stop_by_trip.get(trip.id) == first_atco_code
+                    ]
+                if len(candidates) != 1:
+                    continue  # no match, or still ambiguous - don't guess
+                if journey.block:
+                    blocks[candidates[0]] = str(journey.block.block_no)
+            return blocks
 
-            block_no = block_numbers.get(journey.block_idx)
-            trip = candidates[0]
-            if block_no is not None and trip.block != str(block_no):
-                trip.block = str(block_no)
+        blocks = max(
+            (
+                get_blocks(journeys_by_version[v])
+                for v in sorted(journeys_by_version, reverse=True)
+            ),
+            key=len,
+        )
+
+        to_update = []
+        for trip, block in blocks.items():
+            if trip.block != block:
+                trip.block = block
                 to_update.append(trip)
 
         Trip.objects.bulk_update(to_update, ["block"], batch_size=1000)

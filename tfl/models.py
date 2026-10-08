@@ -1,6 +1,7 @@
 from django.contrib.gis.db import models
 from django.utils import timezone
 
+from busstops.models import StopPoint
 from bustimes.fields import SecondsField
 
 
@@ -126,6 +127,15 @@ class Stop(models.Model):
     street_name = models.CharField(max_length=100, blank=True)
     post_code = models.CharField(max_length=10, blank=True)
     towards = models.CharField(max_length=100, blank=True)
+
+    stop_point = models.ForeignObject(
+        StopPoint,
+        models.DO_NOTHING,
+        from_fields=["naptan_code"],
+        to_fields=["atco_code"],
+        null=True,
+        related_name="+",
+    )
 
     class Meta:
         constraints = [

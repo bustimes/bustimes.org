@@ -22,7 +22,7 @@ from busstops.models import Locality, Operator, Service, StopPoint
 from bustimes.models import StopTime, Trip
 from bustimes.utils import contiguous_stoptimes_only
 from departures.gtfsr import maybe_get_and_apply_trip_update
-from tfl.models import Journey, JourneyDriveTime, JourneyWaitTime, Stop, StopInPattern
+from tfl.models import Journey, JourneyDriveTime, JourneyWaitTime, StopInPattern
 from vehicles.models import (
     Livery,
     Vehicle,
@@ -304,7 +304,9 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
         stops_in_pattern = list(
             StopInPattern.objects.filter(
                 base_version_id=base_version_id, pattern_idx=journey.pattern_idx
-            ).order_by("sequence_no")
+            )
+            .select_related("stop__stop_point")
+            .order_by("sequence_no")
         )
         if not stops_in_pattern:
             return
@@ -321,23 +323,6 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                 base_version_id=base_version_id, journey_idx=journey.idx
             )
         }
-        # tfl.Stop.naptan_code actually lines up with StopPoint.atco_code,
-        # not StopPoint.naptan_code (see tfl.models.Stop docstring)
-        tfl_stops = {
-            stop.idx: stop
-            for stop in Stop.objects.filter(
-                base_version_id=base_version_id,
-                idx__in=[sip.stop_idx for sip in stops_in_pattern],
-            )
-        }
-        stops = {
-            stop.atco_code: stop
-            for stop in StopPoint.objects.filter(
-                atco_code__in=[
-                    s.naptan_code for s in tfl_stops.values() if s.naptan_code
-                ]
-            )
-        }
 
         trip = Trip(start=journey.start_time)
 
@@ -349,9 +334,8 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                 time += drive_times.get((previous_idx, sip.idx), timedelta())
             arrival = time
             time += wait_times.get(sip.idx, timedelta())
-            tfl_stop = tfl_stops.get(sip.stop_idx)
-            atco_code = tfl_stop and tfl_stop.naptan_code
-            stop = stops.get(atco_code)
+            tfl_stop = sip.stop
+            stop = tfl_stop and tfl_stop.stop_point
             if not stop:
                 stop = StopPoint(
                     common_name=tfl_stop.name if tfl_stop else "",
