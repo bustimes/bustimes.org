@@ -1,10 +1,9 @@
 from datetime import timedelta
-from itertools import pairwise
 from urllib.parse import parse_qs
 
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
-from django.db.models import OuterRef, Q
+from django.db.models import OuterRef, Q, Subquery
 from django.db.models.functions import Upper
 from django.urls import reverse
 from django.utils.timezone import localdate
@@ -560,6 +559,53 @@ class Note(models.Model):
         return self.trip_set.first().get_absolute_url()
 
 
+SPLIT_TRIP_MAX_GAP = timedelta(minutes=15)
+
+
+def is_split_trip_continuation(a, b, a_stops, b_stops) -> bool:
+    """is trip b the next part of a journey that's been split across two trips?
+    a_stops and b_stops are (first stop, last stop) pairs
+    """
+    a_first, a_last = a_stops
+    b_first, b_last = b_stops
+    return (
+        a.route_id != b.route_id
+        and a.route.source_id == b.route.source_id
+        and a.route.line_name == b.route.line_name
+        and (
+            a.route.service_code != b.route.service_code
+            or bool(a.ticket_machine_code)
+            and a.ticket_machine_code == b.ticket_machine_code
+        )
+        and a.operator_id == b.operator_id
+        and a.inbound == b.inbound
+        and a_first != a_last
+        and b_first == a_last
+        and b_last not in (a_first, a_last)
+        and timedelta() <= b.start - a.end <= SPLIT_TRIP_MAX_GAP
+    )
+
+
+def chain_split_trips(trips, get_stops) -> list[list]:
+    """group trips (sorted by start time) into chains of parts of the same journey -
+    each trip joins the first (earliest starting) chain it continues
+    """
+    chains = []
+    joined = set()
+    for i, trip in enumerate(trips):
+        if id(trip) in joined:
+            continue
+        chain = [trip]
+        for other in trips[i + 1 :]:
+            if id(other) not in joined and is_split_trip_continuation(
+                chain[-1], other, get_stops(chain[-1]), get_stops(other)
+            ):
+                chain.append(other)
+                joined.add(id(other))
+        chains.append(chain)
+    return chains
+
+
 class TripQuerySet(models.QuerySet):
     def active_on(self, date):
         return self.filter(calendar__in=Calendar.objects.active_on(date))
@@ -669,44 +715,29 @@ class Trip(models.Model):
     def get_parts(self, date=None) -> list:
         """Get other parts of this trip (if the service has been split into parts)
 
-        counterpart to merge_split_trips
+        uses the same rules as Timetable (see chain_split_trips)
         """
 
-        if not (self.ticket_machine_code and self.route and self.route.service_id):
+        if not (self.route and self.route.service_id):
             return [self]
-
-        code_filter = Q(ticket_machine_code=self.ticket_machine_code)
-        if self.vehicle_journey_code:
-            code_filter |= Q(vehicle_journey_code=self.vehicle_journey_code)
 
         # don't match a superseded version of the timetable
         route_filter = Q(
-            route__service=self.route.service_id, route__source=self.route.source_id
+            route__service=self.route.service_id,
+            route__source=self.route.source_id,
+            route__line_name=self.route.line_name,
         )
         if self.route.version_id:
             route_filter &= Q(route__version=self.route.version_id)
-        if date:
-            route_ids = list(
-                Route.objects.filter(service=self.route.service_id)
-                .active_on(date)
-                .values_list("id", flat=True)
-            )
-            route_filter &= Q(route__in=route_ids)
-        else:
-            # no date, so just exclude routes with a higher revision number
-            route_filter &= ~Q(
-                Exists(
-                    Route.objects.filter(
-                        service__isnull=False,
-                        source=OuterRef("route__source"),
-                        service_code=OuterRef("route__service_code"),
-                        revision_number_context=OuterRef(
-                            "route__revision_number_context"
-                        ),
-                        revision_number__gt=OuterRef("route__revision_number"),
-                    )
-                )
-            )
+        # no date: the versions current today (or when this trip's version starts)
+        route_ids = list(
+            Route.objects.filter(service=self.route.service_id)
+            .active_on(date or max(localdate(), self.route.start_date or localdate()))
+            .values_list("id", flat=True)
+        )
+        if self.route_id not in route_ids:
+            return [self]
+        route_filter &= Q(route__in=route_ids)
 
         calendar_filter = Q(calendar=self.calendar_id)
         # annoyingly, sometimes different parts have different calendar ids
@@ -731,37 +762,32 @@ class Trip(models.Model):
                     days |= Q(**{f"calendar__{day}": True})
             calendar_filter |= overlap & days
 
+        # (Timetable only considers stops where passengers can get on or off)
+        stops = StopTime.objects.filter(
+            Q(pick_up=True) | Q(set_down=True), trip=OuterRef("id")
+        ).values("stop")
         trips = (
             Trip.objects.filter(
                 Q(id=self.id)
                 | Q(
-                    code_filter,
                     calendar_filter,
                     route_filter,
-                    Q(start__gte=self.end) | Q(end__lte=self.start),
-                    ~Q(destination_id=self.destination_id),
-                    block=self.block,
                     inbound=self.inbound,
                     operator_id=self.operator_id,
                 )
             )
+            .select_related("route")
+            .annotate(
+                first_stop=Subquery(stops.order_by("id")[:1]),
+                last_stop=Subquery(stops.order_by("-id")[:1]),
+            )
             .order_by("start")
-            .distinct("start")
         )
-        no_minutes = timedelta()
-        fifteen_minutes = timedelta(minutes=15)
-        trips_list = []
-        for trip_a, trip_b in pairwise(trips):
-            if no_minutes <= trip_b.start - trip_a.end < fifteen_minutes:
-                if not trips_list:
-                    trips_list.append(trip_a)
-                trips_list.append(trip_b)
-            elif self in trips_list:
-                return trips_list
-            else:
-                trips_list = []
-        if self in trips_list:
-            return trips_list
+        for chain in chain_split_trips(
+            list(trips), lambda trip: (trip.first_stop, trip.last_stop)
+        ):
+            if any(trip.id == self.id for trip in chain):
+                return chain
         return [self]
 
 
