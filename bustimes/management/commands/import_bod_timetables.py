@@ -181,10 +181,16 @@ def bus_open_data(api_key, specific_operator):
 
     for params in get_bus_open_data_paramses(timetable_data_sources, api_key):
         url = f"{url_prefix}/api/v1/dataset/"
+        request_params = params
+        if "datasetID" in params:
+            request_params = params.copy()
+            url += f"{request_params.pop('datasetID')[0]}/"
         while url:
-            response = session.get(url, params=params, timeout=61)
+            response = session.get(url, params=request_params, timeout=61)
             response.raise_for_status()
             json = response.json()
+            if "datasetID" in params:
+                json = {"results": [json], "next": None}
             results = json["results"]
             if not results:
                 logger.warning(f"no results: {response.url}")
