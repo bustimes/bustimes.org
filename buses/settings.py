@@ -197,6 +197,14 @@ if REDIS_URL:
                 "hosts": [{"address": REDIS_URL, "socket_timeout": 10}],
             },
         },
+        "bod_avl": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [{"address": REDIS_URL, "socket_timeout": 10}],
+                "capacity": 1000,
+                "expiry": 120,
+            },
+        },
     }
 
 STATIC_URL = "/static/"

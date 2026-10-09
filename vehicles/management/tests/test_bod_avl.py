@@ -5,6 +5,8 @@ from unittest import mock
 
 import fakeredis
 import time_machine
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.test import TestCase, override_settings
 from vcr import use_cassette
 
@@ -720,6 +722,52 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         self.assertEqual("502_-_DK09_DZH", vehicle.code)
         self.assertEqual("502", vehicle.fleet_code)
         self.assertEqual("502", vehicle.fleet_number)
+
+    @override_settings(
+        CHANNEL_LAYERS={"bod_avl": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+    )
+    def test_shards(self):
+        item = {
+            "RecordedAtTime": "2020-11-28T12:58:25+00:00",
+            "MonitoredVehicleJourney": {
+                "LineRef": "146",
+                "VehicleRef": "BB62_BUS",
+                "OperatorRef": "BDRB",
+                "DirectionRef": "inbound",
+                "VehicleLocation": {"Latitude": "52.62269", "Longitude": "1.296443"},
+                "VehicleJourneyRef": "146_20201128_12_58",
+            },
+        }
+
+        fetcher = import_bod_avl.Command()
+        fetcher.source = self.source
+        fetcher.source.datetime = datetime(2020, 11, 28, 12, 58, 30, tzinfo=UTC)
+        fetcher.shards = 2
+        fetcher.duplicate_vehicles = set()
+        identity = fetcher.get_vehicle_identity(item)
+
+        fetcher.handle_items([item], [identity])
+        self.assertFalse(VehicleJourney.objects.exists())
+
+        shard = fetcher.get_shard(identity, 2)
+        message = async_to_sync(get_channel_layer("bod_avl").receive)(
+            f"bod_avl.{shard}"
+        )
+        self.assertEqual(message["identities"], [identity])
+
+        worker = import_bod_avl.Command()
+        worker.source = self.source
+        with (
+            patch_redis_client(),
+            mock.patch(
+                "vehicles.management.import_live_vehicles.get_channel_layer",
+                return_value=None,
+            ),
+        ):
+            worker.handle_message(message)
+
+        journey = VehicleJourney.objects.get()
+        self.assertEqual(journey.route_name, "146")
 
     def test_trip_after_midnight_matched_later(self):
         """journey created with no trip, matched to an after-midnight trip

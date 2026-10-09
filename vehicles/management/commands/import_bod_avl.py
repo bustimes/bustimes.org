@@ -1,16 +1,21 @@
+import asyncio
 import contextlib
 import functools
 import io
 import logging
 import re
 import zipfile
-from collections import Counter
+import zlib
+from collections import Counter, defaultdict
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
+from itertools import batched
 from time import monotonic
 
 import requests
 import sentry_sdk
+from asgiref.sync import async_to_sync, sync_to_async
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.cache import cache
@@ -149,6 +154,68 @@ class Command(ImportLiveVehiclesCommand):
         self.last_modified = None
         self.not_modified = False
         self.fetched_at = None
+        self.shards = 0
+
+    @staticmethod
+    def add_arguments(parser):
+        parser.add_argument("--immediate", action="store_true")
+        parser.add_argument(
+            "--shards", type=int, default=0, help="fetch, and send items to workers"
+        )
+        parser.add_argument("--shard", type=int, help="handle items for one shard")
+
+    def handle(self, immediate=False, shards=0, shard=None, *args, **options):
+        if shard is not None:
+            self.do_source()
+            asyncio.run(self.run_worker(shard))
+        else:
+            self.shards = shards
+            super().handle(immediate, *args, **options)
+
+    @staticmethod
+    def get_shard(vehicle_identity, shards):
+        # not hash() - that's randomised per process
+        return zlib.crc32(vehicle_identity.encode()) % shards
+
+    def handle_items(self, items, identities):
+        if not self.shards:
+            return super().handle_items(items, identities)
+
+        sharded = defaultdict(list)
+        for item, identity in zip(items, identities):
+            sharded[self.get_shard(identity, self.shards)].append((item, identity))
+            self.identifiers[identity] = self.get_item_identity(item)
+
+        send = async_to_sync(get_channel_layer("bod_avl").send)
+        for shard, shard_items in sharded.items():
+            for chunk in batched(shard_items, 500):
+                send(
+                    f"bod_avl.{shard}",
+                    {
+                        "type": "bod_avl.items",
+                        "datetime": self.source.datetime.isoformat(),
+                        "items": [item for item, _ in chunk],
+                        "identities": [identity for _, identity in chunk],
+                        "duplicates": [
+                            identity
+                            for _, identity in chunk
+                            if identity in self.duplicate_vehicles
+                        ],
+                    },
+                )
+
+    def handle_message(self, message):
+        self.source.datetime = datetime.fromisoformat(message["datetime"])
+        self.duplicate_vehicles = set(message["duplicates"])
+        with cache_routes():
+            super().handle_items(message["items"], message["identities"])
+
+    async def run_worker(self, shard):
+        channel_layer = get_channel_layer("bod_avl")
+        handle_message = sync_to_async(self.handle_message, thread_sensitive=True)
+        while True:
+            message = await channel_layer.receive(f"bod_avl.{shard}")
+            await handle_message(message)
 
     @staticmethod
     def get_datetime(item):
@@ -636,9 +703,7 @@ class Command(ImportLiveVehiclesCommand):
         if self.last_modified:
             headers["if-modified-since"] = http_date(self.last_modified.timestamp())
 
-        response = self.session.get(
-            self.source.url, headers=headers, timeout=(11, 31)
-        )
+        response = self.session.get(self.source.url, headers=headers, timeout=(11, 31))
         self.fetched_at = timezone.now()
 
         self.not_modified = response.status_code == HTTPStatus.NOT_MODIFIED
@@ -857,7 +922,6 @@ class Command(ImportLiveVehiclesCommand):
                 unit="second",
                 attributes=attributes,
             )
-
 
             # BODS `create_siri_zip` runs every 10 seconds
             # - aim for just after the next run
