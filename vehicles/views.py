@@ -70,7 +70,7 @@ from .models import (
     VehicleRevisionFeature,
 )
 from .rtpi import add_progress_and_delay
-from .tasks import handle_siri_post
+from .tasks import queue_siri_post
 from .utils import apply_revision, get_revision, redis_client
 
 logger = logging.getLogger(__name__)
@@ -1201,7 +1201,7 @@ def siri_post(request, uuid):
     body = request.body.decode()
     data = xmltodict.parse(body, force_list=["VehicleActivity"])
 
-    handle_siri_post(uuid, data)
+    queue_siri_post(uuid, data)
 
     cache.set(last_post_key, {"headers": request.headers, "body": body}, None)
 
@@ -1259,7 +1259,7 @@ def overland(request, uuid=None):
             },
         }
 
-        handle_siri_post(
+        queue_siri_post(
             uuid,
             {
                 "Siri": {

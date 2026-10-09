@@ -3,6 +3,8 @@ import json
 import zipfile
 from datetime import datetime, timedelta
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.core.cache import cache
 from django.db import IntegrityError
@@ -30,6 +32,19 @@ def get_bod_avl_command(source: DataSource):
     command.source = source
     command.source_name = source.name
     return command
+
+
+SIRI_CHANNEL = "bod_avl.siri"
+
+
+def queue_siri_post(uuid, data: dict):
+    """for the import_bod_avl --siri worker, or else huey"""
+    if channel_layer := get_channel_layer("bod_avl"):
+        async_to_sync(channel_layer.send)(
+            SIRI_CHANNEL, {"uuid": str(uuid), "data": data}
+        )
+    else:
+        handle_siri_post(uuid, data)
 
 
 @db_task()

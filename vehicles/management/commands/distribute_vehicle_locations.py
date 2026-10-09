@@ -132,7 +132,7 @@ class Command(BaseCommand):
     async def run(self):
         channel_layer = get_channel_layer()
 
-        while True:
+        while channel_layer:
             try:
                 message = await channel_layer.receive(VEHICLE_POSITIONS_CHANNEL)
                 await self.handle_items(message["items"])

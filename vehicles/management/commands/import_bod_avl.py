@@ -163,9 +163,14 @@ class Command(ImportLiveVehiclesCommand):
             "--shards", type=int, default=0, help="fetch, and send items to workers"
         )
         parser.add_argument("--shard", type=int, help="handle items for one shard")
+        parser.add_argument("--siri", action="store_true", help="handle SIRI posts")
 
-    def handle(self, immediate=False, shards=0, shard=None, *args, **options):
-        if shard is not None:
+    def handle(
+        self, immediate=False, shards=0, shard=None, siri=False, *args, **options
+    ):
+        if siri:
+            asyncio.run(self.run_siri_worker())
+        elif shard is not None:
             self.do_source()
             asyncio.run(self.run_worker(shard))
         else:
@@ -215,7 +220,23 @@ class Command(ImportLiveVehiclesCommand):
         handle_message = sync_to_async(self.handle_message, thread_sensitive=True)
         while True:
             message = await channel_layer.receive(f"bod_avl.{shard}")
-            await handle_message(message)
+            try:
+                await handle_message(message)
+            except Exception:
+                logger.exception("error handling items")
+
+    @staticmethod
+    async def run_siri_worker():
+        from ...tasks import SIRI_CHANNEL, handle_siri_post
+
+        channel_layer = get_channel_layer("bod_avl")
+        handle = sync_to_async(handle_siri_post.call_local, thread_sensitive=True)
+        while True:
+            message = await channel_layer.receive(SIRI_CHANNEL)
+            try:
+                await handle(message["uuid"], message["data"])
+            except Exception:
+                logger.exception("error handling SIRI post")
 
     @staticmethod
     def get_datetime(item):
