@@ -721,6 +721,60 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         self.assertEqual("502", vehicle.fleet_code)
         self.assertEqual("502", vehicle.fleet_number)
 
+    def test_trip_after_midnight_matched_later(self):
+        """journey created with no trip, matched to an after-midnight trip
+        by a later item - the date should be corrected to the service date"""
+        service = Service.objects.get(line_name="U")
+        route = Route.objects.create(service=service, source=self.source, code="u2")
+        trip = Trip.objects.create(
+            route=route, start="27:10:00", end="27:40:00", ticket_machine_code="1148"
+        )
+
+        command = import_bod_avl.Command()
+        command.source = self.source
+
+        def item(recorded_at, origin_aimed_departure_time=None):
+            mvj = {
+                "LineRef": "U",
+                "VehicleRef": "MF74NUO",
+                "OperatorRef": "WHIP",
+                "DirectionRef": "inbound",
+                "VehicleLocation": {"Latitude": "53.409849", "Longitude": "-2.219291"},
+                "PublishedLineName": "U",
+                "FramedVehicleJourneyRef": {
+                    "DataFrameRef": "2020-10-17",
+                    "DatedVehicleJourneyRef": "0310",
+                },
+            }
+            if origin_aimed_departure_time:
+                mvj["OriginAimedDepartureTime"] = origin_aimed_departure_time
+            return {"RecordedAtTime": recorded_at, "MonitoredVehicleJourney": mvj}
+
+        with (
+            patch_redis_client(),
+            mock.patch(
+                "vehicles.management.import_live_vehicles.get_channel_layer",
+                return_value=None,
+            ),
+        ):
+            # no OriginAimedDepartureTime - no trip matched
+            with time_machine.travel("2020-10-17T02:00:49+00:00", tick=False):
+                command.handle_item(item("2020-10-17T02:00:49+00:00"))
+                command.save()
+            journey = VehicleJourney.objects.get()
+            self.assertIsNone(journey.trip_id)
+            self.assertEqual(str(journey.date), "2020-10-17")
+
+            with time_machine.travel("2020-10-17T02:08:26+00:00", tick=False):
+                command.handle_item(
+                    item("2020-10-17T02:08:26+00:00", "2020-10-17T02:10:00+00:00")
+                )
+                command.save()
+
+        journey = VehicleJourney.objects.get()
+        self.assertEqual(journey.trip_id, trip.id)
+        self.assertEqual(str(journey.date), "2020-10-16")
+
     @time_machine.travel("2021-03-05T14:20:40+00:00")
     def test_handle_extensions(self):
         command = import_bod_avl.Command()
