@@ -44,6 +44,7 @@ from vehicles.forms import DateForm, TripUpdatesFeedForm
 from vehicles.models import Vehicle, VehicleJourney
 from vehicles.rtpi import add_progress_and_delay
 
+from .formatting import format_timedelta
 from .forms import UploadGTFSForm
 from .gtfs_utils import handle_gtfs_upload
 from .models import BankHolidayDate, Route, RouteLink, StopTime, Trip
@@ -637,16 +638,28 @@ def operator_blocks(request, slug):
 
     trips = trips.active_on(date).order_by("block", "start")
 
+    timescale = []
+
     if trips:
         start = min(trip.start.total_seconds() for trip in trips)
         end = max(trip.end.total_seconds() for trip in trips)
         length_of_day = end - start
 
+        time = start
+        while time <= end:
+            timescale.append(
+                {
+                    "time": format_timedelta(timedelta(seconds=time), True),
+                    "left": int((time - start) / length_of_day * 3000),
+                }
+            )
+            time = time + 3600
+
     blocks = defaultdict(list)
 
     for trip in trips:
-        trip.left = int((trip.start.total_seconds() - start) / length_of_day * 2000)
-        trip.width = int((trip.end - trip.start).total_seconds() / length_of_day * 2000)
+        trip.left = int((trip.start.total_seconds() - start) / length_of_day * 3000)
+        trip.width = int((trip.end - trip.start).total_seconds() / length_of_day * 3000)
 
         if trip.block:
             blocks[trip.block].append(trip)
@@ -655,6 +668,7 @@ def operator_blocks(request, slug):
         "object": operator,
         "breadcrumb": [operator],
         "date": date,
+        "timescale": timescale,
         "blocks": dict(blocks),
     }
 

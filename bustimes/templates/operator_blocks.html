@@ -20,6 +20,20 @@
         overflow: auto;
     }
 
+    .timescale {
+        top: 0;
+        position: sticky;
+        height: 2em;
+        left: 3em;
+        width: 3000px;
+    }
+
+    .timescale .time {
+        position: absolute;
+        border-left: 1px solid var(--border-color);
+        padding: 0 0 .5em .5em;
+    }
+
     .blocks {
         width: 100%;
     }
@@ -50,20 +64,25 @@
 </style>
 
 <div class="blocks-wrapper">
-<div class="blocks">
-    {% for block, trips in blocks.items %}
-        <div class="block">
-            <a href="{{ trips.0.get_absolute_url }}/block">{{ block }}</a>
-            <div class="trips">
-                {% for trip in trips %}
-                    <div class="trip" style="left: {{ trip.left }}px; width: {{ trip.width }}px">
-                        <a href="{{ trip.get_absolute_url }}">{{ trip.route.line_name }}</a>
-                    </div>
-                {% endfor %}
+    <div class="timescale">
+        {% for time in timescale %}
+            <div class="time" style="left: {{ time.left }}px;">{{ time.time }}</div>
+        {% endfor %}
+    </div>
+    <div class="blocks" style="width: 3048px">
+        {% for block, trips in blocks.items %}
+            <div class="block">
+                <a href="{{ trips.0.get_absolute_url }}/block">{{ block }}</a>
+                <div class="trips">
+                    {% for trip in trips %}
+                        <div class="trip" style="left: {{ trip.left }}px; width: {{ trip.width }}px">
+                            <a href="{{ trip.get_absolute_url }}">{{ trip.route.line_name }}</a>
+                        </div>
+                    {% endfor %}
+                </div>
             </div>
-        </div>
-    {% endfor %}
-</div>
+        {% endfor %}
+    </div>
 </div>
 
 {% endblock content %}
