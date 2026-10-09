@@ -97,6 +97,7 @@ omit =  ["*/migrations/*"]
 
 [tool.ruff]
 unsafe-fixes = true
+extend-exclude = ["migrations"]
 
 [tool.ruff.lint]
 extend-select = ["SIM117"]
