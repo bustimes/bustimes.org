@@ -409,9 +409,14 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 # a source that doesn't already tell us the delay itself -
                 # work it out from the trip's stop times, so pages that want
                 # it don't have to do this on every request
-                modified_at = None
-                if VehicleJourney.service.is_cached(location.journey):
-                    modified_at = getattr(location.journey.service, "modified_at", None)
+                if (
+                    VehicleJourney.service.is_cached(location.journey)
+                    and location.journey.service
+                ):
+                    modified_at = location.journey.service.modified_at
+                else:
+                    # unlikely to have changed mid-journey
+                    modified_at = rtpi.UNKNOWN
                 try:
                     rtpi.add_progress_and_delay(
                         redis_json,

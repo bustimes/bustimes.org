@@ -64,6 +64,9 @@ STOP_TIMES_CACHE_MAXSIZE = 25_000
 
 _stop_times_cache: OrderedDict[int, tuple[tuple, Trip, list]] = OrderedDict()
 
+# service modified_at not known - reuse whatever is cached
+UNKNOWN = object()
+
 
 def _fetch_stop_times(trip_id, date):
     trip = Trip.objects.select_related("calendar", "route").get(pk=trip_id)
@@ -90,11 +93,18 @@ def get_stop_times(trip_id, date, modified_at=None):
     if modified_at is None:
         return _fetch_stop_times(trip_id, date)
 
-    version = (modified_at, date)
     entry = _stop_times_cache.get(trip_id)
-    if entry and entry[0] == version:
+    if (
+        entry
+        and entry[0][1] == date
+        and (modified_at is UNKNOWN or entry[0][0] == modified_at)
+    ):
         _stop_times_cache.move_to_end(trip_id)
         return entry[1], entry[2]
+
+    if modified_at is UNKNOWN:
+        modified_at = None
+    version = (modified_at, date)
 
     trip, stop_times = _fetch_stop_times(trip_id, date)
 

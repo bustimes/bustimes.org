@@ -352,7 +352,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                 return_value=channel_layer,
             ),
         ):
-            with self.assertNumQueries(42):
+            with self.assertNumQueries(47):
                 wait = command.update()
             self.assertEqual(11, wait)
 

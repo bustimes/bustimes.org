@@ -412,6 +412,10 @@ class ScheduleAdherenceTest(TestCase):
             rtpi.get_stop_times(trip_id, date, self.service.modified_at)
         self.assertTrue(queries)
 
+        # service not loaded - assume unchanged
+        with self.assertNumQueries(0):
+            rtpi.get_stop_times(trip_id, date, rtpi.UNKNOWN)
+
         # no modified_at - not cached
         with CaptureQueriesContext(connection) as queries:
             rtpi.get_stop_times(trip_id, date)
