@@ -3,6 +3,7 @@
 import datetime
 import logging
 import math
+from collections import OrderedDict
 from itertools import pairwise
 
 import sentry_sdk
@@ -58,7 +59,13 @@ def get_route_bearing(geometry: LineString, progress: float):
     return calculate_bearing(p1, p2)
 
 
-def get_stop_times(trip_id, date):
+# trip_id -> ((service modified_at, date), trip, stop_times)
+STOP_TIMES_CACHE_MAXSIZE = 25_000
+
+_stop_times_cache: OrderedDict[int, tuple[tuple, Trip, list]] = OrderedDict()
+
+
+def _fetch_stop_times(trip_id, date):
     trip = Trip.objects.select_related("calendar", "route").get(pk=trip_id)
     trips = trip.get_parts(date)
 
@@ -71,7 +78,31 @@ def get_stop_times(trip_id, date):
     )
 
     if len(trips) > 1:
-        return trip, contiguous_stoptimes_only(stop_times, trip.id)
+        stop_times = contiguous_stoptimes_only(stop_times, trip.id)
+    else:
+        stop_times = list(stop_times)
+
+    return trip, stop_times
+
+
+def get_stop_times(trip_id, date, modified_at=None):
+    """Reuse stop times until the service is reimported (if modified_at is known)"""
+    if modified_at is None:
+        return _fetch_stop_times(trip_id, date)
+
+    version = (modified_at, date)
+    entry = _stop_times_cache.get(trip_id)
+    if entry and entry[0] == version:
+        _stop_times_cache.move_to_end(trip_id)
+        return entry[1], entry[2]
+
+    trip, stop_times = _fetch_stop_times(trip_id, date)
+
+    if stop_times:
+        _stop_times_cache[trip_id] = (version, trip, stop_times)
+        _stop_times_cache.move_to_end(trip_id)
+        if len(_stop_times_cache) > STOP_TIMES_CACHE_MAXSIZE:
+            _stop_times_cache.popitem(last=False)
 
     return trip, stop_times
 
@@ -128,7 +159,12 @@ def get_delay(progress, date, when, tzinfo=None) -> int | None:
 
 
 def get_progress(
-    item: dict, stop_time=None, stop_times=None, tzinfo=None
+    item: dict,
+    stop_time=None,
+    stop_times=None,
+    tzinfo=None,
+    use_route_links=True,
+    modified_at=None,
 ) -> Progress | None:
     when = datetime.datetime.fromisoformat(item["datetime"])
     date = datetime.date.fromisoformat(item["date"])
@@ -147,7 +183,7 @@ def get_progress(
         ]
     elif "trip_id" in item:
         try:
-            trip, stop_times = get_stop_times(item["trip_id"], date)
+            trip, stop_times = get_stop_times(item["trip_id"], date, modified_at)
         except Trip.DoesNotExist:
             return
         stop_times = list(stop_times)
@@ -158,7 +194,7 @@ def get_progress(
         return
 
     route_links = {}
-    if "service_id" in item:
+    if use_route_links and "service_id" in item:
         for rl in RouteLink.objects.filter(
             service=item["service_id"],
             geometry__dwithin=(point, 0.01),  # ~1km in degrees
@@ -262,8 +298,17 @@ def get_progress(
     return progress
 
 
-def add_progress_and_delay(item, stop_time=None, stop_times=None, tzinfo=None):
-    progress = get_progress(item, stop_time, stop_times, tzinfo)
+def add_progress_and_delay(
+    item,
+    stop_time=None,
+    stop_times=None,
+    tzinfo=None,
+    use_route_links=True,
+    modified_at=None,
+):
+    progress = get_progress(
+        item, stop_time, stop_times, tzinfo, use_route_links, modified_at
+    )
     if not progress:
         return
 

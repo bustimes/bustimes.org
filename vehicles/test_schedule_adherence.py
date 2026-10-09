@@ -1,15 +1,20 @@
+import datetime
 import json
 from unittest.mock import patch
 
 import fakeredis
 import time_machine
+from django.contrib.gis.geos import Point
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 
 from busstops.models import DataSource, Service, StopPoint, StopUsage
 from bustimes.models import Calendar, Route, StopTime, Trip
 
 from . import rtpi
-from .models import VehicleJourney
+from .management.import_live_vehicles import ImportLiveVehiclesCommand
+from .models import Vehicle, VehicleJourney, VehicleLocation
 
 
 class ScheduleAdherenceTest(TestCase):
@@ -386,3 +391,69 @@ class ScheduleAdherenceTest(TestCase):
             response_json = self.client.get("/stops/210021509680/times.json").json()
             self.assertNotIn("delay", response_json["times"][0])
             self.assertNotIn("expected_departure_time", response_json["times"][0])
+
+    def test_get_stop_times_cache(self):
+        trip_id = self.journey.trip_id
+        date = datetime.date.fromisoformat(str(self.journey.date))
+
+        rtpi.get_stop_times(trip_id, date, self.service.modified_at)
+
+        with self.assertNumQueries(0):
+            trip, stop_times = rtpi.get_stop_times(
+                trip_id, date, self.service.modified_at
+            )
+
+        self.assertEqual(trip.id, trip_id)
+        self.assertEqual(16, len(stop_times))
+
+        # service reimported
+        self.service.save()
+        with CaptureQueriesContext(connection) as queries:
+            rtpi.get_stop_times(trip_id, date, self.service.modified_at)
+        self.assertTrue(queries)
+
+        # no modified_at - not cached
+        with CaptureQueriesContext(connection) as queries:
+            rtpi.get_stop_times(trip_id, date)
+        self.assertTrue(queries)
+
+    @time_machine.travel("2023-08-31T09:50:07Z")
+    def test_save_computes_progress_and_delay(self):
+        vehicle = Vehicle.objects.create(code="T1")
+
+        # a fresh journey (not cls.journey, which other tests share and
+        # whose date would give a nonsensical delay against this datetime)
+        journey = VehicleJourney.objects.create(
+            trip=self.journey.trip,
+            service=self.service,
+            datetime="2023-08-31T09:50:07Z",
+            date=datetime.date.fromisoformat("2023-08-31"),
+            source=DataSource.objects.create(),
+        )
+
+        location = VehicleLocation(Point(-0.326838, 51.750598, srid=4326))
+        location.datetime = datetime.datetime.fromisoformat("2023-08-31T09:50:07Z")
+        location.journey = journey
+        location.id = vehicle.id
+
+        command = ImportLiveVehiclesCommand()
+        command.source = DataSource.objects.create()
+        command.source.datetime = None  # so save() doesn't treat this as stale
+        command.to_save = [(location, vehicle)]
+
+        redis_client = fakeredis.FakeStrictRedis(version=7)
+
+        with (
+            patch(
+                "vehicles.management.import_live_vehicles.redis_client", redis_client
+            ),
+            patch(
+                "vehicles.management.import_live_vehicles.get_channel_layer",
+                return_value=None,
+            ),
+        ):
+            command.save()
+
+        redis_json = json.loads(redis_client.get(f"vehicle{vehicle.id}"))
+        self.assertEqual(redis_json["progress"]["progress"], 1)
+        self.assertEqual(redis_json["delay"], 847)

@@ -22,6 +22,7 @@ from tenacity import before_sleep_log, retry, wait_exponential
 from busstops.models import DataSource
 from bustimes.models import Route, Trip
 
+from .. import rtpi
 from ..models import Vehicle, VehicleCode, VehicleJourney
 from ..utils import VEHICLE_POSITIONS_CHANNEL, calculate_bearing, redis_client
 
@@ -84,6 +85,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
         self.session = requests.Session()
         self.status = []
         self.to_save = []
+        self.eager_progress = True
         self.journeys_to_create = {}
         self.journeys_to_update = []
         self.vehicles_to_update = []
@@ -399,6 +401,26 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 location.journey.trip = None
 
             redis_json = location.get_redis_json(tz=self.tzinfo)
+            if (
+                self.eager_progress
+                and "trip_id" in redis_json
+                and "delay" not in redis_json
+            ):
+                # a source that doesn't already tell us the delay itself -
+                # work it out from the trip's stop times, so pages that want
+                # it don't have to do this on every request
+                modified_at = None
+                if VehicleJourney.service.is_cached(location.journey):
+                    modified_at = getattr(location.journey.service, "modified_at", None)
+                try:
+                    rtpi.add_progress_and_delay(
+                        redis_json,
+                        tzinfo=self.tzinfo,
+                        use_route_links=False,
+                        modified_at=modified_at,
+                    )
+                except Exception:
+                    logger.exception("error calculating progress and delay")
             items.append(redis_json)
             pipeline.set(
                 f"vehicle{vehicle.id}",
@@ -578,6 +600,9 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 changed_item_identities.append(vehicle_identity)
 
             self.journeys_ids[vehicle_identity] = journey_identity
+
+        # if not too many vehicles are tracking, try pre-calculating progress and delay
+        self.eager_progress = len(changed_items) + len(changed_journey_items) <= 5000
 
         return (
             changed_items,
