@@ -125,6 +125,41 @@
 </details>
 {% endfor %}
 
+{% if worker_statuses %}
+<details>
+<summary>bod_avl workers</summary>
+
+<table class="tabular">
+    <thead class="sticky">
+        <tr>
+            <th scope="col">Shard</th>
+            <th scope="col">Started at</th>
+            <th scope="col">Age</th>
+            <th scope="col">Items</th>
+            <th scope="col">Time taken</th>
+            <th scope="col">Queries</th>
+            <th scope="col">Routes cached</th>
+            <th scope="col">Stop times cached</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in worker_statuses %}
+            <tr>
+                <td>{{ item.shard }}</td>
+                <td>{{ item.started_at|date:'H:i:s' }}</td>
+                <td>{{ item.age.total_seconds|floatformat:1 }}</td>
+                <td>{{ item.items|intcomma }}</td>
+                <td>{{ item.time_taken|floatformat:2 }}</td>
+                <td>{{ item.queries|intcomma }}</td>
+                <td>{{ item.routes_hits }}/{{ item.routes_hits|add:item.routes_misses }}</td>
+                <td>{{ item.stop_times_hits }}/{{ item.stop_times_hits|add:item.stop_times_misses }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</details>
+{% endif %}
+
 <h2>Timetables</h2>
 
 <svg id="timetables" width="792" height="800"></svg>

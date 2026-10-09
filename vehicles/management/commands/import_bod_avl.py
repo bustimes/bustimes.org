@@ -6,7 +6,7 @@ import logging
 import re
 import zipfile
 import zlib
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, namedtuple
 from datetime import UTC, datetime, timedelta
 from http import HTTPStatus
 from itertools import batched
@@ -18,7 +18,6 @@ from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import get_channel_layer
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
-from django.core.cache import cache
 from django.db import IntegrityError, connection
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
@@ -37,7 +36,25 @@ from bustimes.models import Route, Trip
 from bustimes.utils import cache_routes
 
 from ...models import Vehicle, VehicleJourney, VehicleLocation
+from ...rtpi import stop_times_cache_stats
+from ...utils import append_status
 from ..import_live_vehicles import ImportLiveVehiclesCommand, Status
+
+WorkerStatus = namedtuple(
+    "WorkerStatus",
+    (
+        "shard",
+        "started_at",
+        "age",
+        "items",
+        "time_taken",
+        "queries",
+        "routes_hits",
+        "routes_misses",
+        "stop_times_hits",
+        "stop_times_misses",
+    ),
+)
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +172,7 @@ class Command(ImportLiveVehiclesCommand):
         self.not_modified = False
         self.fetched_at = None
         self.shards = 0
+        self.shard = None
 
     @staticmethod
     def add_arguments(parser):
@@ -171,6 +189,7 @@ class Command(ImportLiveVehiclesCommand):
         if siri:
             asyncio.run(self.run_siri_worker())
         elif shard is not None:
+            self.shard = shard
             self.do_source()
             asyncio.run(self.run_worker(shard))
         else:
@@ -210,10 +229,30 @@ class Command(ImportLiveVehiclesCommand):
                 )
 
     def handle_message(self, message):
+        started = timezone.now()
         self.source.datetime = datetime.fromisoformat(message["datetime"])
         self.duplicate_vehicles = set(message["duplicates"])
-        with cache_routes():
+        queries = QueryCounter()
+        stop_times_cache_stats.clear()
+        with cache_routes() as routes_cache, connection.execute_wrapper(queries):
             super().handle_items(message["items"], message["identities"])
+
+        append_status(
+            "bod_avl_workers_status",
+            WorkerStatus(
+                self.shard,
+                started,
+                started - self.source.datetime,
+                len(message["items"]),
+                (timezone.now() - started).total_seconds(),
+                queries.count,
+                routes_cache.hits,
+                routes_cache.misses,
+                stop_times_cache_stats["hits"],
+                stop_times_cache_stats["misses"],
+            ),
+            maxlen=200,
+        )
 
     async def run_worker(self, shard):
         channel_layer = get_channel_layer("bod_avl")
@@ -914,32 +953,27 @@ class Command(ImportLiveVehiclesCommand):
                 f"{dict(queries.tables.most_common(6))}"
             )
 
-            # stats for last 50 updates:
-            bod_status = cache.get("bod_avl_status", [])
-            bod_status.append(
-                Status(
-                    self.fetched_at,
-                    self.source.datetime,
-                    self.fetched_at - self.source.datetime,
-                    total_items,
-                    len(changed_items) + len(changed_journey_items),
-                    time_taken,
-                    self.last_modified,
-                )
+            status = Status(
+                self.fetched_at,
+                self.source.datetime,
+                self.fetched_at - self.source.datetime,
+                total_items,
+                len(changed_items) + len(changed_journey_items),
+                time_taken,
+                self.last_modified,
             )
-            bod_status = bod_status[-50:]
-            cache.set("bod_avl_status", bod_status, 800)
+            append_status("bod_avl_status", status)
 
             attributes = {"source": self.source_name}
 
             sentry_sdk.metrics.count(
-                "vehicle_locations", bod_status[-1].changed_items, attributes=attributes
+                "vehicle_locations", status.changed_items, attributes=attributes
             )
 
             # how stale the data was when we got it - the number that matters
             sentry_sdk.metrics.gauge(
                 "avl_age",
-                bod_status[-1].age.total_seconds(),
+                status.age.total_seconds(),
                 unit="second",
                 attributes=attributes,
             )
@@ -954,7 +988,7 @@ class Command(ImportLiveVehiclesCommand):
                 logger.info(
                     f"last-modified={self.last_modified:%H:%M:%S}	"
                     f"ResponseTimestamp={self.source.datetime:%H:%M:%S}	"
-                    f"age={bod_status[-1].age.total_seconds():.1f}	"
+                    f"age={status.age.total_seconds():.1f}	"
                     f"{since=:.1f} {wait=:.1f}\n	"
                 )
             else:

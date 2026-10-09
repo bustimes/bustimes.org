@@ -3,7 +3,7 @@
 import datetime
 import logging
 import math
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from itertools import pairwise
 
 import sentry_sdk
@@ -63,6 +63,7 @@ def get_route_bearing(geometry: LineString, progress: float):
 STOP_TIMES_CACHE_MAXSIZE = 25_000
 
 _stop_times_cache: OrderedDict[int, tuple[tuple, Trip, list]] = OrderedDict()
+stop_times_cache_stats = Counter()
 
 # service modified_at not known - reuse whatever is cached
 UNKNOWN = object()
@@ -100,7 +101,10 @@ def get_stop_times(trip_id, date, modified_at=None):
         and (modified_at is UNKNOWN or entry[0][0] == modified_at)
     ):
         _stop_times_cache.move_to_end(trip_id)
+        stop_times_cache_stats["hits"] += 1
         return entry[1], entry[2]
+
+    stop_times_cache_stats["misses"] += 1
 
     if modified_at is UNKNOWN:
         modified_at = None

@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
@@ -24,15 +25,21 @@ from busstops.models import (
 from bustimes.models import Calendar, Garage, Route, StopTime, Trip
 
 from ...models import Livery, Vehicle, VehicleJourney
+from ...utils import get_statuses
 from ..commands import distribute_vehicle_locations, import_bod_avl
 
 
+@contextmanager
 def patch_redis_client(redis_client=None):
     if redis_client is None:
         redis_client = fakeredis.FakeStrictRedis(version=7)
-    return mock.patch(
-        "vehicles.management.import_live_vehicles.redis_client", redis_client
-    )
+    with (
+        mock.patch(
+            "vehicles.management.import_live_vehicles.redis_client", redis_client
+        ),
+        mock.patch("vehicles.utils.redis_client", redis_client),
+    ):
+        yield redis_client
 
 
 class CapturingChannelLayer:
@@ -189,19 +196,19 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         command.source = self.source
         # command.get_operator.cache_clear()
 
-        with override_settings(
-            CACHES={
-                "default": {
-                    "BACKEND": "django.core.cache.backends.redis.RedisCache",
-                    "LOCATION": "redis://",
-                    "OPTIONS": {"connection_class": fakeredis.FakeRedisConnection},
+        with (
+            override_settings(
+                CACHES={
+                    "default": {
+                        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+                        "LOCATION": "redis://",
+                        "OPTIONS": {"connection_class": fakeredis.FakeRedisConnection},
+                    }
                 }
-            }
+            ),
+            patch_redis_client(),
         ):
-            with (
-                patch_redis_client(),
-                use_cassette(str(self.vcr_path / "bod_avl.yaml")) as cassette,
-            ):
+            with use_cassette(str(self.vcr_path / "bod_avl.yaml")) as cassette:
                 command.update()
 
                 cassette.rewind()
@@ -765,6 +772,10 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             ),
         ):
             worker.handle_message(message)
+
+            (status,) = get_statuses("bod_avl_workers_status")
+        self.assertEqual(status.items, 1)
+        self.assertGreater(status.queries, 0)
 
         journey = VehicleJourney.objects.get()
         self.assertEqual(journey.route_name, "146")

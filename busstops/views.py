@@ -49,7 +49,7 @@ from departures import live
 from disruptions.models import Consequence, Situation
 from fares.models import FareTable
 from vehicles.models import Vehicle, VehicleJourney
-from vehicles.utils import redis_client
+from vehicles.utils import get_statuses, redis_client
 from vosa.models import Registration
 
 from . import forms
@@ -341,11 +341,10 @@ def status(request):
         ),
     }
 
-    context["statuses"] = cache.get_many(
+    statuses = {"bod_avl_status": get_statuses("bod_avl_status")} | cache.get_many(
         [
             f"{key}_status"
             for key in (
-                "bod_avl",
                 "Transport_for_Wales",
                 "Bus_Open_Data",
                 "Todd's_Travel",
@@ -359,7 +358,9 @@ def status(request):
                 "jersey",
             )
         ]
-    ).items()
+    )
+    context["statuses"] = statuses.items()
+    context["worker_statuses"] = get_statuses("bod_avl_workers_status")
 
     return render(
         request,

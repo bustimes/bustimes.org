@@ -1,4 +1,5 @@
 import math
+import pickle
 
 import redis.asyncio
 from django.conf import settings
@@ -18,6 +19,24 @@ if redis_client:
     )
 else:
     async_redis_client = None
+
+
+def append_status(key, status, maxlen=50):
+    """a bounded list, safe for several processes to append to"""
+    if not redis_client:
+        return
+    pipeline = redis_client.pipeline(transaction=False)
+    pipeline.rpush(key, pickle.dumps(status))
+    pipeline.ltrim(key, -maxlen, -1)
+    pipeline.expire(key, 800)
+    pipeline.execute()
+
+
+def get_statuses(key) -> list:
+    if not redis_client:
+        return []
+    return [pickle.loads(status) for status in redis_client.lrange(key, 0, -1)]
+
 
 # channel that import_live_vehicles sends batches of updated vehicle locations to,
 # for the distribute_vehicle_locations worker to fan out to websocket groups
