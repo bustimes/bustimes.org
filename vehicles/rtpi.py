@@ -60,7 +60,7 @@ def get_route_bearing(geometry: LineString, progress: float):
 
 
 # trip_id -> ((service modified_at, date), trip, stop_times)
-STOP_TIMES_CACHE_MAXSIZE = 25_000
+STOP_TIMES_CACHE_MAXSIZE = 6_000
 
 _stop_times_cache: OrderedDict[int, tuple[tuple, Trip, list]] = OrderedDict()
 stop_times_cache_stats = Counter()
