@@ -4,6 +4,7 @@ import functools
 import io
 import logging
 import re
+import uuid
 import zipfile
 import zlib
 from collections import Counter, defaultdict, namedtuple
@@ -35,6 +36,7 @@ from busstops.models import (
 from bustimes.models import Route, Trip
 from bustimes.utils import cache_routes
 
+from ... import utils
 from ...models import Vehicle, VehicleJourney, VehicleLocation
 from ...rtpi import stop_times_cache_stats
 from ...utils import append_status
@@ -173,7 +175,7 @@ class Command(ImportLiveVehiclesCommand):
         self.fetched_at = None
         self.shards = 0
         self.shard = None
-        self.reply_channel = None
+        self.reply_key = f"bod_avl_done:{uuid.uuid4()}"
         self.cycle = 0
         self.pending = 0
 
@@ -213,10 +215,7 @@ class Command(ImportLiveVehiclesCommand):
             sharded[self.get_shard(identity, self.shards)].append((item, identity))
             self.identifiers[identity] = self.get_item_identity(item)
 
-        channel_layer = get_channel_layer("bod_avl")
-        if not self.reply_channel:
-            self.reply_channel = async_to_sync(channel_layer.new_channel)()
-        send = async_to_sync(channel_layer.send)
+        send = async_to_sync(get_channel_layer("bod_avl").send)
         for shard, shard_items in sharded.items():
             for chunk in batched(shard_items, 500):
                 send(
@@ -231,21 +230,22 @@ class Command(ImportLiveVehiclesCommand):
                             for _, identity in chunk
                             if identity in self.duplicate_vehicles
                         ],
-                        "reply_channel": self.reply_channel,
+                        "reply_key": self.reply_key,
                         "cycle": self.cycle,
                     },
                 )
                 self.pending += 1
 
-    async def wait_for_workers(self, timeout=60):
-        channel_layer = get_channel_layer("bod_avl")
-        try:
-            async with asyncio.timeout(timeout):
-                while self.pending:
-                    reply = await channel_layer.receive(self.reply_channel)
-                    if reply["cycle"] == self.cycle:
-                        self.pending -= 1
-        except TimeoutError:
+    def wait_for_workers(self, timeout=60):
+        # (a plain Redis list - the channel layer can't receive from a new
+        # event loop each time, as async_to_sync would give us)
+        deadline = monotonic() + timeout
+        while self.pending and (remaining := deadline - monotonic()) > 0:
+            # short blocks - the client has a 3 second socket timeout
+            reply = utils.redis_client.blpop(self.reply_key, min(remaining, 2))
+            if reply and int(reply[1]) == self.cycle:
+                self.pending -= 1
+        if self.pending:
             logger.warning(f"{self.pending} batches still pending after {timeout}s")
         self.pending = 0
         self.cycle += 1
@@ -285,14 +285,15 @@ class Command(ImportLiveVehiclesCommand):
                 await handle_message(message)
             except Exception:
                 logger.exception("error handling items")
-            await self.reply(channel_layer, message)
+            self.reply(message)
 
     @staticmethod
-    async def reply(channel_layer, message):
-        if reply_channel := message.get("reply_channel"):
-            await channel_layer.send(
-                reply_channel, {"type": "bod_avl.done", "cycle": message["cycle"]}
-            )
+    def reply(message):
+        if key := message.get("reply_key"):
+            pipeline = utils.redis_client.pipeline(transaction=False)
+            pipeline.rpush(key, message["cycle"])
+            pipeline.expire(key, 300)
+            pipeline.execute()
 
     @staticmethod
     async def run_siri_worker():
@@ -970,7 +971,7 @@ class Command(ImportLiveVehiclesCommand):
                 span.set_data("count", len(changed_journey_items))
                 self.handle_items(changed_journey_items, changed_journey_identities)
             if self.pending:
-                async_to_sync(self.wait_for_workers)()
+                self.wait_for_workers()
             journey_took = monotonic() - fetch_started - fetch_took - quick_took
             journey_queries = queries.count - fetch_queries - quick_queries
 

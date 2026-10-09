@@ -774,15 +774,16 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             worker.handle_message(message)
 
             (status,) = get_statuses("bod_avl_workers_status")
+
+            self.assertEqual(fetcher.pending, 1)
+            for cycle in range(2):
+                worker.reply(message | {"cycle": cycle})
+                fetcher.pending = 1
+                fetcher.wait_for_workers(timeout=1)
+                self.assertEqual(fetcher.pending, 0)
+                self.assertEqual(fetcher.cycle, cycle + 1)
         self.assertEqual(status.items, 1)
         self.assertGreater(status.queries, 0)
-
-        self.assertEqual(fetcher.pending, 1)
-        channel_layer = get_channel_layer("bod_avl")
-        async_to_sync(worker.reply)(channel_layer, message)
-        async_to_sync(fetcher.wait_for_workers)(timeout=1)
-        self.assertEqual(fetcher.pending, 0)
-        self.assertEqual(fetcher.cycle, 1)
 
         journey = VehicleJourney.objects.get()
         self.assertEqual(journey.route_name, "146")
