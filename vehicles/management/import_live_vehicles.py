@@ -337,6 +337,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
             "code",
             "service",
             "trip",
+            "date",
             "route_name",
             "destination",
             "direction",
