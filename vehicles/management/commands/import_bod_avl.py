@@ -173,6 +173,9 @@ class Command(ImportLiveVehiclesCommand):
         self.fetched_at = None
         self.shards = 0
         self.shard = None
+        self.reply_channel = None
+        self.cycle = 0
+        self.pending = 0
 
     @staticmethod
     def add_arguments(parser):
@@ -210,7 +213,10 @@ class Command(ImportLiveVehiclesCommand):
             sharded[self.get_shard(identity, self.shards)].append((item, identity))
             self.identifiers[identity] = self.get_item_identity(item)
 
-        send = async_to_sync(get_channel_layer("bod_avl").send)
+        channel_layer = get_channel_layer("bod_avl")
+        if not self.reply_channel:
+            self.reply_channel = async_to_sync(channel_layer.new_channel)()
+        send = async_to_sync(channel_layer.send)
         for shard, shard_items in sharded.items():
             for chunk in batched(shard_items, 500):
                 send(
@@ -225,8 +231,24 @@ class Command(ImportLiveVehiclesCommand):
                             for _, identity in chunk
                             if identity in self.duplicate_vehicles
                         ],
+                        "reply_channel": self.reply_channel,
+                        "cycle": self.cycle,
                     },
                 )
+                self.pending += 1
+
+    async def wait_for_workers(self, timeout=60):
+        channel_layer = get_channel_layer("bod_avl")
+        try:
+            async with asyncio.timeout(timeout):
+                while self.pending:
+                    reply = await channel_layer.receive(self.reply_channel)
+                    if reply["cycle"] == self.cycle:
+                        self.pending -= 1
+        except TimeoutError:
+            logger.warning(f"{self.pending} batches still pending after {timeout}s")
+        self.pending = 0
+        self.cycle += 1
 
     def handle_message(self, message):
         started = timezone.now()
@@ -263,6 +285,14 @@ class Command(ImportLiveVehiclesCommand):
                 await handle_message(message)
             except Exception:
                 logger.exception("error handling items")
+            await self.reply(channel_layer, message)
+
+    @staticmethod
+    async def reply(channel_layer, message):
+        if reply_channel := message.get("reply_channel"):
+            await channel_layer.send(
+                reply_channel, {"type": "bod_avl.done", "cycle": message["cycle"]}
+            )
 
     @staticmethod
     async def run_siri_worker():
@@ -939,6 +969,8 @@ class Command(ImportLiveVehiclesCommand):
             ):
                 span.set_data("count", len(changed_journey_items))
                 self.handle_items(changed_journey_items, changed_journey_identities)
+            if self.pending:
+                async_to_sync(self.wait_for_workers)()
             journey_took = monotonic() - fetch_started - fetch_took - quick_took
             journey_queries = queries.count - fetch_queries - quick_queries
 
