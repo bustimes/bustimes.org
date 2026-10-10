@@ -463,7 +463,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                     "sequence": 0,
                     "prev_stop": a.stop_id,
                     "next_stop": "b",
-                    "progress": 0.097,
+                    "progress": 0.093,
                 },
             )
             self.assertEqual(json[0]["delay"], 30834)
@@ -756,7 +756,8 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         fetcher.handle_items([item], [identity])
         self.assertFalse(VehicleJourney.objects.exists())
 
-        shard = fetcher.get_shard(identity, 2)
+        self.assertEqual(fetcher.get_shard_key(item, identity), "BDRB:146")
+        shard = fetcher.get_shard("BDRB:146", 2)
         message = async_to_sync(get_channel_layer("bod_avl").receive)(
             f"bod_avl.{shard}"
         )
@@ -787,6 +788,14 @@ class BusOpenDataVehicleLocationsTest(TestCase):
 
         journey = VehicleJourney.objects.get()
         self.assertEqual(journey.route_name, "146")
+
+        # on 'two journeys at once' - keep both in one worker
+        fetcher.duplicate_vehicles = {identity}
+        self.assertEqual(fetcher.get_shard_key(item, identity), identity)
+        # no line
+        fetcher.duplicate_vehicles = set()
+        del item["MonitoredVehicleJourney"]["LineRef"]
+        self.assertEqual(fetcher.get_shard_key(item, identity), identity)
 
     def test_trip_after_midnight_matched_later(self):
         """journey created with no trip, matched to an after-midnight trip

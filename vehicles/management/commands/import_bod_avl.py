@@ -202,9 +202,18 @@ class Command(ImportLiveVehiclesCommand):
             super().handle(immediate, *args, **options)
 
     @staticmethod
-    def get_shard(vehicle_identity, shards):
+    def get_shard(key, shards):
         # not hash() - that's randomised per process
-        return zlib.crc32(vehicle_identity.encode()) % shards
+        return zlib.crc32(key.encode()) % shards
+
+    def get_shard_key(self, item, vehicle_identity):
+        # by line, so each worker only needs some services' stop times and route links
+        # - but a vehicle on 'two journeys at once' must stay in one worker
+        if vehicle_identity not in self.duplicate_vehicles:
+            monitored_vehicle_journey = item["MonitoredVehicleJourney"]
+            if line_ref := monitored_vehicle_journey.get("LineRef"):
+                return f"{monitored_vehicle_journey['OperatorRef']}:{line_ref}"
+        return vehicle_identity
 
     def handle_items(self, items, identities):
         if not self.shards:
@@ -212,7 +221,8 @@ class Command(ImportLiveVehiclesCommand):
 
         sharded = defaultdict(list)
         for item, identity in zip(items, identities):
-            sharded[self.get_shard(identity, self.shards)].append((item, identity))
+            key = self.get_shard_key(item, identity)
+            sharded[self.get_shard(key, self.shards)].append((item, identity))
             self.identifiers[identity] = self.get_item_identity(item)
 
         send = async_to_sync(get_channel_layer("bod_avl").send)

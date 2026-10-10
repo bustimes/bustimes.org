@@ -318,16 +318,25 @@ class ImportLiveVehiclesCommand(BaseCommand):
         location.id = vehicle.id
         location.journey = journey
 
-        if (
-            location_unchanged
-            and json.loads(json.dumps(location.get_redis_json(tz=self.tzinfo)))
-            == latest
+        if location_unchanged and self.same_as_latest(
+            json.loads(json.dumps(location.get_redis_json(tz=self.tzinfo))), latest
         ):
             return  # nothing new
 
         self.to_save.append((location, vehicle))
 
         return location, vehicle
+
+    @staticmethod
+    def same_as_latest(redis_json, latest):
+        # ignoring the progress and delay that save() might have added
+        if "delay" not in redis_json:
+            latest = {
+                key: value
+                for key, value in latest.items()
+                if key not in ("progress", "delay")
+            }
+        return redis_json == latest
 
     def save(self):
         if not self.to_save:
@@ -422,7 +431,6 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     rtpi.add_progress_and_delay(
                         redis_json,
                         tzinfo=self.tzinfo,
-                        use_route_links=False,
                         modified_at=modified_at,
                     )
                 except Exception:

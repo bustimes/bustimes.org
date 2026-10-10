@@ -10,7 +10,7 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
 from busstops.models import DataSource, Service, StopPoint, StopUsage
-from bustimes.models import Calendar, Route, StopTime, Trip
+from bustimes.models import Calendar, Route, RouteLink, StopTime, Trip
 
 from . import rtpi
 from .management.import_live_vehicles import ImportLiveVehiclesCommand
@@ -276,6 +276,29 @@ class ScheduleAdherenceTest(TestCase):
         self.journey.trip.delete()
         rtpi.add_progress_and_delay(item)
 
+    def test_get_progress_route_link(self):
+        item = {
+            # 800 metres south of the straight line from Lattimore Road to the station
+            "coordinates": [-0.3295, 51.7435],
+            "trip_id": self.journey.trip_id,
+            "heading": None,
+            "datetime": "2023-08-31T09:50:07Z",
+            "date": "2023-08-31",
+        }
+        self.assertIsNone(rtpi.get_progress(item))
+
+        RouteLink.objects.create(
+            service=self.service,
+            from_stop_id="210021505100",
+            to_stop_id="210021505160",
+            geometry="LINESTRING(-0.332185 51.750952, -0.3295 51.7435, -0.326838 51.750598)",
+        )
+        progress = rtpi.get_progress(item)
+        self.assertEqual(progress.prev_stop_time.stop_id, "210021505100")
+        self.assertEqual(progress.next_stop_time.stop_id, "210021505160")
+        self.assertAlmostEqual(progress.progress, 0.5, 1)
+        self.assertLess(progress.distance, 1)
+
     def test_get_progress_no_stop_times(self):
         self.assertIsNone(
             rtpi.get_progress(
@@ -399,12 +422,21 @@ class ScheduleAdherenceTest(TestCase):
         rtpi.get_stop_times(trip_id, date, self.service.modified_at)
 
         with self.assertNumQueries(0):
-            trip, stop_times = rtpi.get_stop_times(
+            trip, stop_times, _ = rtpi.get_stop_times(
                 trip_id, date, self.service.modified_at
             )
 
         self.assertEqual(trip.id, trip_id)
         self.assertEqual(16, len(stop_times))
+
+        # route links shared by the service's other trips
+        keys = rtpi.pair_keys(stop_times)
+        with self.assertNumQueries(0):
+            route_links = rtpi.get_route_links(self.service.id, keys, rtpi.UNKNOWN)
+        self.assertIs(
+            route_links,
+            rtpi.get_route_links(self.service.id, keys, self.service.modified_at),
+        )
 
         # service reimported
         self.service.save()
@@ -461,3 +493,10 @@ class ScheduleAdherenceTest(TestCase):
         redis_json = json.loads(redis_client.get(f"vehicle{vehicle.id}"))
         self.assertEqual(redis_json["progress"]["progress"], 1)
         self.assertEqual(redis_json["delay"], 847)
+
+        # location unchanged next time - nothing new, despite the added progress
+        fresh = json.loads(json.dumps(location.get_redis_json(tz=command.tzinfo)))
+        self.assertNotEqual(fresh, redis_json)
+        self.assertTrue(command.same_as_latest(fresh, redis_json))
+        fresh["heading"] = 90
+        self.assertFalse(command.same_as_latest(fresh, redis_json))
