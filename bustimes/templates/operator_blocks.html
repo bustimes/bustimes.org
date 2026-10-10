@@ -53,12 +53,18 @@
 
     .trip {
         position: absolute;
-        outline: 1px solid var(--border-color);
     }
 
     .trip a {
         display: block;
-        padding: .5em;
+        padding: 2px 0 2px 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        outline: 1px solid var(--border-color);
+    }
+
+    .trip a:hover {
+        outline-color: var(--border-color-darker);
     }
 
 </style>
@@ -72,11 +78,11 @@
     <div class="blocks" style="width: 3048px">
         {% for block, trips in blocks.items %}
             <div class="block">
-                <a href="{{ trips.0.get_absolute_url }}/block">{{ block }}</a>
+                <a href="{{ trips.0.get_absolute_url }}/block?date={{ date.isoformat }}">{{ block }}</a>
                 <div class="trips">
                     {% for trip in trips %}
                         <div class="trip" style="left: {{ trip.left }}px; width: {{ trip.width }}px">
-                            <a href="{{ trip.get_absolute_url }}">{{ trip.route.line_name }}</a>
+                            <a href="{{ trip.get_absolute_url }}">{{ trip.start }}<br>{{ trip.route.line_name }} &middot; {{ trip.ticket_machine_code }}</a>
                         </div>
                     {% endfor %}
                 </div>

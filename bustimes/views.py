@@ -622,13 +622,7 @@ def trip_updates(request):
 
 @require_GET
 def operator_blocks(request, slug):
-    """fleet list"""
-
     operator = get_object_or_404(Operator, slug=slug)
-
-    trips = operator.trip_set.filter(route__service__current=True).select_related(
-        "route"
-    )
 
     form = DateForm(request.GET)
     if form.is_valid():
@@ -636,7 +630,13 @@ def operator_blocks(request, slug):
     else:
         date = timezone.localdate()
 
-    trips = trips.active_on(date).order_by("block", "start")
+    routes = Route.objects.filter(trip__operator=operator).active_on(date)
+    trips = (
+        operator.trip_set.filter(route__in=routes)
+        .select_related("route")
+        .active_on(date)
+        .order_by("block", "start")
+    )
 
     timescale = []
 
