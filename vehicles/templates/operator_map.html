@@ -1,6 +1,6 @@
 {% extends 'map.html' %}
 
-{% block title %}Bus tracker map – {{ object }} – bustimes.org{% endblock %}
+{% block title %}Map – {{ object }} – bustimes.org{% endblock %}
 
 {% block canonical %}
     <link rel="canonical" href="https://bustimes.org{{ object.get_absolute_url }}/map">
@@ -14,6 +14,6 @@
 {% endblock head %}
 
 {% block footer %}
-    <script>OPERATOR_ID="{{ operator.noc }}";</script>
+    {{ operator_data|json_script:"operator-data" }}
     <script src="{% static 'dist/js/app.js' %}"></script>
 {% endblock footer %}

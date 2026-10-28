@@ -212,3 +212,19 @@ body.dark-mode .maplibregl-ctrl-group {
 .map-style-switcher input {
   margin-left: 0;
 }
+
+main .big-map .breadcrumb {
+  border: 0;
+  margin: 0;
+  padding-left: .5em;
+}
+
+.big-map:has(> .sorry) {
+  display: flex;
+  flex-direction: column;
+}
+
+.big-map > .sorry {
+  flex: 1;
+  height: auto;
+}

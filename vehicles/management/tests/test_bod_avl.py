@@ -432,7 +432,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         )
 
         response = self.client.get("/operators/hams/map")
-        self.assertContains(response, 'OPERATOR_ID="HAMS";')
+        self.assertContains(response, '{"noc": "HAMS",')
         self.assertContains(response, "/operators/hams/map")
 
         # test other maps

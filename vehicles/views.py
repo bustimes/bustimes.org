@@ -331,7 +331,7 @@ def operator_vehicles(request, slug=None, group_slug=None):
 
 @require_safe
 def operator_map(request, slug):
-    operator = get_object_or_404(Operator.objects.select_related("region"), slug=slug)
+    operator = get_object_or_404(Operator, slug=slug)
 
     return render(
         request,
@@ -339,7 +339,11 @@ def operator_map(request, slug):
         {
             "object": operator,
             "operator": operator,
-            "breadcrumb": [operator.region, operator],
+            "operator_data": {
+                "noc": operator.noc,
+                "slug": operator.slug,
+                "name": operator.name,
+            },
         },
     )
 

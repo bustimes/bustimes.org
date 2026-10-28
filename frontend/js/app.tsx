@@ -5,7 +5,6 @@ import { recordSkew } from "./clockSkew";
 declare global {
   interface Window {
     SERVICE_ID?: number;
-    OPERATOR_ID?: string;
     globalThis: Window;
   }
 }
