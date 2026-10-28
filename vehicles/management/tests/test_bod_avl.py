@@ -1981,3 +1981,64 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                 "2026-10-16T05:54:50+01:00",
             )
             self.assertEqual(coordinates(), [-1.32886, 52.04319])
+
+    def test_alternating_journeys(self):
+        # (trentbarton 116) successive updates alternate between two journeys
+        command = import_bod_avl.Command()
+        command.source = self.source
+
+        vehicle = Vehicle.objects.create(code="0116_-_YX67_UXV", reg="YX67UXV")
+
+        def item(line_ref, journey_ref, departure, recorded_at, latitude):
+            return {
+                "RecordedAtTime": recorded_at,
+                "MonitoredVehicleJourney": {
+                    "LineRef": line_ref,
+                    "PublishedLineName": line_ref,
+                    "DirectionRef": "inbound",
+                    "OperatorRef": "BRTB",
+                    "FramedVehicleJourneyRef": {
+                        "DataFrameRef": "2026-10-26",
+                        "DatedVehicleJourneyRef": journey_ref,
+                    },
+                    "OriginAimedDepartureTime": departure,
+                    "VehicleLocation": {"Longitude": "-1.2535", "Latitude": latitude},
+                    "VehicleRef": "0116_-_YX67_UXV",
+                },
+            }
+
+        def cycle(items, when):
+            command.source.datetime = datetime.fromisoformat(when)
+            (changed, changed_journey, ci, cj, _) = command.get_changed_items(items)
+            command.handle_items(changed_journey, cj)
+            command.handle_items(changed, ci)
+
+        with patch_redis_client():
+            for i in range(6):
+                when = f"2026-10-27T00:3{i}:00+00:00"
+                if i % 2:
+                    items = [
+                        item(
+                            "mln",
+                            "112407",
+                            "2026-10-27T00:07:00+00:00",
+                            when,
+                            f"52.9{i}",
+                        )
+                    ]
+                else:
+                    items = [
+                        item(
+                            "sky",
+                            "112358",
+                            "2026-10-26T23:58:00+00:00",
+                            when,
+                            f"52.9{i}",
+                        )
+                    ]
+                cycle(items, when)
+
+        self.assertEqual(
+            sorted(vehicle.vehiclejourney_set.values_list("route_name", flat=True)),
+            ["mln", "sky"],
+        )

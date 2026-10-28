@@ -292,16 +292,19 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     # ! unusually, the same journey is twice in the feed
                     journey = self.journeys_to_create[key]
                 elif (
-                    concurrent
-                    and journey.datetime
+                    journey.datetime
+                    and latest_journey
                     and (
                         existing := vehicle.vehiclejourney_set.filter(
-                            datetime=journey.datetime
+                            date__gte=timezone.localdate(journey.datetime)
+                            - timedelta(days=1),
+                            datetime=journey.datetime,
                         ).first()
                     )
                 ):
-                    # the vehicle is on 'two journeys at once',
-                    # and this journey already exists
+                    # this journey already exists - e.g. the vehicle is on
+                    # 'two journeys at once', or alternating between two in
+                    # successive updates
                     journey.id = existing.id
                     journey.uuid = existing.uuid
                     self.journeys_to_update.append(journey)
