@@ -1598,6 +1598,36 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         self.assertEqual(journey_2.vehicle.reg, "")
         self.assertEqual(journey_2.vehicle.operator.name, "National Express Coventry")
 
+    def test_destination_missing_leading_zero(self):
+        group = OperatorGroup.objects.create(name="Arriva", slug="arriva")
+        operator = Operator.objects.create(noc="GPLM", group=group)
+        luton = Service.objects.create(line_name="A", current=True)
+        manchester = Service.objects.create(line_name="A", current=True)
+        luton.operator.add(operator)
+        manchester.operator.add(operator)
+        luton.stops.add(
+            StopPoint.objects.create(atco_code="02900040", active=True),
+            through_defaults={"order": 1},
+        )
+        manchester.stops.add(
+            StopPoint.objects.create(atco_code="1800AMIC0D1", active=True),
+            through_defaults={"order": 1},
+        )
+
+        command = import_bod_avl.Command()
+        command.source = self.source
+        item = {
+            "MonitoredVehicleJourney": {
+                "LineRef": "A",
+                "OperatorRef": "GPLM",
+                "DestinationRef": "2900040",
+            }
+        }
+        self.assertEqual(
+            command.get_service(command.get_operator("GPLM"), item, "A", "GPLM"),
+            luton,
+        )
+
     def test_debugger(self):
         service = Service.objects.create(line_name="21C")
         service.operator.add("NIBS")

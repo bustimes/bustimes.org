@@ -518,7 +518,7 @@ class Command(ImportLiveVehiclesCommand):
                 and destination_ref[3] == "0"
             ):
                 atco_code__startswith |= Q(
-                    atco_code__startswith=f"0{destination_ref}[:3]"
+                    atco_code__startswith=f"0{destination_ref[:2]}"
                 )
 
             stops = StopPoint.objects.filter(
