@@ -556,6 +556,13 @@ class SiriSubscriptionAdmin(admin.ModelAdmin):
     readonly_fields = ("uuid", "sample", "status")
     list_display = ("__str__", "source")
 
+    def get_fields(self, request, obj=None):
+        fields = super().get_fields(request, obj)
+        if obj is None:
+            # exclude uuid when creating a new one
+            return [f for f in fields if f not in self.readonly_fields]
+        return fields
+
     def status(self, obj):
         return cache.get(obj.get_status_key())
 
