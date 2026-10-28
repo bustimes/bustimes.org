@@ -100,13 +100,18 @@ def get_fare_zones(source, existing_zones, fare_zone_elements):
 
 
 @cache
-def get_service(operator, line_name):
+def get_service(operator, line_name, line_id):
+    services = Service.objects.filter(
+        Exists("route", filter=Q(line_name__iexact=line_name)),
+        operator=operator,
+        current=True,
+    )
     try:
-        return Service.objects.get(
-            Exists("route", filter=Q(line_name__iexact=line_name)),
-            operator=operator,
-            current=True,
-        )
+        try:
+            return services.get()
+        except Service.MultipleObjectsReturned:
+            # disambiguate using the line id, which usually matches the TransXChange
+            return services.get(Exists("route", filter=Q(line_id=line_id)))
     except (Service.DoesNotExist, Service.MultipleObjectsReturned) as e:
         logger.warning(f"{e} {operator} {line_name}")
 
@@ -248,9 +253,9 @@ class Command(BaseCommand):
 
                     line_ref = tariff_element.find("LineRef")
                     if line_ref is not None:
-                        line = lines[line_ref.attrib["ref"]]
-                        line_name = line.findtext("PublicCode")
-                        service = get_service(operator, line_name)
+                        line_id = line_ref.attrib["ref"]
+                        line_name = lines[line_id].findtext("PublicCode")
+                        service = get_service(operator, line_name, line_id)
                         if service:
                             tariff.services.add(service)
 

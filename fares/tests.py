@@ -9,7 +9,7 @@ from vcr import use_cassette
 from busstops.models import DataSource, Operator, Service
 from bustimes.models import Route
 
-from .management.commands.import_netex_fares import Command
+from .management.commands.import_netex_fares import Command, get_service
 from .models import DataSet, FareZone, Tariff, TimeInterval
 
 
@@ -111,6 +111,30 @@ class FaresTest(TestCase):
     def test_service_fares_not_found(self):
         response = self.client.get(f"{self.wm06.get_absolute_url()}/fares")
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
+    def test_get_service_line_id(self):
+        source = DataSource.objects.get()
+        services = [
+            Service.objects.create(line_name="1", current=True) for _ in range(2)
+        ]
+        for service, line_id in zip(
+            services, ("WMSA:PD0000479:12:1", "WMSA:PD0000479:31:1")
+        ):
+            service.operator.add(self.a_c_williams)
+            Route.objects.create(
+                line_name="1",
+                line_id=line_id,
+                service=service,
+                source=source,
+                code=line_id,
+            )
+
+        get_service.cache_clear()
+        self.assertEqual(
+            get_service(self.a_c_williams, "1", "WMSA:PD0000479:31:1"), services[1]
+        )
+        with self.assertLogs("fares.management.commands.import_netex_fares"):
+            self.assertIsNone(get_service(self.a_c_williams, "1", "1_Outbound"))
 
     def test_ad_hoc(self):
         command = Command()
