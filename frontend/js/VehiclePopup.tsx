@@ -63,9 +63,15 @@ export default function VehiclePopup({
   if (item.journey_id) {
     if (!activeLink) {
       if (snazzyTripLink) {
-        line_name = (
-          <Link href={`/journeys/${item.journey_id}`}>{line_name}</Link>
-        );
+        if (window.location.pathname === "/map") {
+          line_name = (
+            <Link href={`/map#journey=${item.journey_id}`}>{line_name}</Link>
+          );
+        } else {
+          line_name = (
+            <Link href={`/journeys/${item.journey_id}`}>{line_name}</Link>
+          );
+        }
       } else {
         line_name = <a href={`/journeys/${item.journey_id}`}>{line_name}</a>;
       }

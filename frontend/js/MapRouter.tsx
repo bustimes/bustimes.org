@@ -18,7 +18,32 @@ if (operatorDataElement) {
   ) as Operator;
 }
 
+// wouter patches history to fire pushState and replaceState events
+const locationEvents = ["popstate", "pushState", "replaceState"];
+
+function subscribeToLocation(callback: () => void) {
+  for (const event of locationEvents) {
+    window.addEventListener(event, callback);
+  }
+  return () => {
+    for (const event of locationEvents) {
+      window.removeEventListener(event, callback);
+    }
+  };
+}
+
+// /map#journey=123
+function useHashJourneyId() {
+  const hash = React.useSyncExternalStore(
+    subscribeToLocation,
+    () => window.location.hash,
+  );
+  return new URLSearchParams(hash.slice(1)).get("journey");
+}
+
 export default function MapRouter() {
+  const hashJourneyId = useHashJourneyId();
+
   return (
     <Switch>
       <Route path="/trips/:tripId">
@@ -41,7 +66,11 @@ export default function MapRouter() {
         )}
       </Route>
       <Route path="/map">
-        <BigMap mode={MapMode.Slippy} />
+        {hashJourneyId ? (
+          <BigMap mode={MapMode.Journey} journeyId={hashJourneyId} />
+        ) : (
+          <BigMap mode={MapMode.Slippy} />
+        )}
       </Route>
     </Switch>
   );
