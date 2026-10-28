@@ -39,7 +39,7 @@
             });
             auction.adUnitCodes.forEach(function(code){
                 var b=top[code];
-                gtag("event","prebid_auction",{ad_unit:code,bidder:b?b.bidder:"none",cpm:b?b.cpm:0,currency:b?b.currency:""});
+                gtag("event","prebid_auction",{ad_unit:code,bidder:b?b.bidder:"none",cpm:b?b.cpm:0,bid_currency:b?b.currency:""});
             });
         });
     });
