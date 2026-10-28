@@ -1982,6 +1982,74 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             )
             self.assertEqual(coordinates(), [-1.32886, 52.04319])
 
+    def test_stale_position_after_many_live_ones(self):
+        # (Stagecoach Merseyside 80555) the stale feed repeats its old position
+        # only every few minutes - after the live feed has reported many more
+        command = import_bod_avl.Command()
+        command.source = self.source
+
+        vehicle = Vehicle.objects.create(code="80555", reg="SN26XZO")
+        VehicleCode.objects.bulk_create(
+            [
+                VehicleCode(code="SCMY:80555", scheme="BODS", vehicle=vehicle),
+                VehicleCode(code="SCMY:SCMY-80555", scheme="BODS", vehicle=vehicle),
+            ]
+        )
+
+        def item(vehicle_ref, recorded_at, longitude, latitude):
+            return {
+                "RecordedAtTime": f"2026-10-28T{recorded_at}+00:00",
+                "MonitoredVehicleJourney": {
+                    "LineRef": "17A",
+                    "PublishedLineName": "17A",
+                    "DirectionRef": "outbound",
+                    "OperatorRef": "SCMY",
+                    "FramedVehicleJourneyRef": {
+                        "DataFrameRef": "2026-10-28",
+                        "DatedVehicleJourneyRef": "1562",
+                    },
+                    "OriginAimedDepartureTime": "2026-10-28T22:04:00+00:00",
+                    "VehicleLocation": {"Longitude": longitude, "Latitude": latitude},
+                    "VehicleRef": vehicle_ref,
+                },
+            }
+
+        stale = item("SCMY-80555", "22:43:50", "-2.93471", "53.44181")
+        live = [
+            item("80555", "22:43:46", "-2.93484", "53.44160"),
+            item("80555", "22:44:01", "-2.93761", "53.44097"),
+            item("80555", "22:44:31", "-2.93863", "53.44068"),
+            item("80555", "22:44:46", "-2.94013", "53.44008"),
+            item("80555", "22:45:01", "-2.94201", "53.43952"),
+            item("80555", "22:45:16", "-2.94398", "53.43901"),
+            item("80555", "22:45:31", "-2.94602", "53.43853"),
+        ]
+
+        def cycle(items, when):
+            command.source.datetime = datetime.fromisoformat(f"2026-10-28T{when}+00:00")
+            (changed, changed_journey, ci, cj, _) = command.get_changed_items(items)
+            command.handle_items(changed_journey, cj)
+            command.handle_items(changed, ci)
+
+        with patch_redis_client() as redis_client:
+
+            def coordinates():
+                return json.loads(redis_client.get(f"vehicle{vehicle.id}"))[
+                    "coordinates"
+                ]
+
+            cycle([live[0], stale], "22:43:55")
+            self.assertEqual(coordinates(), [-2.93471, 53.44181])
+
+            for live_item in live[1:]:
+                cycle([live_item, stale], live_item["RecordedAtTime"][11:19])
+            self.assertEqual(coordinates(), [-2.94602, 53.43853])
+
+            # the same old position again, with a new timestamp
+            stale = item("SCMY-80555", "22:47:34", "-2.93471", "53.44181")
+            cycle([live[-1], stale], "22:47:40")
+            self.assertEqual(coordinates(), [-2.94602, 53.43853])
+
     def test_alternating_journeys(self):
         # (trentbarton 116) successive updates alternate between two journeys
         command = import_bod_avl.Command()

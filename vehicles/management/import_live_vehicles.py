@@ -104,7 +104,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
         self.journeys_ids = {}
         self.journeys_ids_ids = {}
         self.duplicate_vehicles = set()  # vehicles on 'two journeys at once'
-        self.recent_positions = {}  # vehicle id: hashes of last few coordinates
+        self.recent_positions = {}  # vehicle id or identity: hashes of last few coordinates
         self.max_datetime = None  # newest item timestamp in the current update
 
     @staticmethod
@@ -154,6 +154,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
         latest: dict | None = None,
         keep_journey=False,
         concurrent=False,
+        identity=None,
     ):
         if dt := self.get_datetime(item):
             if dt.year == 1970:
@@ -206,11 +207,13 @@ class ImportLiveVehiclesCommand(BaseCommand):
                         location_unchanged = location is not None
                     else:
                         return
-                elif hash(location.latlong.coords) in self.recent_positions.get(
-                    vehicle.id, ()
+                elif any(
+                    hash(location.latlong.coords) in self.recent_positions.get(key, ())
+                    for key in (vehicle.id, identity)
                 ):
                     # back to a position it's already reported and moved on from -
                     # e.g. a stale feed (or a forgotten ticket machine) alongside a live one
+                    # (per identity too, as a live feed soon pushes it out of the vehicle's)
                     return
 
         latest_journey = vehicle.latest_journey
@@ -356,10 +359,11 @@ class ImportLiveVehiclesCommand(BaseCommand):
             return  # nothing new
 
         if location.latlong:
-            self.recent_positions[vehicle.id] = (
-                hash(location.latlong.coords),
-                *self.recent_positions.get(vehicle.id, ())[:4],
-            )
+            for key in (vehicle.id, identity) if identity else (vehicle.id,):
+                self.recent_positions[key] = (
+                    hash(location.latlong.coords),
+                    *self.recent_positions.get(key, ())[:4],
+                )
         self.to_save.append((location, vehicle))
 
         return location, vehicle
@@ -611,6 +615,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     latest=vehicle_locations.get(vehicle.id, False),
                     keep_journey=keep_journey,
                     concurrent=concurrent,
+                    identity=vehicle_identity,
                 )
 
                 if result:
