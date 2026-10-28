@@ -46,7 +46,11 @@ urlpatterns = [
         name="latest_journey_debug",
     ),
     path("vehicles/<slug>/debug", views.latest_journey_debug),
-    path("journeys/<int:pk>", views.VehicleJourneyDetailView.as_view()),
+    path(
+        "journeys/<int:pk>",
+        views.VehicleJourneyDetailView.as_view(),
+        name="journey_detail",
+    ),
     path("liveries.<int:version>.css", views.liveries_css),
     path("rules", TemplateView.as_view(template_name="rules.html")),
     path("map", views.map, name="map"),

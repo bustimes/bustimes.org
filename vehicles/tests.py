@@ -308,7 +308,7 @@ class VehiclesTests(TestCase):
         self.assertEqual(str(self.journey), "19 Oct 20 23:47 2  ")
         self.assertEqual(
             self.journey.get_absolute_url(),
-            f"/vehicles/{self.vehicle_1.id}?date=2020-10-20#journey-{self.journey.id}",
+            f"/journeys/{self.journey.id}",
         )
 
         response = self.client.get(f"/api/vehiclejourneys/{self.journey.id}.json")

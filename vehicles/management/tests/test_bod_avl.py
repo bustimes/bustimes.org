@@ -456,7 +456,9 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             whippet_journey = VehicleJourney.objects.get(vehicle__operator="WHIP")
 
             with time_machine.travel("2020-10-15"), self.assertNumQueries(8):
-                response = self.client.get(whippet_journey.get_absolute_url())
+                response = self.client.get(
+                    f"/vehicles/{whippet_journey.vehicle_id}?date={whippet_journey.date}"
+                )
 
             self.assertContains(
                 response,
@@ -588,12 +590,12 @@ class BusOpenDataVehicleLocationsTest(TestCase):
 
         with mock.patch("vehicles.views.redis_client", redis_client):
             with self.assertNumQueries(5):
-                response = self.client.get(journey.get_absolute_url())
+                response = self.client.get(
+                    f"/vehicles/{journey.vehicle_id}?date={journey.date}"
+                )
             self.assertContains(response, "146")
             self.assertContains(response, ">Southwold<")
-            self.assertContains(
-                response, f'<a href="/journeys/{journey.id}#context=vehicle">Map</a>'
-            )
+            self.assertContains(response, f'<a href="/journeys/{journey.id}">Map</a>')
 
             with (
                 mock.patch("vehicles.views.redis_client.geosearch", return_value=[]),

@@ -720,8 +720,7 @@ class VehicleJourney(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
 
     def get_absolute_url(self):
-        # TODO: change to "/journeys/{self.id}" (actually using `reverse()`)
-        return f"/vehicles/{self.vehicle_id}?date={self.date}#journey-{self.id}"
+        return reverse("journey_detail", args=(self.id,))
 
     def __str__(self):
         date = f"{self.datetime:%-d %b %y %H:%M}" if self.datetime else ""
