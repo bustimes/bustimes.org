@@ -22,6 +22,8 @@ import routeStopMarker from "data-url:../route-stop-marker.png";
 import stopMarkerCircle from "data-url:../stop-marker-circle.png";
 import stopMarker from "data-url:../stop-marker.png";
 import osmBright from "url:../osm_bright.json";
+import "maplibre-gl/dist/maplibre-gl.css";
+import "./maps.css";
 import maplibreWorkerUrl from "worklet:./maplibre-worker.ts";
 import {
   type FilterSpecification,
