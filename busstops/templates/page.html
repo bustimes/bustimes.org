@@ -103,7 +103,9 @@ var gaConfig = {
 if (bot) {
     gaConfig.traffic_type = 'bot';
 }
-gtag('config', 'G-X2Z0KM7Z5C', gaConfig);
+if (location.hostname === 'bustimes.org') {
+    gtag('config', 'G-X2Z0KM7Z5C', gaConfig);
+}
 </script>
 {% endblock fuse %}
 
