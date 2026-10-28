@@ -36,15 +36,8 @@ var tz = window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone,
     var pbjs=window.pbjs=window.pbjs||{};
     pbjs.que=pbjs.que||[];
     pbjs.que.push(function(){
-        pbjs.onEvent("auctionEnd",function(auction){
-            var top={};
-            auction.bidsReceived.forEach(function(b){
-                if(!top[b.adUnitCode]||b.cpm>top[b.adUnitCode].cpm)top[b.adUnitCode]=b;
-            });
-            auction.adUnitCodes.forEach(function(code){
-                var b=top[code];
-                gtag("event","prebid_auction",{ad_unit:code,bidder:b?b.bidder:"none",cpm:b?b.cpm:0,bid_currency:b?b.currency:""});
-            });
+        pbjs.onEvent("bidWon",function(b){
+            gtag("event","prebid_won",{ad_unit:b.adUnitCode,bidder:b.bidder,cpm:b.cpm,bid_currency:b.currency});
         });
     });
     window.__tcfapi("addEventListener",2,function(tcData,success){
