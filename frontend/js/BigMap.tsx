@@ -680,7 +680,7 @@ export default function BigMap(
   );
 
   const initialViewState = useRef(
-    props.mode === MapMode.Operator ? undefined : INITIAL_VIEW_STATE,
+    props.mode === MapMode.Slippy ? INITIAL_VIEW_STATE : undefined,
   );
 
   const polylineLocations = useMemo(() => {
@@ -727,13 +727,24 @@ export default function BigMap(
       return getBounds(trip.times, (time) => time.stop.location);
     }
     if (journey) {
-      const _bounds = getBounds(
+      let _bounds = getBounds(
         journey.trip?.times,
         (item) => item.stop.location,
       );
-      return getBounds(polylineLocations, (item) => item.coordinates, _bounds);
+      _bounds = getBounds(
+        polylineLocations,
+        (item) => item.coordinates,
+        _bounds,
+      );
+      _bounds = getBounds(
+        tripVehicle ? [tripVehicle] : undefined,
+        (item) => item.coordinates,
+        _bounds,
+      );
+      // e.g. stops without locations
+      return _bounds?.isEmpty() ? undefined : _bounds;
     }
-  }, [trip, journey, polylineLocations]);
+  }, [trip, journey, polylineLocations, tripVehicle]);
 
   const fitBoundsOptions = useMemo(() => {
     if (props.mode === MapMode.Slippy || props.mode === MapMode.Operator) {
@@ -1230,6 +1241,19 @@ export default function BigMap(
 
   if (props.mode === MapMode.Journey && !journey && !mapRef.current) {
     return <LoadingSorry />;
+  }
+
+  // nothing to show on a map (no stops, history or live location)
+  if (props.mode === MapMode.Journey && !bounds && !mapRef.current) {
+    return (
+      <JourneySidebar
+        journey={journey}
+        journeyId={props.journeyId}
+        journeyContext={journeyContext}
+        vehicle={tripVehicle}
+        onHover={handleRowHover}
+      />
+    );
   }
 
   let className = "big-map";

@@ -1266,6 +1266,10 @@ input:not(:checked) + label {
     height: 132px;
 }
 
+.map-sidebar:only-child {
+    top: 0;
+}
+
 .map-sidebar .navigation {
     overflow: hidden;
     margin: 1em 0;
