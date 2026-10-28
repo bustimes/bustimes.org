@@ -33,19 +33,25 @@
     "loadjs": "^4.2.0",
     "lodash": "^4.17.21",
     "maplibre-gl": "^6.10.0",
+    "preact": "^10.29.8",
     "process": "^0.11.10",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-map-gl": "^8.1.0",
     "react-timeago": "^8.3.0",
     "reqwest": "^2.0.5",
-    "wouter": "^3.1.0"
+    "wouter": "^3.1.0",
+    "wouter-preact": "^3.13.0"
   },
   "alias": {
-    "react-map-gl/maplibre": "@vis.gl/react-maplibre"
-  },
-  "@parcel/resolver-default": {
-    "packageExports": true
+    "react-map-gl/maplibre": "@vis.gl/react-maplibre",
+    "@sentry/core/browser": "@sentry/core/build/esm/browser.js",
+    "@sentry/conventions/attributes": "@sentry/conventions/dist/attributes.mjs",
+    "react": "./frontend/js/preact-compat.ts",
+    "react-dom": "./frontend/js/preact-compat.ts",
+    "react-dom/client": "preact/compat/client",
+    "react/jsx-runtime": "preact/jsx-runtime",
+    "wouter": "wouter-preact"
   },
   "engines": {
     "browsers": "Chrome 90, iOS 15"
