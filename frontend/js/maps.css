@@ -15,19 +15,23 @@
 .vehicle-marker {
   width: 24px;
   height: 16px;
-  background: #fff;
   border: 1px solid var(--marker-border-color);
   /*  border-left-color: var(--marker-arrow-color);*/
   margin: 1px;
   text-align: center;
   overflow: hidden;
   line-height: 16px;
-  color: #000;
   fill: currentColor;
   text-anchor: middle;
   paint-order: stroke;
   stroke-width: 2px;
   display: block; /* cos svg is not block-level by default */
+}
+
+/* zero specificity, so liveries win whatever order the stylesheets load in */
+:where(.vehicle-marker) {
+  background: #fff;
+  color: #000;
 }
 
 .vehicle-marker.white-text {
@@ -163,38 +167,6 @@ body .maplibregl-popup-anchor-right .maplibregl-popup-tip {
   z-index: 2;
 }
 
-.map-button {
-  cursor: pointer;
-  margin: 10px;
-  font: inherit;
-  font-size: 14px;
-}
-
-.map-button,
-.map-select-services {
-  color: var(--text-color);
-  background: var(--background-color);
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
-  position: absolute;
-  z-index: 3;
-  padding: 5px 7px;
-  border-radius: 4px;
-  border: 0;
-}
-
-.map-button:hover {
-  background: #f2f2f2;
-}
-
-.map-select-services {
-  top: 50px;
-  left: 10px;
-}
-
-.map-select-services label {
-  display: block;
-}
-
 body .maplibregl-popup-close-button {
   color: var(--text-color);
   padding: 0.25em 0.5em;
@@ -217,9 +189,7 @@ body .maplibregl-popup-close-button {
   /* float: right; */
 }
 
-body.dark-mode .maplibregl-ctrl-group,
-.dark-mode .map-button,
-.dark-mode .map-select-services {
+body.dark-mode .maplibregl-ctrl-group {
   background: var(--background-color);
   color: var(--text-color);
   box-shadow: 0 0 0 2px #fff5;
