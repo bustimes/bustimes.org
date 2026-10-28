@@ -30,6 +30,7 @@ from bustimes.models import Calendar, Garage, Route, Trip
 from ...models import Livery, Vehicle, VehicleCode, VehicleJourney
 from ...utils import get_statuses
 from ..commands import distribute_vehicle_locations, import_bod_avl
+from ..import_live_vehicles import same_journey
 
 
 @contextmanager
@@ -1598,6 +1599,104 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         self.assertEqual(journey_2.vehicle.reg, "")
         self.assertEqual(journey_2.vehicle.operator.name, "National Express Coventry")
 
+    def test_placeholder_stop_refs(self):
+        # Ticketer briefly sends the line name as OriginRef and DestinationRef,
+        # and no OriginAimedDepartureTime, at the start of a journey
+        Operator.objects.create(noc="TMSB")
+        harlow = Service.objects.create(
+            line_name="23",
+            current=True,
+            geometry="MULTILINESTRING((0.0937 51.762, 0.1449 51.781))",
+        )
+        peterborough = Service.objects.create(
+            line_name="23",
+            current=True,
+            geometry="MULTILINESTRING((-0.3231 52.535, -0.2465 52.575))",
+        )
+        harlow.operator.add("TMSB")
+        peterborough.operator.add("TMSB")
+
+        command = import_bod_avl.Command()
+        command.source = self.source
+
+        def item(recorded_at_time, **kwargs):
+            return {
+                "RecordedAtTime": recorded_at_time,
+                "MonitoredVehicleJourney": {
+                    "LineRef": "23",
+                    "DirectionRef": "clockwise",
+                    "FramedVehicleJourneyRef": {
+                        "DataFrameRef": "2026-10-28",
+                        "DatedVehicleJourneyRef": "23012",
+                    },
+                    "PublishedLineName": "23",
+                    "OperatorRef": "TMSB",
+                    "VehicleLocation": {
+                        "Longitude": "0.09328",
+                        "Latitude": "51.772031",
+                    },
+                    "BlockRef": "4121",
+                    "VehicleRef": "CE71_GAL_330",
+                    **kwargs,
+                },
+                "Extensions": None,
+            }
+
+        with patch_redis_client(), time_machine.travel("2026-10-28T09:48:30Z"):
+            command.handle_item(
+                item(
+                    "2026-10-28T09:48:08+00:00",
+                    OriginRef="23",
+                    DestinationRef="23",
+                    DestinationName="Church_Langley",
+                )
+            )
+            command.save()
+        with patch_redis_client(), time_machine.travel("2026-10-28T09:50:00Z"):
+            command.handle_item(
+                item(
+                    "2026-10-28T09:49:37+00:00",
+                    OriginAimedDepartureTime="2026-10-28T09:45:00+00:00",
+                    DestinationName="Temp_Bus_Station",
+                )
+            )
+            command.save()
+
+        journey = VehicleJourney.objects.get()
+        self.assertEqual(journey.service, harlow)
+        self.assertEqual(journey.datetime, datetime(2026, 10, 28, 9, 45, tzinfo=UTC))
+
+    def test_destination_not_in_timetable(self):
+        group = OperatorGroup.objects.create(name="Transdev", slug="transdev")
+        operator = Operator.objects.create(noc="VISB", group=group)
+        clitheroe = Service.objects.create(line_name="5", current=True)
+        ormskirk = Service.objects.create(line_name="5", current=True)
+        clitheroe.operator.add(operator)
+        ormskirk.operator.add(operator)
+        clitheroe.stops.add(
+            StopPoint.objects.create(atco_code="25001657", active=True),
+            through_defaults={"order": 1},
+        )
+        ormskirk.stops.add(
+            StopPoint.objects.create(atco_code="2500IMG3", active=True),
+            through_defaults={"order": 1},
+        )
+
+        command = import_bod_avl.Command()
+        command.source = self.source
+        item = {
+            "MonitoredVehicleJourney": {
+                "LineRef": "5",
+                "OperatorRef": "VISB",
+                "OriginRef": "25001657",
+                "DestinationRef": "2500IMG2340",
+            }
+        }
+        self.assertEqual(
+            command.get_service(command.get_operator("VISB"), item, "5", "VISB"),
+            clitheroe,
+        )
+
     def test_destination_missing_leading_zero(self):
         group = OperatorGroup.objects.create(name="Arriva", slug="arriva")
         operator = Operator.objects.create(noc="GPLM", group=group)
@@ -1627,6 +1726,41 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             command.get_service(command.get_operator("GPLM"), item, "A", "GPLM"),
             luton,
         )
+
+    def test_get_stop_ref(self):
+        mvj = {
+            "LineRef": "1066",
+            "PublishedLineName": "1066",
+            "OriginRef": "1066",
+            "DestinationRef": "1400HS0001",
+        }
+        self.assertIsNone(import_bod_avl.get_stop_ref(mvj, "OriginRef"))
+        self.assertEqual(
+            import_bod_avl.get_stop_ref(mvj, "DestinationRef"), "1400HS0001"
+        )
+        self.assertIsNone(import_bod_avl.get_stop_ref({}, "OriginRef"))
+
+    def test_same_journey_no_service(self):
+        service = Service.objects.create(line_name="23")
+        other_service = Service.objects.create(line_name="23")
+        now = datetime(2026, 10, 28, 9, 50, tzinfo=UTC)
+        last_journey = VehicleJourney(
+            route_name="23",
+            code="23012",
+            datetime=datetime(2026, 10, 28, 9, 48, 8, tzinfo=UTC),
+        )
+        journey = VehicleJourney(
+            route_name="23",
+            code="23012",
+            service=service,
+            datetime=datetime(2026, 10, 28, 9, 45, tzinfo=UTC),
+        )
+        self.assertTrue(same_journey(journey, last_journey, now))
+        last_journey.service = service
+        journey.service = None
+        self.assertTrue(same_journey(journey, last_journey, now))
+        journey.service = other_service
+        self.assertFalse(same_journey(journey, last_journey, now))
 
     def test_debugger(self):
         service = Service.objects.create(line_name="21C")

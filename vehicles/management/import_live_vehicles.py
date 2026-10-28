@@ -59,15 +59,19 @@ def same_journey(journey, last_journey, now):
     if journey.datetime and not last_journey.datetime.second:
         # seems safe to assume that last journey had a different departure time
         return False
+    if (
+        journey.service_id
+        and last_journey.service_id
+        and journey.service_id != last_journey.service_id
+    ):
+        return False
     return (
-        journey.service_id,
         journey.route_name,
         journey.code,
         journey.direction,
         # journey.trip_id,
         timezone.localdate(now),
     ) == (
-        last_journey.service_id,
         last_journey.route_name,
         last_journey.code,
         last_journey.direction,
@@ -276,6 +280,9 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 journey.id = latest_journey.id
                 if not journey.datetime:
                     journey.datetime = latest_journey.datetime
+                if not journey.service_id:
+                    journey.service_id = latest_journey.service_id
+                    journey.trip_id = latest_journey.trip_id
                 self.journeys_to_update.append(journey)
             elif journey.id:
                 self.journeys_to_update.append(journey)

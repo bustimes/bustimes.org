@@ -107,22 +107,31 @@ occupancies = {
 }
 
 
-def get_destination_ref(destination_ref: str) -> str | None:
-    destination_ref = destination_ref.removeprefix("NT")  # Nottingham City Transport
-
-    if (
-        " " in destination_ref
-        or len(destination_ref) < 4
-        or not destination_ref[:4].isdigit()
-        or destination_ref[:3] == "000"
-        or destination_ref[:3] == "999"
-        or destination_ref[:3] == "980"
-        or destination_ref[:3] == "900"
+def get_stop_ref(monitored_vehicle_journey: dict, key: str) -> str | None:
+    if not (stop_ref := monitored_vehicle_journey.get(key)):
+        return
+    if stop_ref in (
+        monitored_vehicle_journey.get("LineRef"),
+        monitored_vehicle_journey.get("PublishedLineName"),
     ):
-        # destination ref is not in the expected ATCO code format - maybe a postcode or other placeholder
+        # Ticketer bullshit placeholder e.g. OriginRef and DestinationRef "23" on line 23
         return
 
-    return destination_ref
+    stop_ref = stop_ref.removeprefix("NT")  # Nottingham City Transport
+
+    if (
+        " " in stop_ref
+        or len(stop_ref) < 4
+        or not stop_ref[:4].isdigit()
+        or stop_ref[:3] == "000"
+        or stop_ref[:3] == "999"
+        or stop_ref[:3] == "980"
+        or stop_ref[:3] == "900"
+    ):
+        # not in the expected ATCO code format - maybe a postcode or other placeholder
+        return
+
+    return stop_ref
 
 
 @functools.cache
@@ -439,8 +448,7 @@ class Command(ImportLiveVehiclesCommand):
     def get_service(self, operators, item, line_ref, vehicle_operator_id):
         monitored_vehicle_journey = item["MonitoredVehicleJourney"]
 
-        if destination_ref := monitored_vehicle_journey.get("DestinationRef"):
-            destination_ref = get_destination_ref(destination_ref)
+        destination_ref = get_stop_ref(monitored_vehicle_journey, "DestinationRef")
 
         # filter by LineRef or (if present and different) TicketMachineServiceCode
         line_name_query = get_line_name_query(line_ref)
@@ -535,24 +543,34 @@ class Command(ImportLiveVehiclesCommand):
                         service=OuterRef("pk"), atco_code=destination_ref
                     )
                 )
-                origin_ref = monitored_vehicle_journey.get("OriginRef")
+                origin_ref = get_stop_ref(monitored_vehicle_journey, "OriginRef")
                 if origin_ref:
-                    condition &= Exists(
+                    origin_condition = Exists(
                         StopPoint.objects.filter(
                             service=OuterRef("pk"), atco_code=origin_ref
                         )
                     )
-                try:
-                    return services.get(condition)
-                except Service.DoesNotExist:
-                    pass
-                except Service.MultipleObjectsReturned:
-                    services = services.filter(condition)
+                    try:
+                        return services.get(condition & origin_condition)
+                    except Service.DoesNotExist:
+                        # e.g. timetable uses a different stop at the bus station
+                        condition |= origin_condition
+                    except Service.MultipleObjectsReturned:
+                        services = services.filter(condition & origin_condition)
+                        condition = None
+                if condition is not None:
+                    try:
+                        return services.get(condition)
+                    except Service.DoesNotExist:
+                        pass
+                    except Service.MultipleObjectsReturned:
+                        services = services.filter(condition)
 
         else:
             latlong = self.create_vehicle_location(item).latlong
             try:
-                return services.get(geometry__bboverlaps=latlong)
+                # buffer for vehicles parked at a bus station just outside the route
+                return services.get(geometry__bboverlaps=latlong.buffer(0.005))
             except (Service.DoesNotExist, Service.MultipleObjectsReturned):
                 pass
 
@@ -683,8 +701,7 @@ class Command(ImportLiveVehiclesCommand):
         if journey_ref:
             journey.code = journey_ref
 
-        if destination_ref := monitored_vehicle_journey.get("DestinationRef"):
-            destination_ref = get_destination_ref(destination_ref)
+        destination_ref = get_stop_ref(monitored_vehicle_journey, "DestinationRef")
 
         if operator_ref == "TFLO":
             journey.destination = monitored_vehicle_journey.get("DestinationName", "")
@@ -735,7 +752,7 @@ class Command(ImportLiveVehiclesCommand):
             if trip := journey.get_trip(
                 datetime=dt,
                 operator_ref=operator_ref,
-                origin_ref=monitored_vehicle_journey.get("OriginRef"),
+                origin_ref=get_stop_ref(monitored_vehicle_journey, "OriginRef"),
                 destination_ref=destination_ref,
                 departure_time=origin_aimed_departure_time,
                 arrival_time=arrival_time,
