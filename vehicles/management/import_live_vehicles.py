@@ -404,7 +404,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
 
             try:
                 Vehicle.objects.bulk_update(
-                    self.vehicles_to_update,
+                    list({v.id: v for v in self.vehicles_to_update}.values()),
                     ["latest_journey", "latest_journey_data"],
                 )
             except IntegrityError:
