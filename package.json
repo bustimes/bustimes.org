@@ -42,9 +42,10 @@
     "wouter": "^3.1.0"
   },
   "alias": {
-    "react-map-gl/maplibre": "@vis.gl/react-maplibre",
-    "@sentry/core/browser": "@sentry/core/build/esm/browser.js",
-    "@sentry/conventions/attributes": "@sentry/conventions/dist/attributes.mjs"
+    "react-map-gl/maplibre": "@vis.gl/react-maplibre"
+  },
+  "@parcel/resolver-default": {
+    "packageExports": true
   },
   "engines": {
     "browsers": "Chrome 90, iOS 15"
