@@ -21,9 +21,13 @@
 
 {% block fuse %}
 <script src="{{ static('consent.js') }}"></script>
+<script>
+var tz = window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone,
+    bot = navigator.webdriver || screen.width === 1280 && screen.height === 1200 || tz && !/^(Europe\/|Etc\/|UTC$)/.test(tz);
+</script>
 {% if ad %}
 <script>(function(){
-    if(window.top!==window.self||!window.__tcfapi||!Array.prototype.toSorted||navigator.webdriver){window.noAds=true;return}
+    if(window.top!==window.self||!window.__tcfapi||!Array.prototype.toSorted||bot){window.noAds=true;return}
     var s=document.getElementsByTagName("script")[0];
     var sc=document.createElement("script");
     sc.async=true;
@@ -88,10 +92,14 @@ if (window.__tcfapi) {
     });
 }
 gtag('js', new Date());
-gtag('config', 'G-X2Z0KM7Z5C', {
-    timezone: window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone,
+var gaConfig = {
+    timezone: tz,
     webdriver: navigator.webdriver ? 'true' : 'false'
-});
+};
+if (bot) {
+    gaConfig.traffic_type = 'bot';
+}
+gtag('config', 'G-X2Z0KM7Z5C', gaConfig);
 </script>
 {% endblock fuse %}
 
