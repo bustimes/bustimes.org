@@ -1,4 +1,5 @@
-import React, { type ReactElement } from "react";
+import { captureException } from "@sentry/browser";
+import React, { type ReactElement, type ReactNode } from "react";
 
 export default function LoadingSorry({
   text,
@@ -33,4 +34,26 @@ export function ErrorFallback(error: { error?: unknown }) {
       }
     />
   );
+}
+
+export class ErrorBoundary extends React.Component<
+  { children: ReactNode },
+  { error?: unknown }
+> {
+  state: { error?: unknown } = {};
+
+  static getDerivedStateFromError(error: unknown) {
+    return { error };
+  }
+
+  componentDidCatch(error: unknown) {
+    captureException(error);
+  }
+
+  render() {
+    if (this.state.error) {
+      return <ErrorFallback error={this.state.error} />;
+    }
+    return this.props.children;
+  }
 }

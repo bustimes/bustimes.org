@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/preact";
 import TripTimetable, { type Trip } from "../TripTimetable";
 import type { Vehicle } from "../VehicleMarker";
 
