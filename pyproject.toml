@@ -61,8 +61,8 @@ test = [
     "govuk-bank-holidays>=0.15",
     "asgiref>=3.4.1,<4",
     "requests-toolbelt>=1.0.0,<2",
-    "time-machine~=3.5.0",
-    "vcrpy~=8.3.0",
+    "time-machine~=3.6.0",
+    "vcrpy~=9.2.0",
     "fakeredis>=2.12.1,<3",
     "tblib>=3.0.0,<4",
     "coverage>=7.6.1,<8",
@@ -81,7 +81,7 @@ dev = [
 
 [tool.uv]
 package = false
-environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'"]
+environments = ["sys_platform == 'linux' and platform_python_implementation == 'CPython'", "sys_platform == 'darwin' and platform_python_implementation == 'CPython'"]
 
 [tool.uv.sources]
 transxchange-parser = { git = "https://github.com/bustimes/transxchange-parser" }
