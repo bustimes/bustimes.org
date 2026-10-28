@@ -952,6 +952,7 @@ export default function BigMap(
     } else if (props.journeyId) {
       // journey mode
       if (journey?.id?.toString() === props.journeyId) {
+        document.title = `${journey.route_name} – ${journey.destination} – bustimes.org`;
         if (!document.hidden) {
           vehiclesTimeout.current = window.setTimeout(loadVehicles, 12000); // 12 seconds
         }
