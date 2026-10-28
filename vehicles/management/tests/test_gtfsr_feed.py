@@ -1,13 +1,15 @@
+from datetime import UTC, datetime
 from unittest.mock import Mock, patch
+from zoneinfo import ZoneInfo
 
 from django.core.management import call_command
 from django.test import TestCase
 from google.transit import gtfs_realtime_pb2
 
-from busstops.models import Operator
+from busstops.models import DataSource, Operator
 
 from ...models import Vehicle
-from ..commands.import_gtfsr_feed import parse_feed
+from ..commands.import_gtfsr_feed import Command, parse_feed
 
 
 class GTFSRFeedTest(TestCase):
@@ -35,6 +37,29 @@ class GTFSRFeedTest(TestCase):
         self.assertEqual(
             [entity.vehicle.vehicle.id for entity in corrupt_feed.entity], ["1", "2"]
         )
+
+    def test_get_journey_no_start_time(self):
+        # (Cap Cotentin) trips not in the timetable, with no start_time,
+        # mustn't all be given a datetime of midnight - and so be merged
+        command = Command()
+        command.source = DataSource.objects.create(name="Cap Cotentin")
+        command.source.datetime = datetime(2026, 10, 27, 7, tzinfo=UTC)
+        command.tzinfo = ZoneInfo("Europe/Paris")
+        command.trips = {}
+
+        entity = gtfs_realtime_pb2.FeedEntity(id="1")
+        entity.vehicle.timestamp = 1792134000
+        entity.vehicle.trip.trip_id = "3815905-2026_H-Mult_LaM-L-Ma-Me-00-1101100"
+        entity.vehicle.trip.start_date = "20261027"
+        entity.vehicle.trip.route_id = "C"
+
+        journey = command.get_journey(entity, Vehicle())
+        self.assertIsNone(journey.datetime)
+        self.assertEqual(str(journey.date), "2026-10-27")
+
+        entity.vehicle.trip.start_time = "07:15:00"
+        journey = command.get_journey(entity, Vehicle())
+        self.assertEqual(str(journey.datetime), "2026-10-27 07:15:00+01:00")
 
     def test_import_zditm_vehicles(self):
         Operator.objects.create(noc="ZDITM", name="ZDiTM Szczecin")

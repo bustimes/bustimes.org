@@ -168,8 +168,12 @@ class Command(GTFSRCommand):
             # start_time may be after midnight (e.g. "26:25:00")
             # at the end of the operational day
             # (the noon minus 12 hours trick copes with daylight saving time)
-            start_time = parse_duration(item.vehicle.trip.start_time)
-            if start_time is not None:
+            # (parse_duration("") is timedelta(0), not None)
+            if (
+                item.vehicle.trip.start_time
+                and (start_time := parse_duration(item.vehicle.trip.start_time))
+                is not None
+            ):
                 journey.datetime = (
                     start_date.replace(tzinfo=self.tzinfo)
                     - timedelta(hours=12)
