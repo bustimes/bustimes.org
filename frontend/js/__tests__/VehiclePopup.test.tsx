@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/preact";
 import { Delay } from "../VehiclePopup";
 
 it("shows delay", async () => {

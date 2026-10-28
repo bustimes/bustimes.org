@@ -1,4 +1,4 @@
-import { ErrorBoundary, captureException } from "@sentry/react";
+import { captureException } from "@sentry/browser";
 import React, { memo, useEffect, createContext } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -32,7 +32,7 @@ import {
   type Map as MapLibreMap,
   setWorkerUrl,
 } from "maplibre-gl";
-import { ErrorFallback } from "./LoadingSorry";
+import { ErrorBoundary } from "./LoadingSorry";
 
 setWorkerUrl(maplibreWorkerUrl);
 
@@ -262,7 +262,7 @@ export default function BusTimesMap(
   }
 
   return (
-    <ErrorBoundary fallback={ErrorFallback}>
+    <ErrorBoundary>
       <ThemeContext.Provider value={mapStyle}>
         <MapGL
           {...props}
