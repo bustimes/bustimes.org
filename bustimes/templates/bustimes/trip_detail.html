@@ -25,8 +25,5 @@
 
 {% block footer %}
     <script id="trip-data" type="application/json">{{ stops_json }}</script>
-    {% if object.route.service.tracking %}
-        <script>window.TRIP_ID = {{ object.id }};</script>
-    {% endif %}
     <script src="{% static 'dist/js/app.js' %}"></script>
 {% endblock footer %}

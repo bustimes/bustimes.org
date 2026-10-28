@@ -43,12 +43,6 @@ import { getBounds, getFont } from "./utils";
 
 const apiRoot = process.env.apiRoot ?? "/";
 
-declare global {
-  interface Window {
-    INITIAL_VIEW_STATE: MapProps["initialViewState"];
-  }
-}
-
 const updateLocalStorage = debounce((zoom: number, latLng) => {
   try {
     localStorage.setItem("vehicleMap", `${zoom}/${latLng.lat}/${latLng.lng}`);
@@ -64,12 +58,20 @@ function updateHash(map: MapGL) {
   hash._updateHashUnthrottled();
 }
 
-if (window.INITIAL_VIEW_STATE && !window.location.hash) {
+const initialViewStateElement = document.getElementById("initialViewState");
+let INITIAL_VIEW_STATE: MapProps["initialViewState"];
+if (initialViewStateElement) {
+  INITIAL_VIEW_STATE = JSON.parse(
+    initialViewStateElement.textContent as string,
+  );
+}
+
+if (INITIAL_VIEW_STATE && !window.location.hash) {
   try {
     if (localStorage.vehicleMap) {
       const parts = localStorage.vehicleMap.split("/");
       if (parts.length === 3) {
-        window.INITIAL_VIEW_STATE = {
+        INITIAL_VIEW_STATE = {
           zoom: parts[0],
           latitude: parts[1],
           longitude: parts[2],
@@ -644,7 +646,7 @@ export default function BigMap(
     null,
   );
 
-  const initialViewState = useRef(window.INITIAL_VIEW_STATE);
+  const initialViewState = useRef(INITIAL_VIEW_STATE);
 
   const polylineLocations = useMemo(() => {
     if (journey?.time_aware_polyline) {

@@ -103,6 +103,16 @@ class Vehicles:
 
 
 @require_safe
+def map(request):
+    if request.headers.get("cf_ipcountry") == "IE":
+        coords = (53.45, -7.5)
+    else:
+        coords = (54, -2.9)
+    initial_view_state = {"latitude": coords[0], "longitude": coords[1], "zoom": 5}
+    return render(request, "map.html", {"initial_view_state": initial_view_state})
+
+
+@require_safe
 def vehicles(request):
     """index of recently AVL-enabled operators, etc"""
 

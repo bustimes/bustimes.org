@@ -931,4 +931,4 @@ class SiriSubscription(models.Model):
         return f"{self.name.replace(' ', '_')}_status"
 
     def get_absolute_url(self):
-        return reverse("siri_post", args=(self.uuid,))
+        return reverse("siri_get", args=(self.id,))

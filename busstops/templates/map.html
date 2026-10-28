@@ -36,17 +36,6 @@
 {% endblock content %}
 
 {% block footer %}
-    <script>
-        INITIAL_VIEW_STATE = {
-        {% if request.headers.cf_ipcountry == "IE" %}
-            latitude: 53.45,
-            longitude: -7.5,
-        {% else %}
-            latitude: 54,
-            longitude: -2.9,
-        {% endif %}
-            zoom: 5,
-        };
-    </script>
+    {{ initial_view_state|json_script:"initialViewState" }}
     <script src="{% static 'dist/js/app.js' %}"></script>
 {% endblock footer %}

@@ -1006,7 +1006,7 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
     def test_big_map(self):
         with self.assertNumQueries(1):
             response = self.client.get("/map")
-            self.assertContains(response, "latitude: 54,")
+            self.assertContains(response, '{"latitude": 54, ')
 
         with self.assertNumQueries(1):
             response = self.client.get("/maps")
@@ -1014,7 +1014,7 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
 
         # 🇮🇪
         response = self.client.get("/map", headers={"CF-IPCountry": "IE"})
-        self.assertContains(response, "latitude: 53.45,")
+        self.assertContains(response, '{"latitude": 53.45, ')
 
     def test_vehicles(self):
         with self.assertNumQueries(3):
