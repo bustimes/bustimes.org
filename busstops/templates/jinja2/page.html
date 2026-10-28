@@ -29,6 +29,20 @@
     sc.async=true;
     sc.src="https://cdn.adfirst.media/hb/bustimes.js?v"+Math.floor(new Date().getTime()/600000);
     s.parentNode.insertBefore(sc,s);
+    var pbjs=window.pbjs=window.pbjs||{};
+    pbjs.que=pbjs.que||[];
+    pbjs.que.push(function(){
+        pbjs.onEvent("auctionEnd",function(auction){
+            var top={};
+            auction.bidsReceived.forEach(function(b){
+                if(!top[b.adUnitCode]||b.cpm>top[b.adUnitCode].cpm)top[b.adUnitCode]=b;
+            });
+            auction.adUnitCodes.forEach(function(code){
+                var b=top[code];
+                gtag("event","prebid_auction",{ad_unit:code,bidder:b?b.bidder:"none",cpm:b?b.cpm:0,currency:b?b.currency:""});
+            });
+        });
+    });
     window.__tcfapi("addEventListener",2,function(tcData,success){
         if(!success)return;
         if(tcData.eventStatus!=="tcloaded"&&tcData.eventStatus!=="useractioncomplete")return;
