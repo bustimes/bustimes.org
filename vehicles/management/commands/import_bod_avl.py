@@ -698,7 +698,9 @@ class Command(ImportLiveVehiclesCommand):
         else:
             journey.direction = monitored_vehicle_journey.get("DirectionRef", "")
 
+        first_attempt = False
         if not journey.service_id and route_name:
+            first_attempt = True
             operators = self.get_operator(operator_ref)
             journey.service = self.get_service(
                 operators, item, route_name, vehicle.operator_id
@@ -717,50 +719,55 @@ class Command(ImportLiveVehiclesCommand):
                     with contextlib.suppress(IntegrityError):
                         vehicle.save(update_fields=["operator"])
 
-            # match trip (timetable) to journey:
-            if journey.service and (origin_aimed_departure_time or journey_ref):
-                block_ref = monitored_vehicle_journey.get("BlockRef")
+        # match trip (timetable) to journey:
+        if (
+            journey.service_id
+            and not journey.trip_id
+            and (origin_aimed_departure_time or journey_ref)
+            and (first_attempt or self.stops_changed(item, vehicle))
+        ):
+            block_ref = monitored_vehicle_journey.get("BlockRef")
 
-                arrival_time = monitored_vehicle_journey.get(
-                    "DestinationAimedArrivalTime"
-                )
-                if arrival_time:
-                    arrival_time = datetime.fromisoformat(arrival_time)
+            arrival_time = monitored_vehicle_journey.get("DestinationAimedArrivalTime")
+            if arrival_time:
+                arrival_time = datetime.fromisoformat(arrival_time)
 
-                if trip := journey.get_trip(
-                    datetime=dt,
-                    operator_ref=operator_ref,
-                    origin_ref=monitored_vehicle_journey.get("OriginRef"),
-                    destination_ref=destination_ref,
-                    departure_time=origin_aimed_departure_time,
-                    arrival_time=arrival_time,
-                    journey_code=journey_code,
-                    block_ref=block_ref,
+            if trip := journey.get_trip(
+                datetime=dt,
+                operator_ref=operator_ref,
+                origin_ref=monitored_vehicle_journey.get("OriginRef"),
+                destination_ref=destination_ref,
+                departure_time=origin_aimed_departure_time,
+                arrival_time=arrival_time,
+                journey_code=journey_code,
+                block_ref=block_ref,
+            ):
+                journey.trip = trip
+                if not first_attempt:
+                    journey.date = None  # work out again from the trip
+
+                if (
+                    not (destination_ref and journey.destination)
+                    and trip.destination_id
                 ):
-                    journey.trip = trip
+                    journey.destination = (
+                        trip.headsign
+                        or get_destination_name(trip.destination_id)
+                        or journey.destination
+                    )
 
-                    if (
-                        not (destination_ref and journey.destination)
-                        and trip.destination_id
-                    ):
-                        journey.destination = (
-                            trip.headsign
-                            or get_destination_name(trip.destination_id)
-                            or journey.destination
-                        )
-
-                    if (
-                        (vehicle.operator_id is None or vehicle.operator_id == "TFLO")
-                        and trip.operator_id
-                        or (
-                            vehicle.operator_id == "PLYC"
-                            and trip.operator_id == "TFCN"
-                            or vehicle.operator_id == "TFCN"
-                            and trip.operator_id == "PLYC"
-                        )
-                    ):
-                        vehicle.operator_id = trip.operator_id
-                        vehicle.save(update_fields=["operator"])
+                if (
+                    (vehicle.operator_id is None or vehicle.operator_id == "TFLO")
+                    and trip.operator_id
+                    or (
+                        vehicle.operator_id == "PLYC"
+                        and trip.operator_id == "TFCN"
+                        or vehicle.operator_id == "TFCN"
+                        and trip.operator_id == "PLYC"
+                    )
+                ):
+                    vehicle.operator_id = trip.operator_id
+                    vehicle.save(update_fields=["operator"])
 
         if (
             not journey.date
@@ -772,6 +779,19 @@ class Command(ImportLiveVehiclesCommand):
             journey.date = progress_journey.date
 
         return journey
+
+    @staticmethod
+    def stops_changed(item, vehicle):
+        # e.g. TfL briefly giving a new journey the previous journey's stops
+        # (latest_journey_data might be from another source, in another format)
+        previous = (vehicle.latest_journey_data or {}).get("MonitoredVehicleJourney")
+        if not previous:
+            return False
+        current = item["MonitoredVehicleJourney"]
+        return any(
+            current.get(key) != previous.get(key)
+            for key in ("OriginRef", "DestinationRef")
+        )
 
     def get_progress_journey(self, item, journey):
         if (

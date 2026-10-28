@@ -1,7 +1,8 @@
 import asyncio
+import copy
 import json
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from unittest import mock
 
@@ -1400,6 +1401,51 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                 command.save()
             journey = VehicleJourney.objects.get(vehicle__reg=vehicle_ref)
             self.assertEqual(str(journey.datetime), expected)
+
+    def test_tfl_stops_corrected(self):
+        """first item for a new journey has the previous journey's stops,
+        so no trip is matched until a later item corrects them"""
+        command = import_bod_avl.Command()
+        command.source = self.source
+
+        service = Service.objects.create(line_name="205", current=True)
+        route = Route.objects.create(
+            service=service, source=DataSource.objects.create(name="L")
+        )
+        trip = Trip.objects.create(route=route, start="17:13:00", end="18:30:00")
+        for atco_code in ("490004206J", "490000144P"):
+            trip.stoptime_set.create(
+                stop=StopPoint.objects.create(atco_code=atco_code, active=True)
+            )
+        vehicle = Vehicle.objects.create(code="MF25HKP")
+
+        item = {
+            "RecordedAtTime": "2026-10-20T16:13:33+00:00",
+            "MonitoredVehicleJourney": {
+                "PublishedLineName": "205",
+                "OperatorRef": "TFLO",
+                "OriginRef": "490004215M",
+                "DestinationRef": "490004206J",
+                "OriginAimedDepartureTime": "2026-10-20T16:13:00+00:00",
+            },
+        }
+        journey = command.get_journey(item, vehicle)
+        self.assertEqual(journey.service, service)
+        self.assertIsNone(journey.trip)
+
+        journey.date = date(2026, 10, 20)
+        vehicle.latest_journey = journey
+        vehicle.latest_journey_data = copy.deepcopy(item)
+        item["MonitoredVehicleJourney"]["OriginRef"] = "490004206J"
+        item["MonitoredVehicleJourney"]["DestinationRef"] = "490000144P"
+        journey = command.get_journey(item, vehicle)
+        self.assertEqual(journey.trip, trip)
+        self.assertIsNone(journey.date)  # for handle_item to work out from the trip
+
+        # latest_journey_data from another source
+        journey.trip = None
+        vehicle.latest_journey_data = {"foo": "bar"}
+        self.assertIsNone(command.get_journey(item, vehicle).trip)
 
     @patch_redis_client()
     def test_nottingham(self):
