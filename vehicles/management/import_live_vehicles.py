@@ -290,20 +290,18 @@ class ImportLiveVehiclesCommand(BaseCommand):
             elif journey.id:
                 self.journeys_to_update.append(journey)
             else:
+                if not journey.datetime:
+                    journey.datetime = location.datetime
                 key = (vehicle.id, journey.datetime)
                 if key in self.journeys_to_create:
                     # ! unusually, the same journey is twice in the feed
                     journey = self.journeys_to_create[key]
-                elif (
-                    journey.datetime
-                    and latest_journey
-                    and (
-                        existing := vehicle.vehiclejourney_set.filter(
-                            date__gte=timezone.localdate(journey.datetime)
-                            - timedelta(days=1),
-                            datetime=journey.datetime,
-                        ).first()
-                    )
+                elif latest_journey and (
+                    existing := vehicle.vehiclejourney_set.filter(
+                        date__gte=timezone.localdate(journey.datetime)
+                        - timedelta(days=1),
+                        datetime=journey.datetime,
+                    ).first()
                 ):
                     # this journey already exists - e.g. the vehicle is on
                     # 'two journeys at once', or alternating between two in
@@ -315,8 +313,6 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     self.journeys_to_create[key] = journey
 
             journey.source = self.source
-            if not journey.datetime:
-                journey.datetime = location.datetime
             if not journey.date:
                 journey.date = timezone.localdate(journey.datetime)
                 if (
