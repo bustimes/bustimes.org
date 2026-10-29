@@ -103,6 +103,8 @@ def apply_trip_update(stops, trip_update: dict, tzinfo=None) -> None:
         sequence = stop_time_update["stopSequence"]
         if stop_time := stops_by_sequence.get(sequence):
             stop_time.update = stop_time_update
+            if stop_time_update.get("scheduleRelationship") == "SKIPPED":
+                stop_time.call_condition = "notStopping"
 
     stop_time_update = None
     for stop_time in stops:

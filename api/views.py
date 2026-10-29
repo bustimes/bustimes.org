@@ -23,6 +23,7 @@ from busstops.models import Locality, Operator, Service, StopPoint
 from bustimes.models import StopTime, Trip
 from bustimes.utils import contiguous_stoptimes_only
 from departures.gtfsr import maybe_get_and_apply_trip_update
+from disruptions.models import Call
 from tfl import countdown
 from tfl import utils as tfl_utils
 from tfl.models import Journey
@@ -165,21 +166,26 @@ class TripViewSet(viewsets.ReadOnlyModelViewSet):
             .prefetch_related(
                 Prefetch("stop__locality", queryset=Locality.objects.only("name"))
             )
-            # .annotate(
-            #     call_condition=Subquery(
-            #         Call.objects.filter(
-            #             stop_time=OuterRef("id"),
-            #             journey__trip=OuterRef("trip"),
-            #             journey__situation__current=True,
-            #         ).values("condition")[:1]
-            #     )
-            # )
         )
         if obj.notes.all():
             stops = stops.annotate(note_codes=ArrayAgg("notes__code"))
         if multiple_trips:
             stops = contiguous_stoptimes_only(stops, obj.id)
         return stops
+
+    @staticmethod
+    def set_call_conditions(stops, date):
+        cancelled = set(
+            Call.objects.filter(
+                stop_time__in=[stop.id for stop in stops if stop.id],
+                journey__date=date,
+                journey__situation__current=True,
+                condition="notStopping",
+            ).values_list("stop_time", flat=True)
+        )
+        for stop in stops:
+            if stop.id in cancelled:
+                stop.call_condition = "notStopping"
 
     def get_object(self):
         obj = super().get_object()
@@ -532,6 +538,7 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                 instance.trip.stops = list(
                     TripViewSet.get_stops(instance.trip, instance.date)
                 )
+                TripViewSet.set_call_conditions(instance.trip.stops, instance.date)
 
                 if current_trip or not instance.vehicle_id:
                     maybe_get_and_apply_trip_update(instance.trip, instance.trip.stops)

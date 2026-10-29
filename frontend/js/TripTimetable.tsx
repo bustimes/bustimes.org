@@ -195,6 +195,9 @@ function Row({
   let className: string | undefined;
 
   let stopName: string | ReactElement = stop.stop.name;
+  if (stop.call_condition === "notStopping") {
+    stopName = <s>{stopName}</s>;
+  }
   if (stop.stop.atco_code) {
     const url = `/stops/${stop.stop.atco_code}`;
     if (url === highlightedStop) {

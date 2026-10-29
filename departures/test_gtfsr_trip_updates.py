@@ -175,6 +175,23 @@ class GTFSRTTest(TestCase):
         gtfsr.update_departure(departure, {"trip": {}})
         self.assertEqual(departure, {"stop_time": departure["stop_time"]})
 
+    def test_apply_trip_update_skipped(self):
+        stops = [
+            StopTime(sequence=1, departure=timedelta(hours=8)),
+            StopTime(sequence=2, departure=timedelta(hours=8, minutes=5)),
+        ]
+        gtfsr.apply_trip_update(
+            stops,
+            {
+                "stopTimeUpdate": [
+                    {"stopSequence": 1, "departure": {"delay": 60}},
+                    {"stopSequence": 2, "scheduleRelationship": "SKIPPED"},
+                ]
+            },
+        )
+        self.assertFalse(hasattr(stops[0], "call_condition"))
+        self.assertEqual(stops[1].call_condition, "notStopping")
+
     def test_get_expected_time(self):
         update = {
             "arrival": {"time": "1725349158", "uncertainty": 0},
