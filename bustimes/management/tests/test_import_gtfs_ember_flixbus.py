@@ -361,7 +361,7 @@ class FlixbusTest(TestCase):
         ):
             with self.assertNumQueries(81):
                 command.update()
-            with self.assertNumQueries(31):
+            with self.assertNumQueries(32):
                 command.update()
 
             journey = service.vehiclejourney_set.first()
