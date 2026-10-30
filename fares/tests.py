@@ -9,8 +9,19 @@ from vcr import use_cassette
 from busstops.models import DataSource, Operator, Service
 from bustimes.models import Route
 
-from .management.commands.import_netex_fares import Command, get_service
-from .models import DataSet, FareZone, Tariff, TimeInterval
+from .management.commands.import_netex_fares import (
+    Command,
+    delete_unused_prices,
+    get_service,
+)
+from .models import (
+    DataSet,
+    DistanceMatrixElement,
+    FareZone,
+    Price,
+    Tariff,
+    TimeInterval,
+)
 
 
 class FaresTest(TestCase):
@@ -189,4 +200,36 @@ class FaresTest(TestCase):
         self.assertEqual(
             str(tariff.valid_between),
             "[2021-07-08 00:00:00+00:00, 2121-07-08 00:00:00+00:00]",
+        )
+
+
+class DeleteUnusedPricesTest(TestCase):
+    def test_delete_unused_prices(self):
+        dataset = DataSet.objects.create(name="test")
+        tariff = Tariff.objects.create(source=dataset, code="t", name="t", filename="t")
+        zone = FareZone.objects.create(code="z", name="z", source=dataset)
+
+        used = Price.objects.create(amount="1.00")
+        DistanceMatrixElement.objects.create(
+            code="d", price=used, start_zone=zone, end_zone=zone, tariff=tariff
+        )
+        Price.objects.create(amount="2.00")  # unused
+        tariff_price = Price.objects.create(amount="3.00", tariff=tariff)
+        newer = Price.objects.create(amount="4.00")
+
+        with (
+            self.assertLogs("fares.management.commands.import_netex_fares") as cm,
+            self.assertNumQueries(1),
+        ):
+            delete_unused_prices(tariff_price.id)
+        self.assertEqual(
+            cm.output,
+            [
+                "INFO:fares.management.commands.import_netex_fares:deleted 1 unused prices"
+            ],
+        )
+
+        self.assertEqual(
+            set(Price.objects.values_list("id", flat=True)),
+            {used.id, tariff_price.id, newer.id},
         )

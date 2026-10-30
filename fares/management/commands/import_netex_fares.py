@@ -116,6 +116,17 @@ def get_service(operator, line_name, line_id):
         logger.warning(f"{e} {operator} {line_name}")
 
 
+def delete_unused_prices(max_id):
+    deleted, _ = models.Price.objects.filter(
+        id__lte=max_id,
+        tariff=None,
+        time_interval=None,
+        cell=None,
+        distancematrixelement=None,
+    ).delete()
+    logger.info(f"deleted {deleted} unused prices")
+
+
 class Command(BaseCommand):
     base_url = "https://data.bus-data.dft.gov.uk"
 
@@ -670,6 +681,9 @@ class Command(BaseCommand):
 
     def handle(self, api_key, **options):
         self.session = requests.Session()
+        max_price_id = (
+            models.Price.objects.order_by("-id").values_list("id", flat=True).first()
+        )
 
         if api_key == "ticketer":
             for noc in (
@@ -685,3 +699,6 @@ class Command(BaseCommand):
         else:
             assert len(api_key) == 40
             self.bod(api_key)
+
+        if max_price_id:
+            delete_unused_prices(max_price_id)

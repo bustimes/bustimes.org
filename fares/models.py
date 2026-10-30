@@ -229,7 +229,7 @@ class FareZone(models.Model):
 
 class DistanceMatrixElement(models.Model):
     code = models.CharField(max_length=255)
-    price = models.ForeignKey(Price, models.CASCADE)
+    price = models.ForeignKey(Price, models.DO_NOTHING)
     start_zone = models.ForeignKey(FareZone, models.CASCADE, related_name="starting")
     end_zone = models.ForeignKey(FareZone, models.CASCADE, related_name="ending")
     tariff = models.ForeignKey(Tariff, models.CASCADE)
@@ -293,7 +293,7 @@ class Cell(models.Model):
     distance_matrix_element = models.ForeignKey(
         DistanceMatrixElement, models.CASCADE, null=True
     )
-    price = models.ForeignKey(Price, models.CASCADE, null=True)
+    price = models.ForeignKey(Price, models.DO_NOTHING, null=True)
 
 
 # GTFS fare_attributes.txt and fare_rules.txt
