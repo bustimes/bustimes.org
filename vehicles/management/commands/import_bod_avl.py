@@ -19,7 +19,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import get_channel_layer
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
-from django.db import IntegrityError, connection
+from django.db import IntegrityError, close_old_connections, connection
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_duration
@@ -80,6 +80,9 @@ class QueryCounter:
 
 
 _SIRI_NS = "http://www.siri.org.uk/siri"
+
+# like at the start of each request - so a worker survives the database restarting
+reconnect_if_broken = sync_to_async(close_old_connections, thread_sensitive=True)
 
 
 def _elem_to_dict(elem):
@@ -301,6 +304,7 @@ class Command(ImportLiveVehiclesCommand):
         handle_message = sync_to_async(self.handle_message, thread_sensitive=True)
         while True:
             message = await channel_layer.receive(f"bod_avl.{shard}")
+            await reconnect_if_broken()
             try:
                 await handle_message(message)
             except Exception:
@@ -323,6 +327,7 @@ class Command(ImportLiveVehiclesCommand):
         handle = sync_to_async(handle_siri_post.call_local, thread_sensitive=True)
         while True:
             message = await channel_layer.receive(SIRI_CHANNEL)
+            await reconnect_if_broken()
             try:
                 await handle(message["uuid"], message["data"])
             except Exception:
