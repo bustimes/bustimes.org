@@ -936,6 +936,17 @@ class ImportTask(models.Model):
     source = models.ForeignKey("busstops.DataSource", models.DB_CASCADE)
     started_at = models.DateTimeField()
     finished_at = models.DateTimeField(null=True, blank=True)
+    # routes = models.PositiveSmallIntegerField(null=True, blank=True)
+    # services = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    def get_absolute_url(self):
+        return reverse(
+            "importtask_detail",
+            args=(
+                self.source_id,
+                self.id,
+            ),
+        )
 
 
 class DataQualityObservation(models.Model):

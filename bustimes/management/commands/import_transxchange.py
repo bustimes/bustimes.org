@@ -269,11 +269,10 @@ def route_link_is_dodgy(
                 f"{context}: {stop.atco_code} {stop.latlong.y},{stop.latlong.x} "
                 f"is {metres:.0f}m from {point.y},{point.x}"
             )
-            logger.warning(text)
-            return DodgyRouteLink(comment=text)
+            return DodgyRouteLink(category="dodgy RouteLink", comment=text)
 
 
-def do_route_links(journeys, transxchange, stops, service, task):
+def do_route_links(journeys, transxchange, stops, service, task, filename, seen):
     route_links = list(get_route_links(journeys, transxchange))
 
     # we're not interested in straight lines between stops
@@ -283,6 +282,12 @@ def do_route_links(journeys, transxchange, stops, service, task):
         route_links_to_create = {}  # or update
 
         for route_link in route_links:
+            # same stops can appear many times, with different RouteLink ids and lines
+            seen_key = (service.id, route_link.from_stop, route_link.to_stop)
+            if seen_key in seen:
+                continue
+            seen.add(seen_key)
+
             from_stop = stops.get(route_link.from_stop)
             to_stop = stops.get(route_link.to_stop)
 
@@ -306,7 +311,12 @@ def do_route_links(journeys, transxchange, stops, service, task):
                 if dodgy := route_link_is_dodgy(
                     start_point, from_stop, service.slug
                 ) or route_link_is_dodgy(end_point, to_stop, service.slug):
+                    if dodgy.comment in seen:
+                        continue
+                    seen.add(dodgy.comment)
+                    logger.warning(dodgy.comment)
                     dodgy.task = task
+                    dodgy.file_name = filename
                     dodgy.geometry = route_link.wkt()
                     dodgy.from_stop_id = from_stop.atco_code
                     dodgy.to_stop_id = to_stop.atco_code
@@ -1735,7 +1745,15 @@ class Command(BaseCommand):
 
             # route links (geometry between stops):
             if transxchange.route_sections:
-                do_route_links(journeys, transxchange, stops, service, self.task)
+                do_route_links(
+                    journeys,
+                    transxchange,
+                    stops,
+                    service,
+                    self.task,
+                    filename,
+                    self.seen_route_links,
+                )
 
             route_code = filename
             if len(transxchange.services) > 1:
@@ -1915,6 +1933,7 @@ class Command(BaseCommand):
 
         self.vehicle_types = {}
         self.invalid_timing_statuses = set()
+        self.seen_route_links = set()
 
         stops = self.do_stops(transxchange.stops)
 

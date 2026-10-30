@@ -1,0 +1,17 @@
+{% extends 'page.html' %}
+
+{% block canonical %}<meta name="robots" content="noindex,noarchive">{% endblock %}
+
+{% block bodyclass %}{% endblock %}
+
+{% block content %}
+
+<h2>data quality observations</h2>
+
+{% for observation in object.dataqualityobservation_set.all %}
+    <p>{{ observation.file_name }}</p>
+    <p>{{ observation.category }}</p>
+    <p>{{ observation.comment }}</p>
+{% endfor %}
+
+{% endblock content %}

@@ -32,6 +32,7 @@ from ...models import (
     Calendar,
     CalendarDate,
     DataQualityObservation,
+    DodgyRouteLink,
     Garage,
     Note,
     Route,
@@ -1584,6 +1585,11 @@ class ImportTransXChangeTest(TestCase):
         )
         self.assertEqual(3, Service.objects.filter(current=True).count())  # A, B, C
         self.assertEqual(6, Route.objects.count())
+
+        dodgy = DodgyRouteLink.objects.all()
+        self.assertEqual(len(dodgy), len({(d.file_name, d.comment) for d in dodgy}))
+        self.assertEqual(dodgy[0].category, "dodgy RouteLink")
+        self.assertTrue(dodgy[0].file_name.endswith("BODS_V1_1.xml"))
 
         service = Service.objects.first()
         response = self.client.get(service.get_absolute_url())

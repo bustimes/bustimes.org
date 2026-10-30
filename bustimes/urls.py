@@ -11,6 +11,11 @@ urlpatterns = [
     path("services/<slug>/debug", views.ServiceDebugView.as_view()),
     path("sources", views.SourceListView.as_view()),
     path("sources/<int:pk>", views.SourceDetailView.as_view(), name="source_detail"),
+    path(
+        "sources/<int:source_id>/updates/<int:pk>",
+        views.ImportTaskDetailView.as_view(),
+        name="importtask_detail",
+    ),
     re_path(
         r"^sources/(?P<source>\d+)/routes/(?P<code>.*)",
         views.route_xml,

@@ -52,7 +52,7 @@ from .forms import (
     UploadGTFSForm,
 )
 from .gtfs_utils import handle_gtfs_upload
-from .models import BankHolidayDate, Route, RouteLink, Trip
+from .models import BankHolidayDate, ImportTask, Route, RouteLink, Trip
 
 
 class ServiceDebugView(DetailView):
@@ -264,6 +264,10 @@ class SourceDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        context["updates"] = self.object.importtask_set.annotate(
+            observations=Count("dataqualityobservation")
+        )
+
         context["routes"] = (
             self.object.route_set.filter(service__isnull=False)
             .order_by("service_code", "line_name", "start_date", "revision_number")
@@ -279,6 +283,22 @@ class SourceDetailView(DetailView):
             {"get_line_name_and_brand": "Sources", "get_absolute_url": "/sources"}
         ]
 
+        return context
+
+
+class ImportTaskDetailView(DetailView):
+    model = ImportTask
+
+    def get_queryset(self):
+        return super().get_queryset().filter(source_id=self.kwargs["source_id"])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context["breadcrumb"] = [
+            {"get_line_name_and_brand": "Sources", "get_absolute_url": "/sources"},
+            self.object.source,
+        ]
         return context
 
 

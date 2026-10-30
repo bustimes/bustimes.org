@@ -54,11 +54,11 @@
         <th scope="col" class="shortish">data quality observations</th>
     </thead>
     <tbody>
-    {% for task in object.importtask_set.all %}
+    {% for task in updates %}
         <tr>
             <td>{{ task.started_at }}</td>
             <td>{{ task.finished_at }}</td>
-            <td></td>
+            <td><a href="{{ task.get_absolute_url }}">{{ task.observations }}</a></td>
         </tr>
     {% endfor %}
     </tbody>
