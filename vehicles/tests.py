@@ -430,7 +430,7 @@ class VehiclesTests(TestCase):
         self.client.post(
             "/admin/vehicles/vehicle/",
             {
-                "action": "deduplicate",
+                "action": "deduplicate_reg",
                 "_selected_action": [duplicate_1.id, duplicate_2.id, duplicate_3.id],
             },
         )
@@ -441,6 +441,21 @@ class VehiclesTests(TestCase):
         self.assertFalse(merged.withdrawn)
         self.assertEqual(merged.id, duplicate_1.id)
         self.assertEqual("none-60", merged.vehiclecode_set.get().code)
+
+        old = Vehicle.objects.create(fleet_code="3748", reg="MA76ZPB", code="MA76_ZPB")
+        new = Vehicle.objects.create(fleet_code="3748", code="3748")
+        self.client.post(
+            "/admin/vehicles/vehicle/",
+            {
+                "action": "deduplicate_fleet_code",
+                "_selected_action": [old.id, new.id],
+            },
+        )
+        self.assertEqual(Vehicle.objects.count(), 6)
+        merged = Vehicle.objects.get(fleet_code="3748")
+        self.assertEqual(merged.id, old.id)
+        self.assertEqual(merged.code, "3748")
+        self.assertEqual(merged.reg, "MA76ZPB")
 
         self.client.post(
             "/admin/vehicles/vehicle/",
