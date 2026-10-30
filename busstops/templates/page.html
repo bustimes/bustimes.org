@@ -41,7 +41,7 @@ var tz = window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone,
     pbjs.que=pbjs.que||[];
     pbjs.que.push(function(){
         pbjs.onEvent("bidWon",function(b){
-            gtag("event","prebid_won",{ad_unit:b.adUnitCode,bidder:b.bidder,cpm:b.cpm,bid_currency:b.currency,advertiser:(b.meta&&b.meta.advertiserDomains||[])[0],media_type:b.mediaType,size:b.size,deal:b.dealId});
+            gtag("event","prebid_won",{ad_unit:b.adUnitCode,bidder:b.bidder,cpm:b.cpm,advertiser:(b.meta&&b.meta.advertiserDomains||[])[0],media_type:b.mediaType,size:b.size,deal:b.dealId});
         });
     });
     window.__tcfapi("addEventListener",2,function(tcData,success){
