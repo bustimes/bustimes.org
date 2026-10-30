@@ -36,7 +36,7 @@ class ImportNornIronTest(TestCase):
     def test_import_ni(self, download, handle_archive, pprint):
         vcr_path = Path(__file__).resolve().parent / "fixtures" / "import_ni.yaml"
         with vcr.use_cassette(str(vcr_path), decode_compressed_response=True):
-            with self.assertNumQueries(11):
+            with self.assertNumQueries(17):
                 call_command("import_ni")
 
             handle_archive.assert_called()

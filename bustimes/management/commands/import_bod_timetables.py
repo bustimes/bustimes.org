@@ -19,6 +19,7 @@ from ...download_utils import download, download_if_modified
 from ...models import Route, TimetableDataSource, Trip, is_noc
 from ...utils import get_sha1, log_time_taken
 from .import_transxchange import Command as TransXChangeCommand
+from .import_transxchange import delete_unused_trips
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ https://bustimes.org/admin/busstops/service/?route__source__source={timetable_da
     routes = Route.objects.filter(id__in=route_ids)
     # do this first to prevent IntegrityError
     routes.update(service=None)
-    # routes.delete()
+    delete_unused_trips(routes)
     Service.objects.filter(
         ~Q(source__url=""),
         operator__in=operators,

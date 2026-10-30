@@ -20,7 +20,7 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry, Point
 from django.core.management.base import BaseCommand
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, OuterRef, Q
 from django.db.models.functions import Now, Upper
 from django.utils.timezone import localdate
@@ -456,6 +456,42 @@ def get_description(txc_service):
     return description
 
 
+def delete_unused_trips(routes) -> int:
+    """delete trips on routes no longer linked to a service,
+    unless a vehicle journey refers to them
+    """
+    unused_trips = Trip.objects.filter(
+        ~Exists(VehicleJourney.objects.filter(trip=OuterRef("pk")))
+    )
+    route_ids = list(
+        routes.filter(
+            Exists(unused_trips.filter(route=OuterRef("pk"))), service=None
+        ).values_list("id", flat=True)
+    )
+
+    total = 0
+    for route_id in route_ids:
+        with transaction.atomic():
+            route = (
+                Route.objects.select_for_update()
+                .filter(id=route_id, service=None)
+                .first()
+            )
+            if not route:
+                continue
+            deleted, _ = unused_trips.filter(route=route).delete()
+            total += deleted
+            if route.trip_set.exists():
+                # so a reimport of the same file reloads the trips
+                Route.objects.filter(id=route_id).update(file_hash=None)
+            else:
+                route.delete()
+
+    if total:
+        logger.info(f"  deleted {total} unused trips")
+    return total
+
+
 class Command(BaseCommand):
     bank_holidays = None
     version = None
@@ -618,6 +654,13 @@ class Command(BaseCommand):
         old_services = self.source.service_set.filter(current=True, route=None)
         if old_services.update(current=False):
             logger.info(f"  {old_services=}")
+
+        delete_unused_trips(self.source.route_set)
+
+        self.source.calendar_set.filter(
+            ~Exists(Trip.objects.filter(calendar=OuterRef("pk")))
+        ).delete()
+        self.calendar_cache = {}  # in case it held a calendar just deleted
 
     def handle_sub_archive(self, archive, sub_archive_name):
         if sub_archive_name.startswith("__MACOSX"):
