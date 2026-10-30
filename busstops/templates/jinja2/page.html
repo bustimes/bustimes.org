@@ -92,6 +92,9 @@ var gaConfig = {
 if (bot) {
     gaConfig.traffic_type = 'bot';
 }
+{% if request.resolver_match.url_name %}
+gaConfig.view_name = '{{ request.resolver_match.url_name }}';
+{% endif %}
 if (location.hostname === 'bustimes.org') {
     gtag('config', 'G-X2Z0KM7Z5C', gaConfig);
 }
