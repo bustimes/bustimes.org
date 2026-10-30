@@ -418,7 +418,9 @@ function JourneySidebar(props: {
   }
 
   const showNavigation = journey.previous || journey.next;
-  const hash = props.journeyContext ? `#context=${props.journeyContext}` : "";
+  const context = props.journeyContext
+    ? `&context=${props.journeyContext}`
+    : "";
 
   const _operator = journey.operator || journey.trip?.operator;
   let operator: ReactElement | undefined;
@@ -492,14 +494,14 @@ function JourneySidebar(props: {
         <div className="navigation">
           {journey.previous ? (
             <p className="previous">
-              <Link href={`/journeys/${journey.previous.id}${hash}`}>
+              <Link href={`/map#journey=${journey.previous.id}${context}`}>
                 &larr; {journey.previous.datetime.slice(11, 16)}
               </Link>
             </p>
           ) : null}
           {journey.next ? (
             <p className="next">
-              <Link href={`/journeys/${journey.next.id}${hash}`}>
+              <Link href={`/map#journey=${journey.next.id}${context}`}>
                 {journey.next.datetime.slice(11, 16)} &rarr;
               </Link>
             </p>

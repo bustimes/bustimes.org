@@ -181,7 +181,7 @@ class LiveDeparturesTest(TestCase):
                         <td>18:23</td></tr>
                     <tr><td><a href="/services/8">8</a></td><td>Bow Church
                         <div class="vehicle"><a href="/vehicles/{vehicle_2.slug}">LTZ 1243</a></div></td>
-                        <td><a href="/journeys/{journey.id}">18:26</a></td></tr>
+                        <td><a href="/map#journey={journey.id}">18:26</a></td></tr>
                     <tr><td>388</td><td>Stratford City
                         <div class="vehicle">YR59NPF</div></td>
                         <td>18:26</td></tr>
@@ -248,7 +248,7 @@ class LiveDeparturesTest(TestCase):
         ).get_departures()
 
         self.assertEqual(departures[0]["vehicle"], vehicle_2)
-        self.assertEqual(departures[0]["link"], f"/journeys/{journey.id}")
+        self.assertEqual(departures[0]["link"], f"/map#journey={journey.id}")
 
     def test_blend(self):
         service = Service(line_name="X98")
