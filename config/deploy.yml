@@ -38,6 +38,7 @@ servers:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
         - FLICKR_API_KEY
+        - STADIA_MAPS_API_KEY
 
 accessories:
   # re-exposes the web containers' granian metrics on port 9394 for prometheus

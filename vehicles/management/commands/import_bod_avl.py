@@ -878,7 +878,7 @@ class Command(ImportLiveVehiclesCommand):
         if self.last_modified:
             headers["if-modified-since"] = http_date(self.last_modified.timestamp())
 
-        response = self.session.get(self.source.url, headers=headers, timeout=(11, 20))
+        response = self.session.get(self.source.url, headers=headers, timeout=35)
         self.fetched_at = timezone.now()
 
         self.not_modified = response.status_code == HTTPStatus.NOT_MODIFIED
