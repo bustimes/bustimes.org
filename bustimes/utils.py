@@ -1,4 +1,5 @@
 import hashlib
+import re
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, date, datetime, timedelta
@@ -100,6 +101,53 @@ def get_stop_times(date: date, time: timedelta | None, stop, routes, trip_ids=No
     return times
 
 
+GENERIC_WORDS = {
+    "adj",
+    "and",
+    "bay",
+    "bus",
+    "centre",
+    "circ",
+    "circular",
+    "city",
+    "high",
+    "interchange",
+    "lane",
+    "opp",
+    "park",
+    "rail",
+    "railway",
+    "road",
+    "school",
+    "square",
+    "stance",
+    "stand",
+    "station",
+    "stop",
+    "street",
+    "the",
+    "town",
+    "via",
+}
+
+
+def significant_words(name: str) -> set[str]:
+    return {
+        word
+        for word in re.findall(r"[a-z]+", name.lower())
+        if len(word) > 2 and word not in GENERIC_WORDS
+    }
+
+
+def is_wrong_way_round(origin, destination, actual_origin, actual_destination) -> bool:
+    origin, destination, actual_origin, actual_destination = map(
+        significant_words, (origin, destination, actual_origin, actual_destination)
+    )
+    same = bool(origin & actual_origin) + bool(destination & actual_destination)
+    swapped = bool(origin & actual_destination) + bool(destination & actual_origin)
+    return swapped > same
+
+
 def descriptions_are_redundant(route) -> bool:
     o, d = route.origin, route.destination
     return bool(
@@ -114,17 +162,22 @@ def get_descriptions(routes):
     inbound_outbound_descriptions = {
         (route.outbound_description, route.inbound_description): None
         for route in routes
-        if route.outbound_description != route.inbound_description
+        if route.outbound_description
+        and route.inbound_description
+        and route.outbound_description != route.inbound_description
         and not descriptions_are_redundant(route)
     }.keys()
 
-    origins_and_destinations = list(
-        {
-            tuple(filter(None, [route.origin, route.via, route.destination])): None
-            for route in routes
-            if route.origin and route.destination
-        }.keys()
-    )
+    origins_and_destinations = []
+    for route in routes:
+        if route.origin and route.destination:
+            parts = tuple(filter(None, [route.origin, route.via, route.destination]))
+            # ignore duplicates, and mirror images (ignoring vias) of ones we've already got
+            if not any(
+                parts == other or (parts[0], parts[-1]) == (other[-1], other[0])
+                for other in origins_and_destinations
+            ):
+                origins_and_destinations.append(parts)
 
     if len(origins_and_destinations) > 1:
         # if all have the same via
@@ -140,7 +193,7 @@ def get_descriptions(routes):
         # join "Holt - Sheringham" and "Sheringham - Cromer" for example
         # (like dominoes)
         for i, parts in enumerate(origins_and_destinations):
-            for j, other_parts in enumerate(origins_and_destinations[i:]):
+            for j, other_parts in enumerate(origins_and_destinations[i + 1 :], 1):
                 if parts[0] == other_parts[-1]:
                     origins_and_destinations[i + j] = other_parts + parts[1:]
                     origins_and_destinations[i] = None

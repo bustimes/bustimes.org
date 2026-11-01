@@ -1,8 +1,9 @@
 import datetime
 import graphlib
+import re
 from copy import copy
 from dataclasses import dataclass
-from difflib import Differ, SequenceMatcher
+from difflib import Differ
 from functools import cached_property, cmp_to_key, partial
 
 from django.conf import settings
@@ -14,7 +15,7 @@ from sql_util.utils import Exists
 
 from .formatting import format_timedelta
 from .models import Calendar, Note, Route, StopTime, Trip, chain_split_trips
-from .utils import get_descriptions
+from .utils import get_descriptions, is_wrong_way_round
 
 differ = Differ(charjunk=lambda _: True)
 
@@ -319,34 +320,38 @@ class Timetable:
 
         self.apply_stops(self.stop_situations)
 
-        # correct origin and destination being the wrong way round
-        # (but not inbound and outbound descriptions - they can be right when origin and destination are wrong)
-        if (
-            self.groupings
-            and not self.inbound_outbound_descriptions
-            and len(self.origins_and_destinations) == 1
-        ):
+        # correct origin and destination, or inbound and outbound descriptions, being the wrong way round
+        # (check each against the actual stops independently - one can be right when the other is wrong)
+        if self.groupings:
             grouping = self.groupings[0]
             first, last = grouping.rows[0].stop, grouping.rows[-1].stop
             if type(first) is not Stop and type(last) is not Stop:
                 if grouping.inbound:
                     first, last = last, first
-                origin = self.origins_and_destinations[0][0]
-                destination = self.origins_and_destinations[0][-1]
-                actual_origin = first.get_qualified_name()
-                actual_destination = last.get_qualified_name()
-                if (
-                    SequenceMatcher(None, origin, actual_origin).quick_ratio()
-                    + SequenceMatcher(
-                        None, destination, actual_destination
-                    ).quick_ratio()
-                    < SequenceMatcher(None, origin, actual_destination).quick_ratio()
-                    + SequenceMatcher(None, destination, actual_origin).quick_ratio()
+                first = first.get_qualified_name()
+                last = last.get_qualified_name()
+
+                if len(self.inbound_outbound_descriptions) == 1:
+                    outbound, inbound = next(iter(self.inbound_outbound_descriptions))
+                    parts = re.split(" to | - ", outbound)
+                    if len(parts) > 1 and is_wrong_way_round(
+                        parts[0], parts[-1], first, last
+                    ):
+                        self.inbound_outbound_descriptions = [(inbound, outbound)]
+                elif (
+                    not self.inbound_outbound_descriptions
+                    and len(self.origins_and_destinations) == 1
                 ):
-                    self.origins_and_destinations = [
-                        tuple(reversed(parts))
-                        for parts in self.origins_and_destinations
-                    ]
+                    if is_wrong_way_round(
+                        self.origins_and_destinations[0][0],
+                        self.origins_and_destinations[0][-1],
+                        first,
+                        last,
+                    ):
+                        self.origins_and_destinations = [
+                            tuple(reversed(parts))
+                            for parts in self.origins_and_destinations
+                        ]
 
         return self
 
