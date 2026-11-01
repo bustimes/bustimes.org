@@ -421,6 +421,27 @@ def merge_layover(a, b):
     a.pick_up = b.pick_up
 
 
+def get_times(journey, departure_time_is_departure: bool):
+    """Most publishers add a WaitTime at the first stop to the DepartureTime,
+    but Elydium (maybe more correctly) doesn't"""
+
+    cells = journey.get_times()
+    if not departure_time_is_departure:
+        yield from cells
+        return
+
+    offset = None
+    for cell in cells:
+        if offset is None:
+            offset = cell.departure_time - cell.arrival_time
+            cell.departure_time = cell.arrival_time
+            cell.wait_time = None
+        elif offset:
+            cell.arrival_time -= offset
+            cell.departure_time -= offset
+        yield cell
+
+
 def get_description(txc_service):
     description = txc_service.description
 
@@ -1197,7 +1218,9 @@ class Command(BaseCommand):
 
             blank = False
             previous_stop_time = None
-            for sequence, cell in enumerate(journey.get_times()):
+            for sequence, cell in enumerate(
+                get_times(journey, self.departure_time_is_departure)
+            ):
                 stop_time = get_stop_time(
                     trip, cell, stops, self.invalid_timing_statuses
                 )
@@ -1286,7 +1309,9 @@ class Command(BaseCommand):
                         )
                         journey.departure_time = trip.start
                         previous_stop_time = None
-                        for cell in journey.get_times():
+                        for cell in get_times(
+                            journey, self.departure_time_is_departure
+                        ):
                             stop_time = get_stop_time(
                                 trip, cell, stops, self.invalid_timing_statuses
                             )
@@ -1966,6 +1991,11 @@ class Command(BaseCommand):
         while chunk := open_file.read(65536):
             sha1.update(chunk)
         file_hash = sha1.hexdigest()
+        open_file.seek(0)
+
+        self.departure_time_is_departure = (
+            b"Elydium Timetable Manager" in open_file.read(500)
+        )
         open_file.seek(0)
 
         transxchange = TransXChange(open_file)

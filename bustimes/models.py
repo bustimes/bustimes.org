@@ -948,6 +948,10 @@ class ImportTask(models.Model):
             ),
         )
 
+    def duration(self):
+        if self.started_at and self.finished_at:
+            return self.finished_at - self.started_at
+
 
 class DataQualityObservation(models.Model):
     task = models.ForeignKey(ImportTask, models.DB_CASCADE)

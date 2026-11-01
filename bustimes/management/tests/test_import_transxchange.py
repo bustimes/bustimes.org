@@ -526,6 +526,52 @@ class ImportTransXChangeTest(TestCase):
         self.assertFalse(service.stopusage_set.filter(timing_point=False).exists())
 
     @time_machine.travel("2017-12-10")
+    def test_first_stop_wait_time(self):
+        xml = (FIXTURES_DIR / "em_11-1-J-y08-1.xml").read_text()
+        xml = xml.replace(
+            '<From SequenceNumber="1">',
+            '<From SequenceNumber="1"><WaitTime>PT5M</WaitTime>',
+        )
+        elydium_xml = xml.replace(
+            "<TransXChange ",
+            "<!-- File written by Elydium Timetable Manager API v4.0.30319 -->\n"
+            "<TransXChange ",
+            1,
+        )
+
+        def get_times():
+            trip = Trip.objects.filter(
+                vehicle_journey_code="VJ_11-1-J-y08-1-114-UG"
+            ).latest("id")
+            stop_times = list(trip.stoptime_set.order_by("id"))
+            return (
+                str(trip.start),
+                str(stop_times[0].arrival),
+                str(stop_times[0].departure),
+                str(stop_times[1].departure),
+                str(trip.end),
+            )
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "em_11-1-J-y08-1.xml"
+            with patch(f"{__name__}.FIXTURES_DIR", Path(directory)):
+                # most publishers: wait after the DepartureTime
+                path.write_text(xml)
+                self.handle_files("EA.zip", ["em_11-1-J-y08-1.xml"])
+                self.assertEqual(
+                    get_times(),
+                    ("09:38", "09:33", "09:38", "09:39", "10:25"),
+                )
+
+                # Elydium: DepartureTime is the departure time
+                path.write_text(elydium_xml)
+                self.handle_files("EA.zip", ["em_11-1-J-y08-1.xml"])
+                self.assertEqual(
+                    get_times(),
+                    ("09:33", "None", "09:33", "09:34", "10:20"),
+                )
+
+    @time_machine.travel("2017-12-10")
     def test_timetable_derby_alvaston_circular(self):
         """Test a weird timetable where 'Wilmorton Ascot Drive' is visited twice consecutively on on one journey"""
 
