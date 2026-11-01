@@ -128,30 +128,30 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.43.122"
+version = "1.43.123"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d3/0b/6fb3820f86bf7d65313e85f7fb360147eb35170b5c306753eca69539b24f/boto3-1.43.122.tar.gz", hash = "sha256:c923650d09e4c445564ca14d5ce89466c3083884b6f6c189f0f445fc17f02eb5", size = 112646, upload-time = "2026-10-29T19:19:55.597Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/8a/64b46f075149f9160da44aa7e1052dd18431b9ad4435beb0cfb02cc48624/boto3-1.43.123.tar.gz", hash = "sha256:055fabb990c5d2f31fce4ca569255bd640cdd11a3ca68c9ecad35f4f8a5b83b5", size = 112638, upload-time = "2026-10-30T19:18:50.085Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ee/fd/fef3d36be7875f413d8ef3a17c1743b64f9686693d1aed8d5126e7fa1dcd/boto3-1.43.122-py3-none-any.whl", hash = "sha256:cca51b3650080594a1df344b8a2e76007eab6d5fa50504a0b622dfdc14cdeaa1", size = 140042, upload-time = "2026-10-29T19:19:54.241Z" },
+    { url = "https://files.pythonhosted.org/packages/96/b2/a7986c327f80aa6f1544f4cb8f2fa7da4e1fccd472379a21cad0508b8a0e/boto3-1.43.123-py3-none-any.whl", hash = "sha256:d18d66e1e13faa0c25d0b1b8c5ce946e29fb5fc0b6456b655a93a678ff4cc313", size = 140044, upload-time = "2026-10-30T19:18:47.734Z" },
 ]
 
 [[package]]
 name = "botocore"
-version = "1.43.122"
+version = "1.43.123"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/90/56/30404d13529fd3fc0a142f9ec2b6680778c0b8183eeef932401e7954dc9c/botocore-1.43.122.tar.gz", hash = "sha256:2fc53b68b35314b1738cad46e6170d0556496863913451428fc3afccb8c7fa95", size = 16478232, upload-time = "2026-10-29T19:19:51.025Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/de/011fc2a47fb066c47064b122498d2fd21f55bc90ea514acbddc37ca0f8c1/botocore-1.43.123.tar.gz", hash = "sha256:80948cb9b1cdf1a1a25809089a42e3a1bc4af0258d198222db6e97dcc660dd0c", size = 16486269, upload-time = "2026-10-30T19:18:44.609Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/ee/bde83952daa267697a73c0c0dada587127e5022056c802bf07e0a9ad8b95/botocore-1.43.122-py3-none-any.whl", hash = "sha256:668e608edf8847fc4c3c6b38688e183c3bcf19b8a1f7f58d33c03a6f3039bd49", size = 16178674, upload-time = "2026-10-29T19:19:47.726Z" },
+    { url = "https://files.pythonhosted.org/packages/db/96/4f2dffd304425c07160ab2c12cb13322d852fd956fe9d4386228c93f02ea/botocore-1.43.123-py3-none-any.whl", hash = "sha256:e30580f9c1282c321529238ff8ff75066096a2adbd0a293c8ae592c21d1733a3", size = 16185987, upload-time = "2026-10-30T19:18:39.794Z" },
 ]
 
 [[package]]
@@ -253,7 +253,7 @@ requires-dist = [
     { name = "django", specifier = ">=6.1" },
     { name = "django-autoslug", specifier = ">=1.9.8,<2" },
     { name = "django-cors-headers", specifier = ">=4.2.0,<5" },
-    { name = "django-email-obfuscator", specifier = ">=0.1.5,<0.2" },
+    { name = "django-email-obfuscator", specifier = "~=0.2.0" },
     { name = "django-filter", specifier = "~=26.1" },
     { name = "django-http-compression", specifier = ">=1.2.0" },
     { name = "django-imagekit", specifier = ">=6.1.0" },
@@ -316,7 +316,7 @@ test = [
     { name = "requests-toolbelt", specifier = ">=1.0.0,<2" },
     { name = "tblib", specifier = ">=3.0.0,<4" },
     { name = "time-machine", specifier = "~=3.6.0" },
-    { name = "vcrpy", specifier = "~=9.2.0" },
+    { name = "vcrpy", specifier = "~=9.4.0" },
 ]
 
 [[package]]
@@ -819,9 +819,12 @@ wheels = [
 
 [[package]]
 name = "django-email-obfuscator"
-version = "0.1.5"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f6/ef/476733a8dafacd240ca13e374c45c8142ff239171771dced719e526701de/django-email-obfuscator-0.1.5.tar.gz", hash = "sha256:055d5251ebfb4aa3431c238927461e6b4bd501f937b5207cd175f7ea50519f32", size = 1347, upload-time = "2017-02-10T21:51:55.653Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/02/8fd16adee32bb595f9967eb9aa0fa5e9e3f849f595f7745571e5f2c08c84/django_email_obfuscator-0.2.0.tar.gz", hash = "sha256:97dfbc8a646692cb5c77b08f2618e48cc3af032fb6061bde9f658402add56eea", size = 4348, upload-time = "2026-10-29T17:19:40.384Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9d/5d/d2c725bf896a728c94854b616bbf34eafb96f8396112f24db51eea7237fe/django_email_obfuscator-0.2.0-py3-none-any.whl", hash = "sha256:b1f20f7b05583d282beaecb81ca67b7de87901cdbfec2d9bf6c8a2a4428ee31f", size = 4681, upload-time = "2026-10-29T17:19:39.196Z" },
+]
 
 [[package]]
 name = "django-filter"
@@ -2488,15 +2491,15 @@ wheels = [
 
 [[package]]
 name = "vcrpy"
-version = "9.2.0"
+version = "9.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyyaml" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9a/5e/7e75478db669231809ba9f4197f3460d1a4603e5ecb1d894b967cca5a7e8/vcrpy-9.2.0.tar.gz", hash = "sha256:c325fa276b175de06bc7afe1b2a45204dbe1fddd90d1b2a18ab14dff2e8e2e4a", size = 113323, upload-time = "2026-10-25T22:29:44.293Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/b9/9abf7df54f4d30d2b6ce47f12ab94ed4820395a953da30dd451af86dab9d/vcrpy-9.4.0.tar.gz", hash = "sha256:af6cb65abb1a0a5c1d25954b9a52f033b85c6f80679f3f91c9e7301da4107e74", size = 122146, upload-time = "2026-11-01T00:31:39.251Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2e/27/4a23141b26d604e5c1a67d5d9df726a517ca625499860bae4bf7a75b6faa/vcrpy-9.2.0-py3-none-any.whl", hash = "sha256:a22f6f2cd47687e363c64ff77fbc7b7bbfbc036db793b4413faf6dd9d6718f93", size = 54278, upload-time = "2026-10-25T22:29:42.674Z" },
+    { url = "https://files.pythonhosted.org/packages/21/91/7bb14a9806dfa22cf9b3fb28587c3e5d697434ca06ecb4d8b63c7f7db01d/vcrpy-9.4.0-py3-none-any.whl", hash = "sha256:7f2e9c90bf996ed36a423c675119ddae7dd658571c55cfa8b1c954746a99702b", size = 57627, upload-time = "2026-11-01T00:31:37.771Z" },
 ]
 
 [[package]]
