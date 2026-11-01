@@ -58,7 +58,7 @@ class ImportBusOpenDataTest(TestCase):
         )
         cls.user = User.objects.create()
 
-    @use_cassette(str(FIXTURES_DIR / "bod_lynx.yaml"))
+    @use_cassette(FIXTURES_DIR / "bod_lynx.yaml")
     @time_machine.travel("2020-05-01T00:00:00Z", tick=False)
     def test_import_bod(self):
         admin_area = AdminArea.objects.create(
@@ -386,7 +386,7 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
             TemporaryDirectory() as directory,
             override_settings(DATA_DIR=Path(directory)),
         ):
-            with use_cassette(str(FIXTURES_DIR / "bod_ticketer.yaml")):
+            with use_cassette(FIXTURES_DIR / "bod_ticketer.yaml"):
                 with self.assertLogs(
                     "bustimes.management.commands.import_transxchange", "WARNING"
                 ) as cm:

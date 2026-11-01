@@ -38,7 +38,7 @@ class FaresTest(TestCase):
         path = Path(__file__).resolve().parent / "data"
 
         with (
-            use_cassette(str(path / "bod_fares.yaml")),
+            use_cassette(path / "bod_fares.yaml"),
             self.assertLogs("fares.management.commands.import_netex_fares") as cm,
         ):
             call_command(

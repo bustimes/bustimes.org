@@ -110,7 +110,7 @@ class SiriSXTest(TestCase):
         AdminArea.objects.create(id=73, atco_code="080", name="Cornwall", region=region)
 
     def test_siri_sx_request(self):
-        with use_cassette(str(VCR_DIR / "siri_sx.yaml")) as cassette:
+        with use_cassette(VCR_DIR / "siri_sx.yaml") as cassette:
             with self.assertNumQueries(144):
                 bods_disruptions()
 
@@ -302,7 +302,7 @@ class SiriSXTest(TestCase):
         source = DataSource.objects.create(name="Bus Open Data")
         gone = Situation.objects.create(source=source, situation_number="gone")
 
-        with use_cassette(str(VCR_DIR / "siri_sx.yaml")) as cassette:
+        with use_cassette(VCR_DIR / "siri_sx.yaml") as cassette:
             bods_disruptions()
             self.assertFalse(Situation.objects.filter(id=gone.id).exists())
 
@@ -325,7 +325,7 @@ class SiriSXTest(TestCase):
                 raise DataError
             save(link, *args, **kwargs)
 
-        with use_cassette(str(VCR_DIR / "siri_sx.yaml")) as cassette:
+        with use_cassette(VCR_DIR / "siri_sx.yaml") as cassette:
             bods_disruptions()
 
             cassette.rewind()

@@ -44,7 +44,7 @@ class SiriPostTest(TestCase):
         vcr_dir = Path(__file__).resolve().parent / "vcr"
 
         with (
-            use_cassette(str(vcr_dir / "siri_vm_subscribe.yaml"), match_on=["body"]),
+            use_cassette(vcr_dir / "siri_vm_subscribe.yaml", match_on=["body"]),
             time_machine.travel("2023-12-15T08:24:05Z", tick=False),
             mock.patch(
                 "vehicles.management.commands.siri_vm_subscribe.uuid.uuid4",

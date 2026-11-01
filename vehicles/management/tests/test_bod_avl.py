@@ -217,7 +217,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             ),
             patch_redis_client(),
         ):
-            with use_cassette(str(self.vcr_path / "bod_avl.yaml")) as cassette:
+            with use_cassette(self.vcr_path / "bod_avl.yaml") as cassette:
                 command.update()
 
                 cassette.rewind()
@@ -1827,13 +1827,13 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         command = import_bod_avl.Command()
         command.source = self.source
 
-        with use_cassette(str(self.vcr_path / "bod_avl_zipfile.yaml")):
+        with use_cassette(self.vcr_path / "bod_avl_zipfile.yaml"):
             items = command.get_items()
         self.assertEqual(items, [])
 
         self.source.url = "https://bustimes.org/404"
         with (
-            use_cassette(str(self.vcr_path / "bod_avl_error.yaml")),
+            use_cassette(self.vcr_path / "bod_avl_error.yaml"),
             self.assertRaises(HTTPError),
         ):
             command.get_items()

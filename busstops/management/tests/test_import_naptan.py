@@ -45,7 +45,7 @@ class NaptanTest(TestCase):
 
         with (
             TemporaryDirectory() as temp_dir,
-            vcr.use_cassette(str(fixtures_dir / "naptan.yml")) as cassette,
+            vcr.use_cassette(fixtures_dir / "naptan.yml") as cassette,
         ):
             temp_dir_path = Path(temp_dir)
 
