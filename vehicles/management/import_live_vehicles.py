@@ -105,6 +105,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
         self.journeys_ids_ids = {}
         self.duplicate_vehicles = set()  # vehicles on 'two journeys at once'
         self.recent_positions = {}  # vehicle id or identity: hashes of last few coordinates
+        self.last_locations = {}  # vehicle id: last location (as in Redis)
         self.max_datetime = None  # newest item timestamp in the current update
 
     @staticmethod
@@ -183,6 +184,17 @@ class ImportLiveVehiclesCommand(BaseCommand):
             latest = redis_client.get(f"vehicle{vehicle.id}")
             if latest:
                 latest = json.loads(latest)
+        if (
+            not latest
+            and (fallback := self.last_locations.get(vehicle.id))
+            and (dt or now or timezone.now())
+            - datetime.fromisoformat(fallback["datetime"])
+            < timedelta(hours=12)
+        ):
+            # the Redis key has expired (15 minutes after the position's timestamp) -
+            # use the last location we saw, so a stuck GPS position
+            # doesn't reappear with a new timestamp every 15 minutes
+            latest = fallback
         if latest:
             latest_datetime = datetime.fromisoformat(latest["datetime"])
             latest_latlong = Point(*latest["coordinates"])
@@ -215,15 +227,6 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     # e.g. a stale feed (or a forgotten ticket machine) alongside a live one
                     # (per identity too, as a live feed soon pushes it out of the vehicle's)
                     return
-        elif self.recent_positions:
-            # no latest location (the Redis key expired, 15 minutes after its timestamp) -
-            # don't let a stuck GPS position reappear with a new timestamp
-            location = self.create_vehicle_location(item)
-            if location and any(
-                hash(location.latlong.coords) in self.recent_positions.get(key, ())
-                for key in (vehicle.id, identity)
-            ):
-                return
 
         latest_journey = vehicle.latest_journey
         if keep_journey:
@@ -358,12 +361,12 @@ class ImportLiveVehiclesCommand(BaseCommand):
         if not journey.trip_id:
             location.progress_journey = self.get_progress_journey(item, journey)
 
-        if location_unchanged and self.same_as_latest(
-            json.loads(json.dumps(location.get_redis_json(tz=self.tzinfo))), latest
-        ):
-            return  # nothing new
-
         if location.latlong:
+            redis_json = json.loads(json.dumps(location.get_redis_json(tz=self.tzinfo)))
+            if location_unchanged and self.same_as_latest(redis_json, latest):
+                return  # nothing new
+            self.last_locations[vehicle.id] = redis_json
+
             for key in (vehicle.id, identity) if identity else (vehicle.id,):
                 self.recent_positions[key] = (
                     hash(location.latlong.coords),
