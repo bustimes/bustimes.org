@@ -50,14 +50,14 @@
 <table>
     <thead>
         <th scope="col" class="shortish">started at</th>
-        <th scope="col" class="shortish">finished at</th>
+        <th scope="col" class="shortish">time taken</th>
         <th scope="col" class="shortish">data quality observations</th>
     </thead>
     <tbody>
     {% for task in updates %}
         <tr>
             <td>{{ task.started_at }}</td>
-            <td>{{ task.finished_at }}</td>
+            <td>{{ task.duration }}</td>
             <td><a href="{{ task.get_absolute_url }}">{{ task.observations }}</a></td>
         </tr>
     {% endfor %}

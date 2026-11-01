@@ -266,7 +266,7 @@ class SourceDetailView(DetailView):
 
         context["updates"] = self.object.importtask_set.annotate(
             observations=Count("dataqualityobservation")
-        )
+        ).order_by("-id")
 
         context["routes"] = (
             self.object.route_set.filter(service__isnull=False)
