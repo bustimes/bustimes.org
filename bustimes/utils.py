@@ -100,11 +100,22 @@ def get_stop_times(date: date, time: timedelta | None, stop, routes, trip_ids=No
     return times
 
 
+def descriptions_are_redundant(route) -> bool:
+    o, d = route.origin, route.destination
+    return bool(
+        o
+        and d
+        and route.outbound_description in ("", f"{o} - {d}", f"{o} to {d}")
+        and route.inbound_description in ("", f"{d} - {o}", f"{d} to {o}")
+    )
+
+
 def get_descriptions(routes):
     inbound_outbound_descriptions = {
         (route.outbound_description, route.inbound_description): None
         for route in routes
         if route.outbound_description != route.inbound_description
+        and not descriptions_are_redundant(route)
     }.keys()
 
     origins_and_destinations = list(

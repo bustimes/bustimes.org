@@ -2,7 +2,7 @@ import datetime
 import graphlib
 from copy import copy
 from dataclasses import dataclass
-from difflib import Differ
+from difflib import Differ, SequenceMatcher
 from functools import cached_property, cmp_to_key, partial
 
 from django.conf import settings
@@ -319,30 +319,34 @@ class Timetable:
 
         self.apply_stops(self.stop_situations)
 
-        # correct origin and destination/inbound and outbound descriptions being the wrong way round
-        # if self.groupings and len(self.origins_and_destinations) == 1:
-        #     rows = self.groupings[0].rows
-        #     if type(rows[0].stop) is Stop or type(rows[-1].stop) is Stop:
-        #         pass
-        #     else:
-        #         origin = self.origins_and_destinations[0][0]
-        #         destination = self.origins_and_destinations[0][-1]
-        #         actual_origin = rows[0].stop.get_qualified_name()
-        #         actual_destination = rows[-1].stop.get_qualified_name()
-        #         if (
-        #             SequenceMatcher(None, destination, actual_destination).quick_ratio()
-        #             + SequenceMatcher(None, origin, actual_origin).quick_ratio()
-        #             <
-        #             SequenceMatcher(None, destination, actual_origin).quick_ratio()
-        #             + SequenceMatcher(None, origin, actual_destination).quick_ratio()
-        #         ):
-        #             self.origins_and_destinations = [
-        #                 tuple(reversed(pair)) for pair in self.origins_and_destinations
-        #             ]
-        #             self.inbound_outbound_descriptions = [
-        #                 tuple(reversed(pair))
-        #                 for pair in self.inbound_outbound_descriptions
-        #             ]
+        # correct origin and destination being the wrong way round
+        # (but not inbound and outbound descriptions - they can be right when origin and destination are wrong)
+        if (
+            self.groupings
+            and not self.inbound_outbound_descriptions
+            and len(self.origins_and_destinations) == 1
+        ):
+            grouping = self.groupings[0]
+            first, last = grouping.rows[0].stop, grouping.rows[-1].stop
+            if type(first) is not Stop and type(last) is not Stop:
+                if grouping.inbound:
+                    first, last = last, first
+                origin = self.origins_and_destinations[0][0]
+                destination = self.origins_and_destinations[0][-1]
+                actual_origin = first.get_qualified_name()
+                actual_destination = last.get_qualified_name()
+                if (
+                    SequenceMatcher(None, origin, actual_origin).quick_ratio()
+                    + SequenceMatcher(
+                        None, destination, actual_destination
+                    ).quick_ratio()
+                    < SequenceMatcher(None, origin, actual_destination).quick_ratio()
+                    + SequenceMatcher(None, destination, actual_origin).quick_ratio()
+                ):
+                    self.origins_and_destinations = [
+                        tuple(reversed(parts))
+                        for parts in self.origins_and_destinations
+                    ]
 
         return self
 
