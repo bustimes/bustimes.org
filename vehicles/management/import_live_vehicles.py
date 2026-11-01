@@ -215,6 +215,15 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     # e.g. a stale feed (or a forgotten ticket machine) alongside a live one
                     # (per identity too, as a live feed soon pushes it out of the vehicle's)
                     return
+        elif self.recent_positions:
+            # no latest location (the Redis key expired, 15 minutes after its timestamp) -
+            # don't let a stuck GPS position reappear with a new timestamp
+            location = self.create_vehicle_location(item)
+            if location and any(
+                hash(location.latlong.coords) in self.recent_positions.get(key, ())
+                for key in (vehicle.id, identity)
+            ):
+                return
 
         latest_journey = vehicle.latest_journey
         if keep_journey:
