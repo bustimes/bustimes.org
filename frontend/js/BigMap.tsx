@@ -833,7 +833,19 @@ export default function BigMap(
         vehiclesHighWaterMark.current = _bounds;
 
         if (props.mode === MapMode.Operator && first) {
-          const bounds = getBounds(items, (item) => item.coordinates);
+          // ignore wild outliers (e.g. one bus reporting it's in the Pacific)
+          const median = (values: number[]) =>
+            values.sort((a, b) => a - b)[Math.floor(values.length / 2)];
+          const x = median(items.map((item) => item.coordinates[0]));
+          const y = median(items.map((item) => item.coordinates[1]));
+          const bounds = getBounds(
+            items.filter(
+              (item) =>
+                Math.abs(item.coordinates[0] - x) < 20 &&
+                Math.abs(item.coordinates[1] - y) < 20,
+            ),
+            (item) => item.coordinates,
+          );
           if (bounds) {
             const fitBoundsOptions = {
               padding: { top: 50, bottom: 150, left: 50, right: 50 },
