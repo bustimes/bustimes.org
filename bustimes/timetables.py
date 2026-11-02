@@ -848,6 +848,8 @@ class Grouping:
                 and prev_trip.end == trip.end
                 and prev_trip.destination_id == trip.destination_id
                 and len(prev_trip.times) == len(trip.times)
+                # (don't remove real duplicates, e.g. FECS UTC)
+                and prev_trip.ticket_machine_code == trip.ticket_machine_code
             ):
                 continue
             prev_trip = trip
