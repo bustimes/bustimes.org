@@ -2136,7 +2136,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             ]
         )
 
-        def handheld(recorded_at, item_identifier):
+        def handheld(recorded_at, item_identifier, longitude="-1.538119"):
             # stationary "Handheld" ticket machine at Harrogate Bus Station
             return {
                 "RecordedAtTime": recorded_at,
@@ -2155,7 +2155,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                     "DestinationRef": "Harrogate_Bus_Station",
                     "DestinationName": "Machine",
                     "VehicleLocation": {
-                        "Longitude": "-1.538119",
+                        "Longitude": longitude,
                         "Latitude": "53.993554",
                     },
                     "BlockRef": "0",
@@ -2217,7 +2217,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             command.handle_items(changed_journey, cj)
             command.handle_items(changed, ci)
 
-        with patch_redis_client():
+        with patch_redis_client() as redis_client:
             # first the bus reports from both machines at once
             cycle(
                 [handheld("2026-06-05T11:10:20+00:00", "bf87afe5"), actual],
@@ -2233,7 +2233,23 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                 "2026-06-05T11:12:00+00:00",
             )
 
-        # the vehicle should still be shown on the 840, not dragged back to
-        # the bus station by the stationary handheld
-        vehicle = Vehicle.objects.get(code="2427_-_BF62UXX")
-        self.assertEqual(vehicle.latest_journey.route_name, "840")
+            # the vehicle should still be shown on the 840, not dragged back to
+            # the bus station by the stationary handheld
+            vehicle = Vehicle.objects.get(code="2427_-_BF62UXX")
+            self.assertEqual(vehicle.latest_journey.route_name, "840")
+            journey_840 = vehicle.latest_journey
+
+            # the handheld moves - its position mustn't go on the 840 journey
+            cycle(
+                [handheld("2026-06-05T11:12:30+00:00", "bb000000", "-1.537")],
+                "2026-06-05T11:12:40+00:00",
+            )
+
+            journey_id = json.loads(redis_client.get(f"vehicle{vehicle.id}"))[
+                "journey_id"
+            ]
+            self.assertNotEqual(journey_id, journey_840.id)
+            self.assertEqual(
+                VehicleJourney.objects.get(id=journey_id).route_name,
+                "Harrogate_Bus_Station",
+            )

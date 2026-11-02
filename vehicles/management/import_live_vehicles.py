@@ -623,8 +623,9 @@ class ImportLiveVehiclesCommand(BaseCommand):
                             "datetime": location.datetime.isoformat(),
                             "heading": location.heading,
                         }
-
-                handled[vehicle_identity] = (journey_identity, vehicle)
+                    # the journey this location was written to - not
+                    # vehicle.latest_journey, which another source may have set
+                    handled[vehicle_identity] = (journey_identity, location.journey)
 
             self.identifiers[vehicle_identity] = self.get_item_identity(item)
 
@@ -639,11 +640,8 @@ class ImportLiveVehiclesCommand(BaseCommand):
 
     def record_journeys_ids_ids(self, handled):
         # a newly created journey only has an id after save()
-        for vehicle_identity, (journey_identity, vehicle) in handled.items():
-            self.journeys_ids_ids[vehicle_identity] = (
-                journey_identity,
-                vehicle.latest_journey_id,
-            )
+        for vehicle_identity, (journey_identity, journey) in handled.items():
+            self.journeys_ids_ids[vehicle_identity] = (journey_identity, journey.id)
 
     def get_changed_items(self, items=None):
         changed_items = []
