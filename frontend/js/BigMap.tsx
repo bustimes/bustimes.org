@@ -760,12 +760,12 @@ export default function BigMap(
   const fittedBoundsFor = useRef<string>(undefined);
 
   useEffect(() => {
-    if (bounds && mapRef.current) {
-      const key = trip ? `trip-${trip.id}` : `journey-${journey?.id}`;
-      if (fittedBoundsFor.current === key) return;
-      fittedBoundsFor.current = key;
-      mapRef.current.fitBounds(bounds, { padding: 50 });
-    }
+    if (!bounds) return;
+    const key = trip ? `trip-${trip.id}` : `journey-${journey?.id}`;
+    if (fittedBoundsFor.current === key) return;
+    fittedBoundsFor.current = key;
+    // if there's no map yet, it'll be created with these bounds as initialViewState
+    mapRef.current?.fitBounds(bounds, { padding: 50 });
   }, [bounds, trip, journey?.id]);
 
   // slippy map stuff
@@ -978,6 +978,10 @@ export default function BigMap(
       setJourney(undefined);
       setTrip(undefined);
       // slippy mode
+      if (mapRef.current) {
+        // onMoveEnd isn't attached in other modes, so boundsRef may be stale
+        boundsRef.current = mapRef.current.getBounds();
+      }
       document.title = "Map \u2013 bustimes.org";
       loadVehicles();
     }
