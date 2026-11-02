@@ -134,6 +134,7 @@ class BusTimesTest(TestCase):
             start_date=date(2022, 7, 24),  # "and Sunday 24 July"
             end_date=date(2022, 7, 24),
             operation=True,
+            special=True,
             calendar=calendar,
         )
 

@@ -407,9 +407,12 @@ class Calendar(models.Model):
             return False
 
         if getattr(self, f"{date:%a}".lower()):
-            for calendar_date in self.calendardate_set.all():
-                if not calendar_date.operation and calendar_date.contains(date):
-                    return False
+            calendar_dates = self.calendardate_set.all()
+            if any(not cd.operation and cd.contains(date) for cd in calendar_dates):
+                return False
+            if any(cd.operation and not cd.special for cd in calendar_dates):
+                # serviced organisation (school term etc) dates of operation
+                return any(cd.operation and cd.contains(date) for cd in calendar_dates)
             return True
 
         for calendar_date in self.calendardate_set.all():
