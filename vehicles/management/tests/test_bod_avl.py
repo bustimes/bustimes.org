@@ -2052,6 +2052,64 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             cycle([live[-1], stale], "22:47:40")
             self.assertEqual(coordinates(), [-2.94602, 53.43853])
 
+    def test_stuck_position_after_expiry(self):
+        # a stuck GPS keeps reporting the same position with new timestamps -
+        # after the Redis key expires (15 minutes after the position's timestamp)
+        # it shouldn't reappear with a new timestamp
+        command = import_bod_avl.Command()
+        command.source = self.source
+
+        vehicle = Vehicle.objects.create(code="80556", reg="SN26XZP")
+        VehicleCode.objects.create(code="SCMY:80556", scheme="BODS", vehicle=vehicle)
+
+        def item(recorded_at, longitude):
+            return {
+                "RecordedAtTime": f"2026-10-28T{recorded_at}+00:00",
+                "MonitoredVehicleJourney": {
+                    "LineRef": "17A",
+                    "PublishedLineName": "17A",
+                    "DirectionRef": "outbound",
+                    "OperatorRef": "SCMY",
+                    "FramedVehicleJourneyRef": {
+                        "DataFrameRef": "2026-10-28",
+                        "DatedVehicleJourneyRef": "1562",
+                    },
+                    "OriginAimedDepartureTime": "2026-10-28T22:04:00+00:00",
+                    "VehicleLocation": {"Longitude": longitude, "Latitude": "53.44"},
+                    "VehicleRef": "80556",
+                },
+            }
+
+        def cycle(items, when):
+            command.source.datetime = datetime.fromisoformat(f"2026-10-28T{when}+00:00")
+            (changed, changed_journey, ci, cj, _) = command.get_changed_items(items)
+            command.handle_items(changed_journey, cj)
+            command.handle_items(changed, ci)
+
+        with patch_redis_client() as redis_client:
+            key = f"vehicle{vehicle.id}"
+
+            cycle([item("22:10:00", "-2.93")], "22:10:05")
+            self.assertEqual(
+                json.loads(redis_client.get(key))["datetime"],
+                "2026-10-28T22:10:00+00:00",
+            )
+
+            cycle([item("22:20:00", "-2.93")], "22:20:05")  # stuck
+            self.assertEqual(
+                json.loads(redis_client.get(key))["datetime"],
+                "2026-10-28T22:10:00+00:00",
+            )
+
+            redis_client.delete(key)  # expired
+            cycle([item("22:26:00", "-2.93")], "22:26:05")  # still stuck
+            self.assertIsNone(redis_client.get(key))
+
+            cycle([item("22:27:00", "-2.94")], "22:27:05")  # moved
+            self.assertEqual(
+                json.loads(redis_client.get(key))["coordinates"], [-2.94, 53.44]
+            )
+
     def test_alternating_journeys(self):
         # (trentbarton 116) successive updates alternate between two journeys
         command = import_bod_avl.Command()
