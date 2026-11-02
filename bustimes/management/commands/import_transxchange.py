@@ -1149,8 +1149,13 @@ class Command(BaseCommand):
         trips = []
         trip_notes = []
         stop_time_notes = []
+        seen_journeys = set()
 
         for i, journey in enumerate(journeys):
+            first_stop_time = len(stop_times)
+            first_trip_note = len(trip_notes)
+            first_stop_time_note = len(stop_time_notes)
+
             calendar = None
             if journey.operating_profile:
                 calendar = self.get_calendar(
@@ -1264,6 +1269,32 @@ class Command(BaseCommand):
                 stop_time.departure = None
 
             trip.end = stop_time.arrival_or_departure()
+
+            # identical apart from VehicleJourneyCode etc (Stagecoach West)
+            key = (
+                id(calendar),
+                trip.inbound,
+                trip.ticket_machine_code,
+                trip.block,
+                id(trip.operator),
+                trip.garage_id,
+                trip.vehicle_type_id,
+                tuple(journey.notes.items()),
+                journey.frequency_interval,
+                tuple(id(tn.note) for tn in trip_notes[first_trip_note:]),
+                tuple(
+                    (st.stop_id, st.arrival, st.departure, st.pick_up, st.set_down)
+                    for st in stop_times[first_stop_time:]
+                ),
+            )
+            if key in seen_journeys:
+                del stop_times[first_stop_time:]
+                del stop_time_blanks[first_stop_time:]
+                del trip_notes[first_trip_note:]
+                del stop_time_notes[first_stop_time_note:]
+                continue
+            seen_journeys.add(key)
+
             trips.append(trip)
 
             if trip.start == trip.end:
