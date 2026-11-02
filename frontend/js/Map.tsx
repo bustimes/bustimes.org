@@ -269,7 +269,7 @@ export default function BusTimesMap(
           dragRotate={false}
           minZoom={4}
           maxZoom={18}
-          // projection="globe"
+          projection="globe"
           mapStyle={mapStyleURL}
           RTLTextPlugin={""}
           attributionControl={false}
