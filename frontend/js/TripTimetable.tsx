@@ -82,7 +82,7 @@ function Row({
   last = false,
 }: {
   stop: TripTime;
-  onHover?: (stop: TripTime) => void;
+  onHover?: (stop?: TripTime) => void;
   vehicle?: Vehicle | null;
   aimedColumn: boolean;
   expectedColumn: boolean;
@@ -93,7 +93,7 @@ function Row({
   first: boolean;
   last: boolean;
 }) {
-  const handlePointerEnter = React.useCallback(() => {
+  const handleMouseEnter = React.useCallback(() => {
     if (onHover && stop.stop.location) {
       onHover(stop);
     }
@@ -217,11 +217,7 @@ function Row({
 
   return (
     <React.Fragment>
-      <tr
-        className={className}
-        onPointerEnter={handlePointerEnter}
-        ref={rowRef}
-      >
+      <tr className={className} onMouseEnter={handleMouseEnter} ref={rowRef}>
         <td className="stop-name" rowSpan={rowSpan}>
           {stopName}
         </td>
@@ -230,7 +226,7 @@ function Row({
         {actual}
       </tr>
       {rowSpan ? (
-        <tr className={className} onPointerEnter={handlePointerEnter}>
+        <tr className={className} onMouseEnter={handleMouseEnter}>
           <td>{formatTime(stop.aimed_departure_time)}</td>
           {expectedDeparture}
           {actualDeparture ? <td>{actualDeparture}</td> : null}
@@ -247,7 +243,7 @@ const TripTimetable = React.memo(function TripTimetable({
   highlightedStop,
 }: {
   trip: Trip;
-  onHover?: (stop: TripTime) => void;
+  onHover?: (stop?: TripTime) => void;
   vehicle?: Vehicle | null;
   highlightedStop?: string;
 }) {
@@ -270,6 +266,10 @@ const TripTimetable = React.memo(function TripTimetable({
     vehicleIndex !== -1 && vehicle?.progress && vehicle.progress.progress > 0.1
       ? vehicleIndex + 1
       : -1;
+
+  const handleMouseLeave = React.useCallback(() => {
+    onHover?.();
+  }, [onHover]);
 
   const tableRef = React.useRef<HTMLTableElement>(null);
   const progressRowRef = React.useRef<HTMLTableRowElement>(null);
@@ -318,7 +318,7 @@ const TripTimetable = React.memo(function TripTimetable({
             {actualColumn ? <th>Actual</th> : null}
           </tr>
         </thead>
-        <tbody>
+        <tbody onMouseLeave={handleMouseLeave}>
           {times.map((stop, i) => (
             <Row
               key={stop.id || i}
