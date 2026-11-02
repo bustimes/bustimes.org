@@ -24,6 +24,7 @@ from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_duration
 from django.utils.http import http_date, parse_http_date_safe
+from haversine import haversine
 from lxml import etree
 
 from busstops.models import (
@@ -170,6 +171,46 @@ def get_line_name_query(line_ref: str) -> Q:
             Route.objects.filter(service=OuterRef("id"), line_name__iexact=line_name)
         )
     )
+
+
+def _position(item):
+    location = item["MonitoredVehicleJourney"].get("VehicleLocation") or {}
+    try:
+        return float(location["Latitude"]), float(location["Longitude"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def exclude_misplaced_new_feed_items(items):
+    # (Stagecoach) a vehicle can be in both the old feed, as "SCEM-19684",
+    # and the new feed, as "19684" - the latter sometimes with another bus's position
+    old_feed = {}
+    for item in items:
+        journey = item["MonitoredVehicleJourney"]
+        prefix = f"{journey.get('OperatorRef')}-"
+        vehicle_ref = journey.get("VehicleRef") or ""
+        if vehicle_ref.startswith(prefix):
+            old_feed[(journey["OperatorRef"], vehicle_ref.removeprefix(prefix))] = item
+
+    if not old_feed:
+        return items
+
+    def is_misplaced(item):
+        journey = item["MonitoredVehicleJourney"]
+        old = old_feed.get((journey.get("OperatorRef"), journey.get("VehicleRef")))
+        if not old:
+            return False
+        position = _position(item)
+        old_position = _position(old)
+        if not position or not old_position:
+            return False
+        if abs(Command.get_datetime(item) - Command.get_datetime(old)) > timedelta(
+            minutes=2
+        ):
+            return False
+        return 1 < haversine(position, old_position) < 100  # km
+
+    return [item for item in items if not is_misplaced(item)]
 
 
 class Command(ImportLiveVehiclesCommand):
@@ -951,6 +992,11 @@ class Command(ImportLiveVehiclesCommand):
             ]
 
         return items
+
+    def get_changed_items(self, items=None):
+        if items is None:
+            items = self.get_items() or ()
+        return super().get_changed_items(exclude_misplaced_new_feed_items(items))
 
     @staticmethod
     def get_vehicle_identity(item):

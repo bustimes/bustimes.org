@@ -668,7 +668,10 @@ class ImportLiveVehiclesCommand(BaseCommand):
         vehicle_identities = set()
         self.duplicate_vehicles = set()
 
-        for item in items or self.get_items() or ():
+        if items is None:
+            items = self.get_items()
+
+        for item in items or ():
             vehicle_identity = self.get_vehicle_identity(item)
 
             journey_identity = self.get_journey_identity(item)
