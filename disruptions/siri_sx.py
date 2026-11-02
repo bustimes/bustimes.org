@@ -1,7 +1,9 @@
 import io
 import logging
+import re
 import xml.etree.ElementTree as ET
 import zipfile
+from collections import defaultdict
 from datetime import datetime
 
 import requests
@@ -34,6 +36,29 @@ def get_operators(operator_ref):
         operatorcode__code=operator_ref,
         operatorcode__source__name="National Operator Codes",
     )
+
+
+def match_localities(services, *texts):
+    """If exactly one of the services serves a locality named in the text, return it"""
+    text = " ".join(filter(None, texts))
+    localities = defaultdict(set)
+    for service_id, name in (
+        StopPoint.objects.filter(service__in=services, locality__isnull=False)
+        .values_list("service", "locality__name")
+        .distinct()
+    ):
+        localities[service_id].add(name)
+    matches = [
+        service
+        for service in services
+        if any(
+            re.search(rf"\b{re.escape(name)}\b", text, re.IGNORECASE)
+            for name in localities[service.id]
+        )
+    ]
+    if len(matches) == 1:
+        return matches
+    return []
 
 
 def handle_item(item: ET.Element, source: DataSource, current_situations: dict):
@@ -173,13 +198,45 @@ def handle_item(item: ET.Element, source: DataSource, current_situations: dict):
                 matching_services = services.filter(
                     line_filter, operator__in=get_operators(operator_ref)
                 ).distinct()
-                if len(matching_services) > 1:
-                    matching_services = matching_services.filter(stops_filter)
+                candidates = len(matching_services)
+                if candidates > 1:
+                    narrowed = matching_services.filter(stops_filter) if stops else ()
+                    if not narrowed:
+                        narrowed = match_localities(
+                            matching_services,
+                            situation.summary,
+                            situation.text,
+                            consequence.text,
+                        )
+                    if narrowed:
+                        matching_services = narrowed
+                    else:
+                        logger.warning(
+                            "ambiguous line %s %s",
+                            operator_ref,
+                            line_name,
+                            extra={
+                                "situation_number": situation_number,
+                                "summary": situation.summary,
+                                "candidates": candidates,
+                                "stops": len(stops),
+                            },
+                        )
 
                 if matching_services:
                     consequence.services.add(*matching_services)
                 else:
-                    logger.info(f"{situation_number=} {operator_ref=} {line_name=}")
+                    logger.warning(
+                        "no matching service for %s %s",
+                        operator_ref,
+                        line_name,
+                        extra={
+                            "situation_number": situation_number,
+                            "summary": situation.summary,
+                            "candidates": candidates,
+                            "stops": len(stops),
+                        },
+                    )
 
         for operator in consequence_element.findall(
             "Affects/Operators/AffectedOperator"

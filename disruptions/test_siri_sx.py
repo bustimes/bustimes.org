@@ -10,6 +10,7 @@ from vcr import use_cassette
 from busstops.models import (
     AdminArea,
     DataSource,
+    Locality,
     Operator,
     OperatorCode,
     Region,
@@ -110,7 +111,10 @@ class SiriSXTest(TestCase):
         AdminArea.objects.create(id=73, atco_code="080", name="Cornwall", region=region)
 
     def test_siri_sx_request(self):
-        with use_cassette(VCR_DIR / "siri_sx.yaml") as cassette:
+        with (
+            use_cassette(VCR_DIR / "siri_sx.yaml") as cassette,
+            self.assertLogs("disruptions.siri_sx", "WARNING"),
+        ):
             with self.assertNumQueries(144):
                 bods_disruptions()
 
@@ -298,11 +302,72 @@ class SiriSXTest(TestCase):
         response = self.client.get("/stops/2800S11031B")  # not in Cornwall
         self.assertNotContains(response, "Storm Austen")
 
+    def test_locality_disambiguation(self):
+        region = Region.objects.get(id="NW")
+        operator = Operator.objects.create(region=region, noc="SCSO", name="Stagecoach")
+        OperatorCode.objects.create(
+            operator=operator,
+            source=DataSource.objects.get(name="National Operator Codes"),
+            code="SCSO",
+        )
+        admin_area = AdminArea.objects.get(id=73)
+        services = {}
+        for name in ("Alresford", "Tidworth"):
+            locality = Locality.objects.create(
+                id=name, name=name, admin_area=admin_area
+            )
+            stop = StopPoint.objects.create(
+                atco_code=name, locality=locality, active=True
+            )
+            service = Service.objects.create(
+                line_name="67", service_code=name, current=True
+            )
+            service.operator.add(operator)
+            StopUsage.objects.create(service=service, stop=stop, order=1)
+            services[name] = service
+
+        def situation(description):
+            return f"""<PtSituationElement>
+                <CreationTime>2026-11-02T13:25:31Z</CreationTime>
+                <ParticipantRef>Hampshire</ParticipantRef>
+                <SituationNumber>{description}</SituationNumber>
+                <Source><TimeOfCommunication /></Source>
+                <Progress>open</Progress>
+                <PublicationWindow><StartTime>2026-11-02T14:00:00.000Z</StartTime></PublicationWindow>
+                <Summary>Fireworks</Summary>
+                <Description>{description}</Description>
+                <Consequences><Consequence>
+                    <Affects><Networks><AffectedNetwork><AffectedLine>
+                        <AffectedOperator><OperatorRef>SCSO</OperatorRef></AffectedOperator>
+                        <LineRef>67</LineRef>
+                        <PublishedLineName>67</PublishedLineName>
+                    </AffectedLine></AffectedNetwork></Networks></Affects>
+                    <Advice><Details>Diversion</Details></Advice>
+                </Consequence></Consequences>
+            </PtSituationElement>"""
+
+        source = DataSource.objects.create(name="Bus Open Data")
+        handle_item(ET.fromstring(situation("Roads in alresford closed")), source, {})
+        with self.assertLogs("disruptions.siri_sx", "WARNING"):
+            handle_item(ET.fromstring(situation("Roads closed")), source, {})
+
+        consequence = Situation.objects.get(
+            situation_number="Roads in alresford closed"
+        ).consequence_set.get()
+        self.assertEqual(list(consequence.services.all()), [services["Alresford"]])
+        consequence = Situation.objects.get(
+            situation_number="Roads closed"
+        ).consequence_set.get()
+        self.assertEqual(consequence.services.count(), 2)
+
     def test_old_situations(self):
         source = DataSource.objects.create(name="Bus Open Data")
         gone = Situation.objects.create(source=source, situation_number="gone")
 
-        with use_cassette(VCR_DIR / "siri_sx.yaml") as cassette:
+        with (
+            use_cassette(VCR_DIR / "siri_sx.yaml") as cassette,
+            self.assertLogs("disruptions.siri_sx", "WARNING"),
+        ):
             bods_disruptions()
             self.assertFalse(Situation.objects.filter(id=gone.id).exists())
 
@@ -325,7 +390,10 @@ class SiriSXTest(TestCase):
                 raise DataError
             save(link, *args, **kwargs)
 
-        with use_cassette(VCR_DIR / "siri_sx.yaml") as cassette:
+        with (
+            use_cassette(VCR_DIR / "siri_sx.yaml") as cassette,
+            self.assertLogs("disruptions.siri_sx", "WARNING"),
+        ):
             bods_disruptions()
 
             cassette.rewind()
