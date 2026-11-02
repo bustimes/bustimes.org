@@ -93,6 +93,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.csp.ContentSecurityPolicyMiddleware",
+    "busstops.middleware.reporting_endpoints_middleware",
     "django_http_compression.middleware.HttpCompressionMiddleware",
     "busstops.middleware.WhiteNoiseWithFallbackMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

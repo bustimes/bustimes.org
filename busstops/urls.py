@@ -24,6 +24,7 @@ sitemaps = {
 urlpatterns = [
     path("", views.index, name="index"),
     path("version", views.version),
+    path("reports", views.reports),
     path("contact", views.contact, name="contact"),
     path(
         "cookies",

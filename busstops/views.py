@@ -3,6 +3,7 @@
 import contextlib
 import csv
 import datetime
+import json
 import logging
 import os
 from http import HTTPStatus
@@ -37,7 +38,8 @@ from django.utils import timezone
 from django.utils.cache import patch_response_headers
 from django.utils.functional import SimpleLazyObject
 from django.views.decorators.cache import cache_control
-from django.views.decorators.http import last_modified
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import last_modified, require_POST
 from django.views.generic.detail import DetailView
 from django_orjson.http import JsonResponse
 from redis.exceptions import ConnectionError
@@ -157,6 +159,56 @@ def version(request):
     return HttpResponse(
         os.environ.get("KAMAL_CONTAINER_NAME"), content_type="text/plain"
     )
+
+
+REPORTS_MAX_BYTES = 65536
+
+
+@csrf_exempt
+@require_POST
+def reports(request):
+    """Receive Reporting API reports (https://w3c.github.io/reporting/) sent because of
+    the Reporting-Endpoints header, plus our own "ad-crash-suspect" reports.
+    Only the interesting kinds are logged, the rest (e.g. deprecations) are ignored"""
+
+    if len(request.body) > REPORTS_MAX_BYTES:
+        return HttpResponseBadRequest()
+    try:
+        data = json.loads(request.body)
+    except ValueError:
+        return HttpResponseBadRequest()
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return HttpResponseBadRequest()
+
+    for report in data[:20]:
+        if not isinstance(report, dict):
+            continue
+        report_type = report.get("type")
+        body = report.get("body")
+        if report_type == "intervention" or report_type == "crash":
+            level = logging.WARNING
+            if (
+                report_type == "intervention"
+                and isinstance(body, dict)
+                and "HeavyAd" not in str(body.get("id"))
+            ):
+                level = logging.INFO
+        elif report_type == "ad-crash-suspect":
+            level = logging.WARNING
+        else:
+            continue
+        logger.log(
+            level,
+            "%s report: %s %s",
+            report_type,
+            report.get("url"),
+            json.dumps(body)[:2000],
+            extra={"user_agent": request.headers.get("User-Agent")},
+        )
+
+    return HttpResponse(status=HTTPStatus.NO_CONTENT)
 
 
 def flixbus_affiliate_link(**kwargs) -> str:

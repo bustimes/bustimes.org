@@ -44,3 +44,14 @@ class MiddlewareTest(TestCase):
 
         self.client.get("/")
         self.assertFalse(this_thread_is_pinned())
+
+    def test_reporting_endpoints(self):
+        response = self.client.get("/cookies")
+        self.assertEqual(
+            response.headers["Reporting-Endpoints"],
+            'default="http://testserver/reports"',
+        )
+        self.assertContains(response, "localStorage.getItem(KEY)")
+
+        response = self.client.get("/robots.txt")
+        self.assertNotIn("Reporting-Endpoints", response.headers)

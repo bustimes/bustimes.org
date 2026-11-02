@@ -1,0 +1,58 @@
+<script>(function(){
+    // Try to identify ads that crash the browser tab (e.g. iOS Safari's "A problem repeatedly occurred").
+    // Remember recently rendered ads in localStorage, with a heartbeat while the page is visible.
+    // If a page loads and finds a recent heartbeat that wasn't cleared by a clean exit, report it.
+    if(window.noAds)return;
+    var KEY="ad-crash",state=null;
+    function load(){try{return JSON.parse(localStorage.getItem(KEY))}catch(e){}}
+    function save(){try{if(state){state.t=Date.now();localStorage.setItem(KEY,JSON.stringify(state))}else{localStorage.removeItem(KEY)}}catch(e){}}
+
+    var prev=load();
+    state=null;save();
+    if(prev&&prev.ads&&prev.ads.length&&Date.now()-prev.t<60000){
+        window.addEventListener("load",function(){
+            var last=prev.ads[prev.ads.length-1];
+            if(window.gtag){
+                gtag("event","ad_crash_suspect",{crashed_page:prev.page,ad_source:last.src,ad_unit:last.unit,bidder:last.bidder,creative:last.creative,line_item:last.lineItem,advertiser:last.advertiser,size:last.size,ad_age:Math.round((prev.t-last.t)/1000)});
+            }
+            try{
+                navigator.sendBeacon("/reports",new Blob([JSON.stringify([{type:"ad-crash-suspect",url:prev.page,body:prev}])],{type:"application/json"}));
+            }catch(e){}
+        });
+    }
+
+    function crumb(ad){
+        ad.t=Date.now();
+        if(!state)state={page:location.pathname+location.hash,ads:[]};
+        state.ads.push(ad);
+        if(state.ads.length>8)state.ads.shift();
+        if(document.visibilityState==="visible")save();
+    }
+    setInterval(function(){
+        if(state&&document.visibilityState==="visible"){
+            state.page=location.pathname+location.hash;
+            save();
+        }
+    },2000);
+    function clean(){try{localStorage.removeItem(KEY)}catch(e){}}
+    window.addEventListener("pagehide",clean);
+    document.addEventListener("visibilitychange",function(){
+        if(document.visibilityState==="hidden")clean();else save();
+    });
+
+    var pbjs=window.pbjs=window.pbjs||{};
+    pbjs.que=pbjs.que||[];
+    pbjs.que.push(function(){
+        pbjs.onEvent("bidWon",function(b){
+            crumb({src:"prebid",unit:b.adUnitCode,bidder:b.bidder,creative:b.creativeId,advertiser:(b.meta&&b.meta.advertiserDomains||[])[0],size:b.size});
+        });
+    });
+    var googletag=window.googletag=window.googletag||{};
+    googletag.cmd=googletag.cmd||[];
+    googletag.cmd.push(function(){
+        googletag.pubads().addEventListener("slotRenderEnded",function(e){
+            if(e.isEmpty)return;
+            crumb({src:"gam",unit:e.slot.getSlotElementId(),creative:e.creativeId,lineItem:e.lineItemId,advertiser:e.advertiserId,size:String(e.size)});
+        });
+    });
+})();</script>

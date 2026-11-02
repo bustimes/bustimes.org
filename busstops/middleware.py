@@ -52,3 +52,17 @@ def pin_db_middleware(get_response):
         return get_response(request)
 
     return middleware
+
+
+def reporting_endpoints_middleware(get_response):
+    """Ask browsers to send Reporting API reports (e.g. Chrome heavy ad interventions
+    and crashes) to the /reports view"""
+
+    def middleware(request):
+        response = get_response(request)
+        if response.get("Content-Type", "").startswith("text/html"):
+            url = request.build_absolute_uri("/reports")
+            response.headers["Reporting-Endpoints"] = f'default="{url}"'
+        return response
+
+    return middleware
