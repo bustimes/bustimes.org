@@ -202,9 +202,13 @@
                 </td>
             {% endif %}
             {% if journey.trip.block %}
-                <td class="link">
-                    <a href="{{ journey.get_trip_block_url }}">{{ journey.trip.block }}</a>
-                </td>
+                {% if journey.trip_service_id %}
+                    <td class="link">
+                        <a href="{{ journey.get_trip_block_url }}">{{ journey.trip.block }}</a>
+                    </td>
+                {% else %}
+                    <td>{{ journey.trip.block }}</td>
+                {% endif %}
             {% endif %}
         </tr>
     {% endfor %}
@@ -218,6 +222,7 @@
                 <td class="tabular">{{ trip }}</td>
             {% endif %}
             <td>{{ trip.destination_name }}</td>
+            <td>{% firstof trip.block_no trip.block %}</td>
         </tr>
     {% endfor %}
     </tbody></table></div>

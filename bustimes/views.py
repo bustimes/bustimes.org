@@ -20,6 +20,7 @@ from django.http import (
     HttpResponseBadRequest,
 )
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_GET
@@ -680,7 +681,15 @@ def block_detail(request, slug, block, garage=None):
         {
             "object": block,
             "garage": trips[0].garage if trips else None,
-            "breadcrumb": [operator],
+            "breadcrumb": [
+                operator,
+                {
+                    "get_line_name_and_brand": "Blocks",
+                    "get_absolute_url": reverse(
+                        "operator_blocks", args=(operator.slug,)
+                    ),
+                },
+            ],
             "form": form,
             "date": date,
             "trips": trips,

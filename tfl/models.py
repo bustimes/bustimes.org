@@ -341,6 +341,7 @@ class Journey(models.Model):
             )
             .annotate(
                 line_name=F("pattern__line__service_line_no"),
+                block_no=F("block__block_no"),
                 destination_name=Subquery(
                     stops_in_pattern.annotate(
                         # better capitalisation, e.g. "Battersea (TUK London)"

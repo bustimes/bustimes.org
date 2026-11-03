@@ -182,6 +182,7 @@ class JourneyTest(TestCase):
         self.assertEqual(str(prediction), "18:30")
         self.assertEqual(prediction.line_name, "97")
         self.assertEqual(prediction.destination_name, "Chingford Station")
+        self.assertContains(response, "<td>105401</td>")
 
         # run in to the garage
         models.Journey.objects.filter(base_version=old, idx=255601).update(type=3)
