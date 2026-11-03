@@ -868,7 +868,7 @@ class VehicleLocation:
         json = {
             "id": self.id,  # (same as vehicle id)
             "journey_id": journey.id,
-            "coordinates": self.latlong.coords,
+            "coordinates": list(self.latlong.coords),
             "heading": self.get_heading(),
             "datetime": timezone.localtime(self.datetime, timezone=tz).isoformat(),
             "destination": journey.destination,

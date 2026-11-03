@@ -39,7 +39,7 @@ from django.utils.functional import SimpleLazyObject
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import last_modified
 from django.views.generic.detail import DetailView
-from django_orjson.http import JsonResponse
+from django_msgspec.http import JsonResponse
 from redis.exceptions import ConnectionError
 from sql_util.utils import Exists, SubqueryMax, SubqueryMin
 from ukpostcodeutils import validation

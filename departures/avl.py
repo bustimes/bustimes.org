@@ -1,4 +1,4 @@
-import json
+from msgspec.json import decode
 
 from vehicles.utils import redis_client
 
@@ -20,6 +20,6 @@ def get_tracking(stop, services):
     vehicle_locations = redis_client.mget(
         [f"vehicle{int(vehicle_id)}" for vehicle_id in vehicle_ids]
     )
-    vehicle_locations = [json.loads(item) for item in vehicle_locations if item]
+    vehicle_locations = [decode(item) for item in vehicle_locations if item]
 
     return vehicle_locations

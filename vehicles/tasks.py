@@ -1,5 +1,4 @@
 import functools
-import json
 import zipfile
 from datetime import datetime, timedelta
 
@@ -12,6 +11,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from huey import crontab
 from huey.contrib.djhuey import db_periodic_task, db_task
+from msgspec.json import encode
 
 from busstops.models import DataSource, Operator, Service
 
@@ -84,7 +84,7 @@ def handle_siri_post(uuid, data: dict):
 
         archive_avl_data(
             command.source,
-            json.dumps(items),
+            encode(items),
             timestamp.strftime("%Y-%m-%d_%H%M%S.json"),
         )
 

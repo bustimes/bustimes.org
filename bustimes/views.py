@@ -25,7 +25,7 @@ from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_GET
 from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
-from django_orjson.http import JsonResponse
+from django_msgspec.http import JsonResponse
 from rest_framework.renderers import JSONRenderer
 
 from api.serializers import TripSerializer

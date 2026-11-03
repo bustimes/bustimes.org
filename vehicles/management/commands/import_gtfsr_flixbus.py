@@ -1,4 +1,3 @@
-import json
 import logging
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -11,6 +10,7 @@ from django.contrib.gis.geos import Point
 from django.core.cache import cache
 from django.utils.dateparse import parse_duration
 from google.protobuf import json_format
+from msgspec.json import decode, encode
 
 from busstops.models import DataSource
 from bustimes.models import Trip
@@ -245,7 +245,7 @@ class Command(GTFSRCommand):
 
         latest = redis_client.get(f"vehicle{vehicle_or_journey_id}")
         if latest:
-            latest = json.loads(latest)
+            latest = decode(latest)
             if datetime.fromisoformat(latest["datetime"]) >= updated_at:
                 return
 
@@ -286,7 +286,7 @@ class Command(GTFSRCommand):
         if journey.service_id:
             pipeline.sadd(f"service{journey.service_id}vehicles", location.id)
         pipeline.sadd("operatorFLIXvehicles", location.id)
-        pipeline.set(f"vehicle{location.id}", json.dumps(redis_json), ex=900)
+        pipeline.set(f"vehicle{location.id}", encode(redis_json), ex=900)
         pipeline.execute()
 
         channel_layer = get_channel_layer()

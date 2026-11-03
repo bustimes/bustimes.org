@@ -5,13 +5,13 @@ Stale-while-revalidate: requests are served from Redis, and the first request
 after the data is FRESH seconds old queues a huey task to refresh it.
 """
 
-import json
 import logging
 from collections import defaultdict
 from datetime import UTC, datetime
 
 import requests
 from django.utils import timezone
+from msgspec.json import decode, encode
 
 from vehicles.utils import redis_client
 
@@ -40,7 +40,7 @@ EXPIRE = 300  # seconds - after which fall back to the TfL API
 
 
 def parse(text) -> tuple[dict, dict]:
-    rows = json.loads(f"[{','.join(text.splitlines())}]")
+    rows = decode(f"[{','.join(text.splitlines())}]")
 
     base_version = None
     for row in rows:
@@ -50,11 +50,15 @@ def parse(text) -> tuple[dict, dict]:
 
     vehicles = defaultdict(list)
     stops = defaultdict(list)
+    times = {}
     for row in rows:
         if row[0] != PREDICTION:
             continue
         name, atco_code, line_name, destination, trip_id, reg, timestamp = row[1:]
-        expected_arrival = datetime.fromtimestamp(timestamp / 1000, UTC).isoformat()
+        if (expected_arrival := times.get(timestamp)) is None:
+            expected_arrival = times[timestamp] = datetime.fromtimestamp(
+                timestamp / 1000, UTC
+            ).isoformat()
         # (only what api.views and departures.sources need)
         if reg:
             vehicles[reg].append(
@@ -106,7 +110,7 @@ def save(vehicles, stops):
         temp_key = f"{key}_new"
         pipeline.delete(temp_key)
         pipeline.hset(
-            temp_key, mapping={code: json.dumps(value) for code, value in items.items()}
+            temp_key, mapping={code: encode(value) for code, value in items.items()}
         )
         pipeline.expire(temp_key, EXPIRE)
         pipeline.rename(temp_key, key)
@@ -141,7 +145,7 @@ def get_predictions(key, code) -> list | None:
     now = timezone.now()
     return [
         item
-        for item in json.loads(data)
+        for item in decode(data)
         # in case the data is a bit stale
         if datetime.fromisoformat(item["expectedArrival"]) > now
     ]

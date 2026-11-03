@@ -1,4 +1,3 @@
-import json
 import logging
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
@@ -16,6 +15,7 @@ from django.db import IntegrityError
 from django.db.models import Exists, OuterRef, Q
 from django.db.models.functions import Now
 from django.utils import timezone
+from msgspec.json import decode, encode
 from redis.exceptions import ConnectionError
 from tenacity import before_sleep_log, retry, wait_exponential
 
@@ -123,7 +123,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
     def get_items(self):
         response = self.session.get(self.url, timeout=20)
         response.raise_for_status()
-        return response.json()
+        return decode(response.content)
 
     @staticmethod
     def get_service(queryset, latlong):
@@ -183,7 +183,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
         if latest is None:
             latest = redis_client.get(f"vehicle{vehicle.id}")
             if latest:
-                latest = json.loads(latest)
+                latest = decode(latest)
         if (
             not latest
             and (fallback := self.last_locations.get(vehicle.id))
@@ -362,7 +362,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
             location.progress_journey = self.get_progress_journey(item, journey)
 
         if location.latlong:
-            redis_json = json.loads(json.dumps(location.get_redis_json(tz=self.tzinfo)))
+            redis_json = location.get_redis_json(tz=self.tzinfo)
             if location_unchanged and self.same_as_latest(redis_json, latest):
                 return  # nothing new
             self.last_locations[vehicle.id] = redis_json
@@ -524,7 +524,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
             items.append(redis_json)
             pipeline.set(
                 f"vehicle{vehicle.id}",
-                json.dumps(redis_json),
+                encode(redis_json),
                 ex=min(expiry, 900),
             )
             # can't use 'mset' cos it doesn't let us specify an expiry
@@ -582,7 +582,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
             [f"vehicle{vc.vehicle_id}" for vc in vehicle_codes]
         )
         vehicle_locations = {
-            vehicle_code.vehicle_id: json.loads(item)
+            vehicle_code.vehicle_id: decode(item)
             for vehicle_code, item in zip(vehicle_codes, vehicle_locations)
             if item
         }

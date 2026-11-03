@@ -158,7 +158,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 100,
     "DEFAULT_RENDERER_CLASSES": [
-        "django_orjson.rest_framework.JSONRenderer",
+        "django_msgspec.rest_framework.JSONRenderer",
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
 }

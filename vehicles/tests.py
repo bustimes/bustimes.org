@@ -322,7 +322,7 @@ class VehiclesTests(TestCase):
 
         self.assertEqual(str(location), "19 Oct 2020 23:47:00")
 
-        self.assertEqual(location.get_redis_json()["coordinates"], (0.0, 51.0))
+        self.assertEqual(location.get_redis_json()["coordinates"], [0.0, 51.0])
 
         location.occupancy = "Seats available"
         self.assertEqual(location.get_redis_json()["seats"], "Seats available")

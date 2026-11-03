@@ -116,12 +116,8 @@ class ApiTest(TestCase):
             self.assertEqual(times[1]["stop"]["name"], "Roman Road Market")
             self.assertIsNone(times[1]["stop"]["location"])
             self.assertEqual(times[2]["stop"]["atco_code"], "490010552N")
-            self.assertEqual(
-                times[2]["aimed_arrival_time"], "2021-03-17T18:55:00+00:00"
-            )
-            self.assertEqual(
-                times[2]["expected_arrival_time"], "2021-03-17T18:55:42+00:00"
-            )
+            self.assertEqual(times[2]["aimed_arrival_time"], "2021-03-17T18:55:00Z")
+            self.assertEqual(times[2]["expected_arrival_time"], "2021-03-17T18:55:42Z")
             expected = [time["expected_arrival_time"] for time in times]
             self.assertEqual(expected, sorted(expected))
             self.assertEqual(cassette.play_count, 1)

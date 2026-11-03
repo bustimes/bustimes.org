@@ -356,10 +356,10 @@ class ScheduleAdherenceTest(TestCase):
                 }
             )
             response_json = self.client.get("/stops/210021509680/times.json").json()
-            self.assertEqual(response_json["times"][0]["delay"], "P0DT00H16M07S")
+            self.assertEqual(response_json["times"][0]["delay"], "PT967S")
             self.assertEqual(
                 response_json["times"][0]["expected_departure_time"],
-                "2024-02-16T10:59:07+00:00",
+                "2024-02-16T10:59:07Z",
             )
 
             with self.assertNumQueries(13):
@@ -386,10 +386,10 @@ class ScheduleAdherenceTest(TestCase):
                 }
             )
             response_json = self.client.get("/stops/210021509680/times.json").json()
-            self.assertEqual(response_json["times"][0]["delay"], "-P0DT00H33M53S")
+            self.assertEqual(response_json["times"][0]["delay"], "-PT2033S")
             self.assertEqual(
                 response_json["times"][0]["expected_departure_time"],
-                "2024-02-16T10:09:07+00:00",
+                "2024-02-16T10:09:07Z",
             )
 
             # delay already calculated (eg TfW)
@@ -406,10 +406,10 @@ class ScheduleAdherenceTest(TestCase):
                 }
             )
             response_json = self.client.get("/stops/210021509680/times.json").json()
-            self.assertEqual(response_json["times"][0]["delay"], "P0DT00H01M00S")
+            self.assertEqual(response_json["times"][0]["delay"], "PT60S")
             self.assertEqual(
                 response_json["times"][0]["expected_departure_time"],
-                "2024-02-16T10:44:00+00:00",
+                "2024-02-16T10:44:00Z",
             )
 
             # a long way off-route - no prediction
@@ -612,7 +612,7 @@ class SplitTripDeparturesTest(TestCase):
             with time_machine.travel("2026-09-07T08:06:00Z"):
                 times = self.client.get("/stops/c/times.json").json()["times"]
                 self.assertEqual(times[0]["trip_id"], self.trip_2.id)
-                self.assertEqual(times[0]["delay"], "P0DT00H05M00S")
+                self.assertEqual(times[0]["delay"], "PT300S")
 
             # overdue, but the vehicle is still on the first part
             with time_machine.travel("2026-09-07T08:22:00Z"):

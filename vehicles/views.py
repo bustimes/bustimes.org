@@ -39,9 +39,9 @@ from django.views.decorators.cache import cache_control
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST, require_safe
 from django.views.generic.detail import DetailView
-from django_orjson.http import JsonResponse
+from django_msgspec.http import JsonResponse
 from haversine import haversine
-from orjson import loads
+from msgspec.json import decode
 from redis.exceptions import ConnectionError
 from requests import RequestException
 from sql_util.utils import Exists, SubqueryMax, SubqueryMin
@@ -424,7 +424,7 @@ def get_vehicle_locations(
     vehicle_locations = redis_client.mget(
         [f"vehicle{vehicle_id}" for vehicle_id in vehicle_ids]
     )
-    vehicle_locations = [loads(item) if item else item for item in vehicle_locations]
+    vehicle_locations = [decode(item) if item else item for item in vehicle_locations]
 
     # remove expired items from 'vehicle_location_locations'
     to_remove = [
@@ -1185,7 +1185,7 @@ def debug(request):
     if form.is_valid():
         data = form.cleaned_data["data"]
         try:
-            item = loads(data)
+            item = decode(data)
         except ValueError:
             form.add_error("data", "that isn't valid JSON")
         else:
@@ -1326,7 +1326,7 @@ def overland(request, uuid=None):
 
     subscription = get_object_or_404(SiriSubscription, uuid=uuid)
 
-    data = loads(request.body)
+    data = decode(request.body)
 
     for item in data["locations"][-1:]:
         lon, lat = item["geometry"]["coordinates"]
@@ -1355,7 +1355,7 @@ def traccar(request, uuid):
     cache_last_post(request, subscription)
 
     if request.content_type == "application/json":
-        data = loads(request.body)
+        data = decode(request.body)
         location = data["location"]
         device_id = data["device_id"]
         when = location["timestamp"]
