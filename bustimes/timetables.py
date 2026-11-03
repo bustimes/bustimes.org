@@ -1,6 +1,7 @@
 import datetime
 import graphlib
 import re
+from collections import defaultdict
 from copy import copy
 from dataclasses import dataclass
 from difflib import Differ
@@ -661,13 +662,9 @@ class Grouping:
             .order_by("-id")[: len(self.trips) * 7]
         )
 
-        by_date = {}
+        by_date = defaultdict(dict)
         for journey in journeys:
-            date = journey.datetime.date()
-            if date in by_date:
-                by_date[date][journey.trip_id] = journey
-            else:
-                by_date[date] = {journey.trip_id: journey}
+            by_date[journey.date][journey.trip_id] = journey
 
         for date, by_trip in sorted(by_date.items()):
             yield date, [by_trip.get(trip.id) for trip in self.trips]

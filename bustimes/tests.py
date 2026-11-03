@@ -1,10 +1,10 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from busstops.models import DataSource, Service, StopPoint
-from vehicles.models import Livery, Vehicle, VehicleCode
+from vehicles.models import Livery, Vehicle, VehicleCode, VehicleJourney
 
 from .management.commands import import_transxchange
 from .models import (
@@ -17,6 +17,7 @@ from .models import (
     Trip,
     Version,
 )
+from .timetables import Grouping
 from .views import stop_time_json
 
 
@@ -563,3 +564,26 @@ class BusTimesTest(TestCase):
             with self.assertRaises(ValidationError) as context:
                 source.full_clean()
             self.assertIn(error, context.exception.message_dict["search"][0])
+
+    def test_vehicles_by_date(self):
+        source = DataSource.objects.create(name="Test")
+        trips = [
+            Trip.objects.create(start=timedelta(minutes=30), end=timedelta(hours=1)),
+            Trip.objects.create(start=timedelta(hours=9), end=timedelta(hours=10)),
+        ]
+        vehicle = Vehicle.objects.create(code="1")
+        journey = VehicleJourney.objects.create(
+            trip=trips[0],
+            vehicle=vehicle,
+            source=source,
+            datetime=datetime(2026, 6, 20, 23, 30, tzinfo=UTC),
+            date=date(2026, 6, 21),
+        )
+
+        grouping = Grouping(False, None)
+        grouping.trips = trips
+
+        self.assertEqual(
+            list(grouping.vehicles_by_date()),
+            [(date(2026, 6, 21), [journey, None])],
+        )
