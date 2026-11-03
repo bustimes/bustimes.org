@@ -1293,7 +1293,6 @@ export default function BigMap(
           interactiveLayerIds={[
             "stops",
             "stops-circle",
-            "stops-highlighted",
             "vehicles",
             "locations",
           ]}
