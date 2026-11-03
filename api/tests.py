@@ -35,6 +35,10 @@ class ApiTest(TestCase):
             response, "<a class='navbar-brand' href='/'>bustimes.org</a>"
         )
 
+        response = self.client.get("/api/vehiclejourneys/?vehicle=69")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("vehicle", response.json())
+
     @override_settings(
         TFL={},
         CACHES={
