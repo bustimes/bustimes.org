@@ -54,7 +54,7 @@ from busstops.models import (
     OperatorGroup,
     Service,
 )
-from busstops.utils import get_bounding_box
+from busstops.utils import Crumb, get_bounding_box
 from bustimes.models import Garage, Route, Trip
 from departures.gtfsr import get_trip_updates
 from photos.forms import PhotoForm
@@ -83,23 +83,6 @@ def get_redirect_view(*args, **kwargs):
         return redirect(*args, **kwargs)
 
     return redirect_view
-
-
-class Vehicles:
-    """for linking to an operator's /vehicles page (fleet list) in a breadcrumb list"""
-
-    def __init__(self, vehicle=None, operator=None):
-        self.vehicle = vehicle
-        self.operator = operator or vehicle.operator
-
-    def __str__(self):
-        return "Vehicles"
-
-    def get_absolute_url(self):
-        url = reverse("operator_vehicles", args=(self.operator.slug,))
-        if self.vehicle:
-            url = f"{url}#{self.vehicle.slug}"
-        return url
 
 
 @require_safe
@@ -879,7 +862,11 @@ class VehicleDetailView(DetailView):
         if self.object.operator:
             context["breadcrumb"] = [
                 self.object.operator,
-                Vehicles(vehicle=self.object),
+                Crumb(
+                    "Vehicles",
+                    reverse("operator_vehicles", args=(self.object.operator.slug,))
+                    + f"#{self.object.slug}",
+                ),
             ]
 
             context["previous"] = self.object.get_previous()
@@ -1069,7 +1056,15 @@ def edit_vehicle(request, **kwargs):
         )
 
     if vehicle.operator:
-        context["breadcrumb"] = [vehicle.operator, Vehicles(vehicle=vehicle), vehicle]
+        context["breadcrumb"] = [
+            vehicle.operator,
+            Crumb(
+                "Vehicles",
+                reverse("operator_vehicles", args=(vehicle.operator.slug,))
+                + f"#{vehicle.slug}",
+            ),
+            vehicle,
+        ]
     else:
         context["breadcrumb"] = [vehicle]
 

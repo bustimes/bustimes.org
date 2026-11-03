@@ -39,6 +39,7 @@ from busstops.models import (
     Service,
     StopPoint,
 )
+from busstops.utils import Crumb
 from departures import avl, gtfsr, live
 from vehicles import rtpi
 from vehicles.forms import DateForm, TripUpdatesFeedForm
@@ -287,9 +288,7 @@ class SourceDetailView(DetailView):
         if not context["routes"]:
             raise Http404
 
-        context["breadcrumb"] = [
-            {"get_line_name_and_brand": "Sources", "get_absolute_url": "/sources"}
-        ]
+        context["breadcrumb"] = [Crumb("Sources", "/sources")]
 
         return context
 
@@ -304,7 +303,7 @@ class ImportTaskDetailView(DetailView):
         context = super().get_context_data(**kwargs)
 
         context["breadcrumb"] = [
-            {"get_line_name_and_brand": "Sources", "get_absolute_url": "/sources"},
+            Crumb("Sources", "/sources"),
             self.object.source,
         ]
         return context
@@ -683,12 +682,7 @@ def block_detail(request, slug, block, garage=None):
             "garage": trips[0].garage if trips else None,
             "breadcrumb": [
                 operator,
-                {
-                    "get_line_name_and_brand": "Blocks",
-                    "get_absolute_url": reverse(
-                        "operator_blocks", args=(operator.slug,)
-                    ),
-                },
+                Crumb("Blocks", reverse("operator_blocks", args=(operator.slug,))),
             ],
             "form": form,
             "date": date,

@@ -1,5 +1,6 @@
 from datetime import datetime
 from functools import cache
+from typing import NamedTuple
 
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.gis.geos import Polygon
@@ -28,3 +29,14 @@ def get_datetime(string):
         if not dt.tzinfo:
             return make_aware(dt)
         return dt
+
+
+class Crumb(NamedTuple):
+    name: str
+    url: str
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return self.url

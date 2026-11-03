@@ -7,17 +7,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.safestring import mark_safe
 
 from busstops.models import DataSource, Operator, OperatorCode
-
-
-class Tickets:
-    def __init__(self, operator):
-        self.operator = operator
-
-    def __str__(self):
-        return "Tickets"
-
-    def get_absolute_url(self):
-        return f"{self.operator.get_absolute_url()}/tickets"
+from busstops.utils import Crumb
 
 
 def get_source():
@@ -70,7 +60,10 @@ def operator_ticket(request, slug, id):
         raise Http404
 
     context = {
-        "breadcrumb": [operator, Tickets(operator)],
+        "breadcrumb": [
+            operator,
+            Crumb("Tickets", f"{operator.get_absolute_url()}/tickets"),
+        ],
         "operator": operator,
         "title": response["title"],
         "description": response["description"],
