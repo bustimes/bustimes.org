@@ -763,7 +763,7 @@ class VehicleJourney(models.Model):
     get_trip = get_trip
 
     def get_trip_block_url(self):
-        url = reverse("block_detail", args=(self.trip_id,))
+        url = reverse("trip_block", args=(self.trip_id,))
         return f"{url}?date={self.date}"
 
     def get_service_link(self):

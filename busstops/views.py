@@ -262,6 +262,9 @@ Disallow: /accounts/
 Disallow: /fares/
 Disallow: /vehicles/*?date=*
 Disallow: /stops/*?date=*
+Disallow: /stations/*?date=*
+Disallow: /search
+Disallow: /operators/*/blocks/
 Disallow: /services/*?date=*
 Disallow: /services/*/*
 Disallow: /sources
@@ -283,12 +286,9 @@ User-agent: Quantcastbot
 User-agent: CriteoBot/0.1
 User-agent: InteractiveAdvertisingBureau
 User-agent: Leikibot
-User-agent: GrapeshotCrawler
 User-agent: adidxbot
 User-agent: Yahoo Ad Monitoring
 User-agent: peer39_crawler
-User-agent: Connatix/FeedCrawler
-User-agent: Connatix/WebCrawler
 User-agent: bidswitchbot
 User-agent: Verity
 User-agent: GumGumAdsTxtCrawler/1.0

@@ -10,6 +10,8 @@
 
     <h1>{{ object }}</h1>
 
+    {% if garage %}<p>{{ garage }}</p>{% endif %}
+
     <form>
         <input type="date" name="date" aria-label="Date" value="{{ date.isoformat }}" required>
         <input type="submit" value="Go">
@@ -47,6 +49,8 @@
         </table>
     </div>
 
-    <p class="credit">Timetable data from {{ trip.route.source.credit }}</p>
+    {% if sources %}
+        <p class="credit">Timetable data from {% for source in sources %}{{ source.credit }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
 
 {% endblock content %}

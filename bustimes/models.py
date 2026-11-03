@@ -734,6 +734,13 @@ class Trip(models.Model):
     def get_absolute_url(self):
         return reverse("trip_detail", args=(self.id,))
 
+    def get_block_url(self):
+        if self.garage_id:
+            args = (self.operator.slug, self.garage.code, self.block)
+        else:
+            args = (self.operator.slug, self.block)
+        return reverse("block_detail", args=args)
+
     def get_trips_in_block(self, date):
         if not self.route_id:
             return Trip.objects.none()

@@ -52,7 +52,14 @@ from .forms import (
     UploadGTFSForm,
 )
 from .gtfs_utils import handle_gtfs_upload
-from .models import BankHolidayDate, ImportTask, Route, RouteLink, Trip
+from .models import (
+    BankHolidayDate,
+    Calendar,
+    ImportTask,
+    Route,
+    RouteLink,
+    Trip,
+)
 
 
 class ServiceDebugView(DetailView):
@@ -608,10 +615,27 @@ class TripDetailView(DetailView):
 
 @require_GET
 def trip_block(request, pk: int):
-    trip = get_object_or_404(Trip, pk=pk)
-
-    if not trip.block:
+    trip = get_object_or_404(
+        Trip.objects.select_related("operator", "garage"), pk=pk, block__gt=""
+    )
+    if not trip.operator_id:
         raise Http404
+
+    url = trip.get_block_url()
+    if request.GET:
+        url = f"{url}?{request.GET.urlencode()}"
+    return redirect(url, permanent=True)
+
+
+@require_GET
+def block_detail(request, slug, block, garage=None):
+    operator = get_object_or_404(Operator, slug=slug)
+
+    trips = operator.trip_set.filter(block=block, route__service__isnull=False)
+    if garage:
+        trips = trips.filter(garage__code=garage)
+    else:
+        trips = trips.filter(garage=None)
 
     form = DateForm(request.GET)
     if form.is_valid():
@@ -619,15 +643,24 @@ def trip_block(request, pk: int):
     else:
         date = timezone.localdate()
 
-    trips = trip.get_trips_in_block(date)
+    calendar_ids = list(trips.values_list("calendar", flat=True).distinct())
+    if not calendar_ids:
+        raise Http404
 
-    trips = trips.annotate(
-        destination_name=Coalesce(
-            "headsign",
-            "destination__locality__name",
-            "destination__common_name",
-        ),
-    ).select_related("route")
+    calendars = Calendar.objects.active_on(date, calendar_ids)
+    routes = Route.objects.filter(trip__in=trips).active_on(date)
+    trips = (
+        trips.filter(calendar__in=calendars, route__in=routes)
+        .annotate(
+            destination_name=Coalesce(
+                "headsign",
+                "destination__locality__name",
+                "destination__common_name",
+            ),
+        )
+        .select_related("route__source", "garage")
+        .order_by("start")
+    )
 
     if trips := list(trips):
         prefetch_related_objects(
@@ -645,12 +678,13 @@ def trip_block(request, pk: int):
         request,
         "bustimes/block_detail.html",
         {
-            "object": trip.block,
-            "breadcrumb": [trip.operator],
+            "object": block,
+            "garage": trips[0].garage if trips else None,
+            "breadcrumb": [operator],
             "form": form,
             "date": date,
             "trips": trips,
-            "trip": trip,
+            "sources": {trip.route.source for trip in trips},
         },
     )
 
@@ -741,12 +775,14 @@ def operator_blocks(request, slug):
     else:
         date = timezone.localdate()
 
-    routes = Route.objects.filter(trip__operator=operator).active_on(date)
+    routes = Route.objects.filter(
+        trip__operator=operator, service__isnull=False
+    ).active_on(date)
     trips = (
         operator.trip_set.filter(route__in=routes)
-        .select_related("route")
+        .select_related("route", "garage")
         .active_on(date)
-        .order_by("block", "start")
+        .order_by("garage__code", "block", "start")
     )
 
     timescale = []
@@ -773,7 +809,7 @@ def operator_blocks(request, slug):
         trip.width = int((trip.end - trip.start).total_seconds() / length_of_day * 3000)
 
         if trip.block:
-            blocks[trip.block].append(trip)
+            blocks[trip.garage and trip.garage.code, trip.block].append(trip)
 
     context = {
         "object": operator,
