@@ -1663,28 +1663,40 @@ class ImportTransXChangeTest(TestCase):
             self.assertEqual(len(response["results"]), 24)
 
         # all trips in block
-        with self.assertNumQueries(7):
-            response = self.client.get(f"/trips/{trip.id}/block")
+        block_url = trip.get_block_url()
+        self.assertEqual(block_url, f"/operators/{self.fecs.slug}/blocks/KL/6001")
+        response = self.client.get(f"/trips/{trip.id}/block?date=2025-01-26")
+        self.assertRedirects(response, f"{block_url}?date=2025-01-26", status_code=301)
+
+        with self.assertNumQueries(4):
+            response = self.client.get(block_url)
         self.assertContains(response, "07:00")
         self.assertContains(response, "12:25")
 
-        with self.assertNumQueries(7):
-            response = self.client.get(f"/trips/{trip.id}/block?date=2025-01-26")
+        with self.assertNumQueries(4):
+            response = self.client.get(f"{block_url}?date=2025-01-26")
         self.assertContains(response, "07:25")
         self.assertContains(response, "16:00")
+
+        for url in ("XX/6001", "6001"):
+            response = self.client.get(f"/operators/{self.fecs.slug}/blocks/{url}")
+            self.assertEqual(response.status_code, 404)
 
         # operator block view
         with self.assertNumQueries(2):
             response = self.client.get(f"/operators/{self.fecs.slug}/blocks")
             self.assertContains(response, "23 Oct 2023")
-            self.assertContains(response, ">6001</a>")
+            self.assertContains(
+                response,
+                f'<a href="{block_url}?date=2023-10-23">KL6001</a>',
+            )
 
         with self.assertNumQueries(2):
             response = self.client.get(
                 f"/operators/{self.fecs.slug}/blocks?date=2025-10-12"
             )
             self.assertContains(response, "12 Oct 2025")
-            self.assertContains(response, ">6001</a>")
+            self.assertContains(response, ">KL6001</a>")
 
         # test "next trips in block"
         v = Vehicle.objects.create(code="BB69BUS")
