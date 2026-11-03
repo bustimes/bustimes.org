@@ -12,7 +12,7 @@ from django.db.models import (
     Prefetch,
     prefetch_related_objects,
 )
-from django.db.models.functions import Coalesce, Now, TruncDate
+from django.db.models.functions import Coalesce, Length, Now, TruncDate
 from django.http import (
     FileResponse,
     Http404,
@@ -782,7 +782,7 @@ def operator_blocks(request, slug):
         operator.trip_set.filter(route__in=routes)
         .select_related("route", "garage")
         .active_on(date)
-        .order_by("garage__code", "block", "start")
+        .order_by("garage__code", Length("block"), "block", "start")
     )
 
     timescale = []
