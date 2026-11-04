@@ -28,6 +28,29 @@ receivers:
             # tell the two containers apart while a deploy is in progress
             - source_labels: [__meta_docker_container_label_version]
               target_label: version
+        - job_name: kamal-proxy
+          scrape_interval: 15s
+          docker_sd_configs:
+            - host: unix:///var/run/docker.sock
+          relabel_configs:
+            - source_labels: [__meta_docker_container_name]
+              regex: /kamal-proxy
+              action: keep
+            - source_labels: [__address__]
+              regex: .+:9091
+              action: keep
+  hostmetrics:
+    root_path: /hostfs
+    collection_interval: 15s
+    scrapers:
+      cpu:
+      load:
+      memory:
+      network:
+      filesystem:
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 15s
 
 exporters:
   prometheus:
@@ -35,9 +58,12 @@ exporters:
     # keep granian's metric names and labels exactly as they are
     translation_strategy: UnderscoreEscapingWithoutSuffixes
     without_scope_info: true
+    # so docker_stats series are labelled by container
+    resource_to_telemetry_conversion:
+      enabled: true
 
 service:
   pipelines:
     metrics:
-      receivers: [prometheus]
+      receivers: [prometheus, hostmetrics, docker_stats]
       exporters: [prometheus]
