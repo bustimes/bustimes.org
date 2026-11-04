@@ -262,6 +262,7 @@ IMAGEKIT_DEFAULT_CACHEFILE_STRATEGY = "imagekit.cachefiles.strategies.Optimistic
 WHITENOISE_ROOT = BASE_DIR / "busstops" / "static" / "root"
 WHITENOISE_MIMETYPES = {
     ".webmanifest": "application/manifest+json",
+    ".png": "image/png",
 }
 WHITENOISE_AUTOREFRESH = DEBUG or TEST
 TEMPLATE_MINIFER_STRIP_FUNCTION = "buses.utils.minify"

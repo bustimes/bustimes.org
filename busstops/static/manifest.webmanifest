@@ -1,11 +1,29 @@
 {
+    "id": "/",
+    "name": "bustimes.org – Bus Times",
+    "short_name": "Bus Times",
+    "description": "Live bus tracking, maps and timetables.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "display_override": ["standalone", "minimal-ui"],
+    "background_color": "#ffffff",
+    "theme_color": "#ffff9e",
     "icons": [
         {
-            "src": "/apple-touch-icon.png",
+            "src": "/root/apple-touch-icon.png",
             "sizes": "180x180",
             "type": "image/png"
-        }
-    ],
-    "background_color": "#fff",
-    "theme_color": "#ffff9e"
+        },
+        {
+            "src": "/static/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/static/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+    ]
 }
