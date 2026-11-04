@@ -14,10 +14,8 @@
     {% if situation.text %}
         {{ urlise(linebreaks(situation.text)) }}
     {% endif %}
-    {% for consequence in situation.consequences %}
-        {% if not loop.previtem or consequence.text != loop.previtem.text %}{% if consequence.text and consequence.text not in situation.text %}
-            {{ urlise(linebreaks(consequence.text)) }}
-        {% endif %}{% endif %}
+    {% for text in situation.consequence_texts() %}
+        {{ urlise(linebreaks(text)) }}
     {% endfor %}
     {% for link in situation.link_set.all() %}
         <p>{{ urlise(link.url) }}</p>

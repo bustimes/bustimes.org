@@ -82,6 +82,16 @@ class Situation(models.Model):
                 return True
         return False
 
+    def consequence_texts(self) -> list[str]:
+        texts = []
+        for consequence in self.consequences:
+            text = consequence.text
+            if self.text and text.startswith(self.text):
+                text = text[len(self.text) :].strip()
+            if text and text not in self.text and text not in texts:
+                texts.append(text)
+        return texts
+
     def list_validity_periods(self) -> list[str]:
         validity_periods = list(self.validityperiod_set.all())
         if not validity_periods:
