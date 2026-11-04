@@ -2,7 +2,6 @@ import zipfile
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-import folium
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.cache import cache
@@ -53,7 +52,6 @@ from .forms import (
     SnapForm,
     UploadGTFSForm,
 )
-from .gtfs_utils import handle_gtfs_upload
 from .models import (
     BankHolidayDate,
     Calendar,
@@ -119,6 +117,8 @@ def route_link_view(request, pk):
     start = [route_link.from_stop.latlong.y, route_link.from_stop.latlong.x]
     end = [route_link.to_stop.latlong.y, route_link.to_stop.latlong.x]
 
+    import folium
+
     m = folium.Map()
     m.fit_bounds([start, end])
 
@@ -181,6 +181,8 @@ def snap(request):
     proposals, problems = (
         snap_utils.propose(journey, service, coords) if len(coords) > 1 else ([], [])
     )
+
+    import folium
 
     colours = ("#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#008080")
     m = folium.Map(tiles="Stadia.OSMBright")
@@ -835,6 +837,8 @@ def upload_gtfs(request):
     context = {"form": form}
 
     if request.method == "POST" and form.is_valid():
+        from .gtfs_utils import handle_gtfs_upload
+
         source = handle_gtfs_upload(**form.cleaned_data)
 
         return redirect(source)
