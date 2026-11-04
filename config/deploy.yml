@@ -14,13 +14,13 @@ servers:
   web:
     hosts:
       - 10.131.240.97
-      - 10.131.240.98: workers12
+      - 10.131.240.98
     options:
       ulimit: nofile=65536:65536
     env:
       clear:
-        GRANIAN_WORKERS: 8
-        GRANIAN_BLOCKING_THREADS: 4
+        GRANIAN_WORKERS: 12
+        GRANIAN_BLOCKING_THREADS: 2
         GRANIAN_BACKPRESSURE: 32
         EMAIL_HOST: email-smtp.eu-west-1.amazonaws.com
         ALLOWED_HOSTS: bustimes.org
@@ -39,11 +39,6 @@ servers:
         - AWS_SECRET_ACCESS_KEY
         - FLICKR_API_KEY
         - STADIA_MAPS_API_KEY
-env:
-  tags:
-    workers12:
-      GRANIAN_WORKERS: 12
-      GRANIAN_BLOCKING_THREADS: 2
 
 accessories:
   # re-exposes the web containers' granian metrics on port 9394 for prometheus
