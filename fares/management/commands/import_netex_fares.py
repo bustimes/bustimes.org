@@ -101,17 +101,14 @@ def get_fare_zones(source, existing_zones, fare_zone_elements):
 
 @cache
 def get_service(operator, line_name, line_id):
-    services = Service.objects.filter(
-        Exists("route", filter=Q(line_name__iexact=line_name)),
-        operator=operator,
-        current=True,
-    )
+    services = Service.objects.filter(operator=operator, current=True)
     try:
-        try:
-            return services.get()
-        except Service.MultipleObjectsReturned:
-            # disambiguate using the line id, which usually matches the TransXChange
-            return services.get(Exists("route", filter=Q(line_id=line_id)))
+        if ":" in line_id:
+            try:
+                return services.get(Exists("route", filter=Q(line_id=line_id)))
+            except Service.DoesNotExist:
+                pass
+        return services.get(Exists("route", filter=Q(line_name__iexact=line_name)))
     except (Service.DoesNotExist, Service.MultipleObjectsReturned) as e:
         logger.warning(f"{e} {operator.pk} {line_name} {line_id}")
 

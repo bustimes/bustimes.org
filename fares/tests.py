@@ -53,7 +53,7 @@ class FaresTest(TestCase):
             cm.output,
             [
                 "INFO:fares.management.commands.import_netex_fares:AC Williams_20201119 06:45:17",
-                "WARNING:fares.management.commands.import_netex_fares:Service matching query does not exist. WMSA WM07",
+                "WARNING:fares.management.commands.import_netex_fares:Service matching query does not exist. WMSA WM07 WM07",
                 "INFO:fares.management.commands.import_netex_fares:  ⏱️ 0:00:00",
                 "INFO:fares.management.commands.import_netex_fares:AC Williams_20201119 06:46:57",
                 "INFO:fares.management.commands.import_netex_fares:  ⏱️ 0:00:00",
@@ -150,6 +150,12 @@ class FaresTest(TestCase):
         )
         with self.assertLogs("fares.management.commands.import_netex_fares"):
             self.assertIsNone(get_service(self.a_c_williams, "1", "1_Outbound"))
+
+        services[0].current = False
+        services[0].save(update_fields=["current"])
+        self.assertEqual(
+            get_service(self.a_c_williams, "1", "op:1#WMSA001#04/10/2020"), services[1]
+        )
 
     def test_ad_hoc(self):
         command = Command()
