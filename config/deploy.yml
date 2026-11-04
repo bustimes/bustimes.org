@@ -55,9 +55,21 @@ accessories:
       # the image runs as an unprivileged user, which can't read the docker socket
       user: "0:0"
 
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    host: 10.131.240.96
+    port: 127.0.0.1:9090:9090
+    files:
+      - config/prometheus.yml:/etc/prometheus/prometheus.yml
+    directories:
+      - prometheus-data:/prometheus
+    cmd: --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.retention.time=30d
+    options:
+      user: "0:0"
+
   tileserver:
     image: maptiler/tileserver-gl-light
-    host: 167.99.89.1
+    host: 10.131.240.96
     port: 80:8080
     volumes:
       - /root/data:/data
