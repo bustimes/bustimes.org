@@ -10,6 +10,8 @@ def date_range(date_range=None, lower=None, upper=None):
     if date_range:
         lower = date_range.lower
         upper = date_range.upper
+    if lower and upper and upper.year - lower.year >= 50:
+        upper = None  # placeholder end date, like 100 years in the future
     to_format = "%A %-d %B %Y"
     if upper:
         to = upper.strftime(to_format)

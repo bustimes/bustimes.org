@@ -1,3 +1,6 @@
+import re
+
+from django.db.models import Prefetch
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.views.generic.detail import DetailView
@@ -35,6 +38,31 @@ class DataSetDetailView(DetailView):
             form = FaresForm(self.object.tariff_set.all())
 
         context_data["form"] = form
+
+        tariffs = list(
+            self.object.tariff_set.select_related("user_profile").prefetch_related(
+                "services",
+                Prefetch("faretable_set", FareTable.objects.only("tariff_id", "name")),
+            )
+        )
+        for tariff in tariffs:
+            tariff.service = min(
+                tariff.services.all(), key=Service.get_order, default=None
+            )
+        tariffs.sort(
+            key=lambda tariff: (
+                (0, tariff.service.get_order(), tariff.service.slug)
+                if tariff.service
+                else (1,),
+                [
+                    int(part) if part.isdigit() else part
+                    for part in re.split(r"(\d+)", tariff.filename)
+                ],
+                tariff.name,
+            )
+        )
+        context_data["tariffs"] = tariffs
+
         return context_data
 
 

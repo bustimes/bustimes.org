@@ -199,6 +199,66 @@ class FareTable(models.Model):
         if len(cols) == len(rows) and cols[1:] == rows[:-1]:
             return True
 
+    @cached_property
+    def staircase(self):
+        """For a table of fares in one direction only (like Stagecoach's),
+        each stop once on the diagonal, heading both its column (fares from)
+        and its row (fares to)
+        """
+        if self.is_triangular:
+            return
+
+        def get_key(line):
+            # Stagecoach zone codes identify stops visited twice, like on a circular route
+            for suffix in ("@boarding", "@alighting"):
+                if line.code.endswith(suffix):
+                    return line.code.removesuffix(suffix)
+            return line.name
+
+        columns = list(self.column_set.all())
+        column_keys = {column.id: get_key(column) for column in columns}
+        stops = list(column_keys.values())
+        if len(set(stops)) != len(stops):
+            return
+        names = {get_key(column): column.name for column in columns}
+
+        prices = {}
+        for row in self.row_set.all():
+            cells = row.cell_set.all()
+            if not cells:
+                continue
+            key = get_key(row)
+            if key not in names:
+                # insert before the first stop this row has a fare to
+                first_column = min(
+                    cells, key=lambda cell: stops.index(column_keys[cell.column_id])
+                )
+                stops.insert(stops.index(column_keys[first_column.column_id]), key)
+                names[key] = row.name
+            for cell in cells:
+                prices[key, column_keys[cell.column_id]] = cell.price
+
+        position = {stop: i for i, stop in enumerate(stops)}
+        if not prices or any(position[a] >= position[b] for a, b in prices):
+            return  # not all fares are from an earlier stop to a later one
+
+        ids = [f"fare-table-{self.id}-{i}" for i in range(len(stops))]
+        return [
+            {
+                "name": names[stop],
+                "id": ids[i],
+                "colspan": len(stops) - i,
+                "cells": [
+                    {
+                        "price": prices.get((stops[j], stop)),
+                        "headers": f"{ids[j]} {ids[i]}",
+                    }
+                    for j in range(i)
+                ],
+            }
+            for i, stop in enumerate(stops)
+        ]
+
     def columns(self):
         return self.column_set.all()
 
@@ -213,6 +273,13 @@ class FareTable(models.Model):
             for i, row in enumerate(rows, start=1):
                 row.colspan = i
             rows.reverse()
+        else:
+            # rows may be out of order (e.g. stops added when a route was extended)
+            column_order = {col.name: col.order for col in cols.values()}
+            if len(column_order) == len(cols) and all(
+                column_order.get(row.name) is not None for row in rows
+            ):
+                rows.sort(key=lambda row: column_order[row.name])
 
         return rows
 

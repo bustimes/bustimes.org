@@ -113,7 +113,7 @@ def get_service(operator, line_name, line_id):
             # disambiguate using the line id, which usually matches the TransXChange
             return services.get(Exists("route", filter=Q(line_id=line_id)))
     except (Service.DoesNotExist, Service.MultipleObjectsReturned) as e:
-        logger.warning(f"{e} {operator} {line_name}")
+        logger.warning(f"{e} {operator.pk} {line_name} {line_id}")
 
 
 def delete_unused_prices(max_id):
@@ -202,6 +202,7 @@ class Command(BaseCommand):
 
         tariffs = {}
         time_intervals = {}
+        distance_matrix_element_elements_by_id = {}
         for tariff_element in element.findall(
             "dataObjects/CompositeFrame/frames/FareFrame/tariffs/Tariff"
         ):
@@ -269,6 +270,16 @@ class Command(BaseCommand):
                         service = get_service(operator, line_name, line_id)
                         if service:
                             tariff.services.add(service)
+
+            # Stagecoach - priced separately, in FareTable/prices
+            for distance_matrix_element in tariff_element.findall(
+                "distanceMatrixElements/DistanceMatrixElement"
+            ) + tariff_element.findall(
+                "fareStructureElements/FareStructureElement/distanceMatrixElements/DistanceMatrixElement"
+            ):
+                distance_matrix_element_elements_by_id[
+                    distance_matrix_element.attrib["id"]
+                ] = (tariff, distance_matrix_element)
 
             distance_matrix_elements = {}
             if fare_structure_elements is not None:
@@ -410,38 +421,68 @@ class Command(BaseCommand):
             else:
                 table = None
 
-                # Stagecoach
-                distance_matrix_elements = tariff_element.find("distanceMatrixElements")
-                if distance_matrix_elements is not None:
-                    distance_matrix_elements = {
-                        element.attrib["id"]: element
-                        for element in distance_matrix_elements
-                    }
-
-                    for price in fare_table_element.findall(
-                        "prices/DistanceMatrixElementPrice"
-                    ):
-                        distance_matrix_element_ref = price.find(
-                            "DistanceMatrixElementRef"
-                        ).attrib["ref"]
-                        distance_matrix_element = distance_matrix_elements[
-                            distance_matrix_element_ref
-                        ]
-                        amount = price.findtext("Amount")
-                        if amount not in prices:
-                            prices[amount] = models.Price.objects.create(amount=amount)
-                        start_zone = distance_matrix_element.find(
-                            "StartTariffZoneRef"
-                        ).attrib["ref"]
-                        end_zone = distance_matrix_element.find(
-                            "EndTariffZoneRef"
-                        ).attrib["ref"]
-                        models.DistanceMatrixElement.objects.create(
+                # Stagecoach - a flat list of prices, referring to distance matrix elements
+                distance_matrix_element_prices = []
+                for price in fare_table_element.findall(
+                    "prices/DistanceMatrixElementPrice"
+                ):
+                    ref = price.find("DistanceMatrixElementRef")
+                    if ref is None:
+                        # a network ticket - just one price, like a 1 month pass
+                        models.Price.objects.create(
+                            amount=price.findtext("Amount"),
                             tariff=tariff,
-                            start_zone=fare_zones[start_zone],
-                            end_zone=fare_zones[end_zone],
+                            time_interval=next(iter(time_intervals.values()))
+                            if len(time_intervals) == 1
+                            else None,
+                            user_profile=user_profile,
+                            sales_offer_package=sales_offer_package,
+                        )
+                        continue
+                    ref = ref.attrib["ref"]
+                    if ref not in distance_matrix_element_elements_by_id:
+                        continue
+                    tariff, distance_matrix_element = (
+                        distance_matrix_element_elements_by_id[ref]
+                    )
+                    amount = price.findtext("Amount")
+                    if amount not in prices:
+                        prices[amount] = models.Price.objects.create(amount=amount)
+                    distance_matrix_element_prices.append(
+                        models.DistanceMatrixElement(
+                            code=ref,
+                            tariff=tariff,
+                            start_zone=fare_zones[
+                                distance_matrix_element.find(
+                                    "StartTariffZoneRef"
+                                ).attrib["ref"]
+                            ],
+                            end_zone=fare_zones[
+                                distance_matrix_element.find("EndTariffZoneRef").attrib[
+                                    "ref"
+                                ]
+                            ],
                             price=prices[amount],
                         )
+                    )
+
+                if distance_matrix_element_prices:
+                    models.DistanceMatrixElement.objects.bulk_create(
+                        distance_matrix_element_prices
+                    )
+                    self.make_table_from_distance_matrix(
+                        models.FareTable.objects.create(
+                            tariff=tariff,
+                            code=fare_table_element.attrib["id"],
+                            name=fare_table_element.findtext("Name", ""),
+                            description=fare_table_element.findtext("Description", ""),
+                            user_profile=user_profile,
+                            sales_offer_package=sales_offer_package,
+                            preassigned_fare_product=preassigned_fare_product,
+                        ),
+                        distance_matrix_element_prices,
+                        list(fare_zones.values()),
+                    )
 
             cells = []
 
@@ -535,6 +576,48 @@ class Command(BaseCommand):
                 self.sales_offer_packages = sales_offer_packages
             if fare_products:
                 self.fare_products = fare_products
+
+    @staticmethod
+    def make_table_from_distance_matrix(table, distance_matrix_elements, zones):
+        """Rows are boarding zones, columns alighting zones, in the file's zone order"""
+        zone_order = {zone: i for i, zone in enumerate(zones)}
+
+        def get_lines(zone_attr, model):
+            lines = {}
+            for i, zone in enumerate(
+                sorted(
+                    {
+                        getattr(element, zone_attr)
+                        for element in distance_matrix_elements
+                    },
+                    key=zone_order.get,
+                ),
+                start=1,
+            ):
+                lines[zone] = model(
+                    table=table, code=zone.code, name=zone.name, order=i
+                )
+            model.objects.bulk_create(lines.values())
+            return lines
+
+        rows = get_lines("start_zone", models.Row)
+        columns = get_lines("end_zone", models.Column)
+
+        models.Cell.objects.bulk_create(
+            models.Cell(
+                row=rows[element.start_zone],
+                column=columns[element.end_zone],
+                price=element.price,
+                distance_matrix_element=element,
+            )
+            for element in sorted(
+                distance_matrix_elements,
+                key=lambda element: (
+                    rows[element.start_zone].order,
+                    columns[element.end_zone].order,
+                ),
+            )
+        )
 
     @staticmethod
     def add_arguments(parser):
