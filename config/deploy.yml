@@ -14,7 +14,7 @@ servers:
   web:
     hosts:
       - 10.131.240.97
-      - 10.131.240.98
+      - 10.131.240.98: switch1ms
     options:
       ulimit: nofile=65536:65536
     env:
@@ -39,6 +39,10 @@ servers:
         - AWS_SECRET_ACCESS_KEY
         - FLICKR_API_KEY
         - STADIA_MAPS_API_KEY
+env:
+  tags:
+    switch1ms:
+      PYTHON_SWITCH_INTERVAL: 0.001
 
 accessories:
   # re-exposes the web containers' granian metrics on port 9394 for prometheus
