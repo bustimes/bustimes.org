@@ -51,6 +51,7 @@ accessories:
       - config/otel-collector.yaml:/etc/otelcol-contrib/config.yaml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/hostfs:ro
     options:
       # the image runs as an unprivileged user, which can't read the docker socket
       user: "0:0"
@@ -97,6 +98,8 @@ proxy:
     # to reduce the time-to-first-byte,
     # so we disable response buffering which would undo all that hard work
     responses: false
+  run:
+    metrics_port: 9091
   logging:
     request_headers:
       - Referer
