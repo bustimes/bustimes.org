@@ -23,7 +23,7 @@ from django.core.mail import EmailMessage
 from django.core.paginator import Paginator
 from django.db import connection
 from django.db.models import Case, F, OuterRef, Prefetch, Q, StringAgg, Value, When
-from django.db.models.functions import Coalesce, Now
+from django.db.models.functions import Coalesce, Length, Now
 from django.http import (
     Http404,
     HttpResponse,
@@ -728,7 +728,7 @@ class LocalityDetailView(UppercasePrimaryKeyMixin, DetailView):
                 service__current=True,
             )
             .annotate(line_names=stop_line_names)
-            .order_by("common_name", "indicator")
+            .order_by("common_name", Length("indicator"), "indicator")
             .defer("latlong")
         )
 
@@ -892,7 +892,7 @@ class StopPointDetailView(DetailView):
 
         nearby = (
             StopPoint.objects.filter(active=True)
-            .order_by("common_name", "indicator")
+            .order_by("common_name", Length("indicator"), "indicator")
             .filter(service__current=True)
         )
 
@@ -992,7 +992,7 @@ class StopAreaDetailView(DetailView):
         stops = (
             self.object.stoppoint_set.filter(service__current=True)
             .annotate(line_names=stop_line_names)
-            .order_by("common_name", "indicator")
+            .order_by("common_name", Length("indicator"), "indicator")
         )
         context["children"] = stops
 
