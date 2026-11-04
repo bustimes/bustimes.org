@@ -201,9 +201,9 @@ class FareTable(models.Model):
 
     @cached_property
     def staircase(self):
-        """For a table of fares in one direction only (like Stagecoach's),
-        each stop once on the diagonal, heading both its column (fares from)
-        and its row (fares to)
+        """Each stop once on the diagonal, heading both its column (fares from)
+        and its row (fares to). For a table of fares in one direction only
+        (like Stagecoach's), or the same fares in both directions
         """
         if self.is_triangular:
             return
@@ -238,9 +238,16 @@ class FareTable(models.Model):
             for cell in cells:
                 prices[key, column_keys[cell.column_id]] = cell.price
 
+        if not prices:
+            return
         position = {stop: i for i, stop in enumerate(stops)}
-        if not prices or any(position[a] >= position[b] for a, b in prices):
-            return  # not all fares are from an earlier stop to a later one
+        for (a, b), price in list(prices.items()):
+            if position[a] > position[b]:
+                # a fare in the other direction, only if it's the same
+                if prices.get((b, a)) != price:
+                    return
+                del prices[a, b]
+        has_diagonal = any(a == b for a, b in prices)
 
         ids = [f"fare-table-{self.id}-{i}" for i in range(len(stops))]
         return [
@@ -251,9 +258,9 @@ class FareTable(models.Model):
                 "cells": [
                     {
                         "price": prices.get((stops[j], stop)),
-                        "headers": f"{ids[j]} {ids[i]}",
+                        "headers": f"{ids[j]} {ids[i]}" if j < i else ids[i],
                     }
-                    for j in range(i)
+                    for j in range(i + 1 if has_diagonal else i)
                 ],
             }
             for i, stop in enumerate(stops)

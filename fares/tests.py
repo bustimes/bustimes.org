@@ -373,6 +373,45 @@ class FareTableRowOrderTest(TestCase):
             [("Barclay Street", 0), ("Forest Park", 1), ("Barclay Street", 2)],
         )
 
+    def test_staircase_both_directions(self):
+        dataset = DataSet.objects.create(name="test")
+        tariff = Tariff.objects.create(source=dataset, code="t", name="t", filename="t")
+        table = FareTable.objects.create(tariff=tariff, code="t", name="t")
+        stops = ("Dussindale", "Thunder Lane", "Norwich City")
+        rows = [
+            Row.objects.create(table=table, name=name, order=i)
+            for i, name in enumerate(stops)
+        ]
+        columns = [
+            Column.objects.create(table=table, name=name, order=i)
+            for i, name in enumerate(stops)
+        ]
+        low = Price.objects.create(amount="1.80")
+        high = Price.objects.create(amount="2.40")
+        cells = {}
+        for i, row in enumerate(rows):
+            for j, column in enumerate(columns):
+                cells[i, j] = Cell.objects.create(
+                    row=row, column=column, price=high if abs(i - j) > 1 else low
+                )
+
+        self.assertEqual(
+            [
+                [cell["price"] and str(cell["price"]) for cell in stop["cells"]]
+                for stop in table.staircase
+            ],
+            [["1.80"], ["1.80", "1.80"], ["2.40", "1.80", "1.80"]],
+        )
+        self.assertEqual(
+            table.staircase[1]["cells"][1]["headers"], f"fare-table-{table.id}-1"
+        )
+
+        # different fare in the other direction
+        cells[2, 0].price = low
+        cells[2, 0].save()
+        del table.staircase
+        self.assertIsNone(table.staircase)
+
 
 class DeleteUnusedPricesTest(TestCase):
     def test_delete_unused_prices(self):
