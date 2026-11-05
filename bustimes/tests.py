@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime, timedelta, timezone
 
+import time_machine
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 
@@ -298,6 +299,90 @@ class BusTimesTest(TestCase):
 
         service.save()  # e.g. reimported
         self.assertEqual(get_ids(), [route.id])
+
+    @time_machine.travel("2026-11-05")
+    def test_undated_timetable_superseded_route(self):
+        source = DataSource.objects.create(name="First")
+        service_7x = Service.objects.create(line_name="7X")
+        service_7 = Service.objects.create(line_name="7")
+        calendar = Calendar.objects.create(
+            mon=True,
+            tue=True,
+            wed=True,
+            thu=True,
+            fri=True,
+            sat=False,
+            sun=False,
+            start_date=date(2026, 10, 18),
+        )
+        route_7x = Route.objects.create(
+            service=service_7x,
+            source=source,
+            code="7-2026-10-18",
+            line_name="7X",
+            service_code="PH0007007:33",
+            revision_number=402,
+            start_date=date(2026, 10, 18),
+        )
+        Trip.objects.create(
+            route=route_7x,
+            calendar=calendar,
+            start=timedelta(hours=6),
+            end=timedelta(hours=7),
+        )
+
+        self.assertEqual(service_7x.get_timetable().routes, [route_7x])
+
+        # the 7X has been dropped from the newer revision
+        route_7 = Route.objects.create(
+            service=service_7,
+            source=source,
+            code="7-2026-11-01",
+            line_name="7",
+            service_code="PH0007007:33",
+            revision_number=403,
+            start_date=date(2026, 11, 1),
+        )
+        Trip.objects.create(
+            route=route_7,
+            calendar=calendar,
+            start=timedelta(hours=6),
+            end=timedelta(hours=7),
+        )
+        service_7x.save()
+        self.assertEqual(service_7x.get_timetable().routes, [])
+
+        # an ended route is kept if nothing else is active...
+        route_7x.end_date = date(2026, 10, 31)
+        route_7x.save()
+        service_7x.save()
+        self.assertEqual(service_7x.get_timetable().routes, [route_7x])
+
+        # ...but not if something is
+        ended_7 = Route.objects.create(
+            service=service_7,
+            source=source,
+            code="7-2026-10-18-b",
+            line_name="7",
+            service_code="PH0007007:33",
+            revision_number=402,
+            start_date=date(2026, 10, 18),
+            end_date=date(2026, 10, 31),
+        )
+        # and a future revision is kept
+        future_7 = Route.objects.create(
+            service=service_7,
+            source=source,
+            code="7-2026-11-15",
+            line_name="7",
+            service_code="PH0007007:33",
+            revision_number=404,
+            start_date=date(2026, 11, 15),
+        )
+        service_7.save()
+        routes = service_7.get_timetable().routes
+        self.assertEqual(routes, [route_7, future_7])
+        self.assertNotIn(ended_7, routes)
 
     def test_get_routes(self):
         sources = DataSource.objects.bulk_create(

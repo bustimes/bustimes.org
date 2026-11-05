@@ -80,6 +80,20 @@ class Timetable:
         self.today = localdate(
             timezone=next((route.timezone for route in routes if route.timezone), None)
         )
+        if not date and any(route.revision_number for route in routes):
+            # drop routes superseded by a higher revision as of today
+            active = set(get_active_route_ids(routes, self.today))
+            routes = [
+                route
+                for route in routes
+                if route.id in active
+                or route.version_id
+                or route.start_date
+                and route.start_date > self.today
+                or not active
+                and route.end_date
+                and route.end_date < self.today
+            ]
         self.routes = self.current_routes = routes
         # self.current_routes is a subset of self.routes
         self.yesterday = None

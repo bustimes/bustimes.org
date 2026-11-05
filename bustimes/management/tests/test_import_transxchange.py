@@ -1104,7 +1104,7 @@ class ImportTransXChangeTest(TestCase):
         # self.assertContains(res, 'Timetable changes from <a href="?date=2017-09-03">Sunday 3 September 2017</a>')
         # self.assertContains(res, f'data-service="{service.id},{duplicate.id}"></div')
 
-        with time_machine.travel("1 October 2017"), self.assertNumQueries(19):
+        with time_machine.travel("1 October 2017"), self.assertNumQueries(20):
             res = self.client.get(service.get_absolute_url())
         # self.assertContains(res, """
         #         <thead>
