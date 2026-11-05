@@ -10,7 +10,10 @@ COPY .parcelrc tsconfig.json /app/
 RUN npm run lint && npm run build
 
 
-FROM ghcr.io/bustimes/bustimes.org/bustimes-base:3.15 AS venv
+FROM python:3.15-slim-trixie AS venv
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libc6-dev libpq-dev git
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
 
