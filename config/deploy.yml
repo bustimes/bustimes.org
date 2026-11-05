@@ -14,7 +14,7 @@ servers:
   web:
     hosts:
       - 10.131.240.97
-      - 10.131.240.98
+      - 10.131.240.98: backpressure4
     options:
       ulimit: nofile=65536:65536
     env:
@@ -39,6 +39,11 @@ servers:
         - AWS_SECRET_ACCESS_KEY
         - FLICKR_API_KEY
         - STADIA_MAPS_API_KEY
+
+env:
+  tags:
+    backpressure4:
+      GRANIAN_BACKPRESSURE: 4
 
 accessories:
   # re-exposes the web containers' granian metrics on port 9394 for prometheus
