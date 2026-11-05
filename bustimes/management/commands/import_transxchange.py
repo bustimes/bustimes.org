@@ -1869,6 +1869,9 @@ class Command(BaseCommand):
                     logger.warning(
                         f"{filename} has {operators} but unexpected filename format"
                     )
+            # thrice wise, Merseytravel
+            elif route_code.startswith("mer_"):
+                route_defaults["revision_number_context"] = route_defaults["line_name"]
             # detect TransMach data too, and do likewise
             elif "_" in route_code and route_code.endswith(".xml"):
                 parts = route_code.split("_")
@@ -1879,9 +1882,6 @@ class Command(BaseCommand):
                 ):
                     route_defaults["revision_number_context"] = parts[0]
                     logger.info(f"{filename} looks like TransMach")
-            # thrice wise, Merseytravel
-            elif route_code.startswith("mer_"):
-                route_defaults["revision_number_context"] = route_defaults["line_name"]
 
             if file_hash:
                 route_defaults["file_hash"] = file_hash
