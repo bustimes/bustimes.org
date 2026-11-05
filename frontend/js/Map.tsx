@@ -17,11 +17,15 @@ import MapGL, {
 } from "react-map-gl/maplibre";
 
 import arrow from "data-url:../history-arrow.png";
+import routeStopMarkerDarkLarge from "data-url:../route-stop-marker-dark-large.png";
 import routeStopMarkerDark from "data-url:../route-stop-marker-dark.png";
+import routeStopMarkerLarge from "data-url:../route-stop-marker-large.png";
 import routeStopMarker from "data-url:../route-stop-marker.png";
 import stopMarkerCircle from "data-url:../stop-marker-circle.png";
 import stopMarker from "data-url:../stop-marker.png";
 import osmBright from "url:../osm_bright.json";
+import "maplibre-gl/dist/maplibre-gl.css";
+import "./maps.css";
 import maplibreWorkerUrl from "worklet:./maplibre-worker.ts";
 import {
   type FilterSpecification,
@@ -46,6 +50,8 @@ const imagesByName: { [imageName: string]: string } = {
   "stop-marker-circle": stopMarkerCircle,
   "route-stop-marker": routeStopMarker,
   "route-stop-marker-dark": routeStopMarkerDark,
+  "route-stop-marker-large": routeStopMarkerLarge,
+  "route-stop-marker-dark-large": routeStopMarkerDarkLarge,
   "history-arrow": arrow,
 };
 
@@ -267,7 +273,7 @@ export default function BusTimesMap(
           dragRotate={false}
           minZoom={4}
           maxZoom={18}
-          // projection="globe"
+          projection="globe"
           mapStyle={mapStyleURL}
           RTLTextPlugin={""}
           attributionControl={false}

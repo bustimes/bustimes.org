@@ -30,7 +30,7 @@ class StatsTest(TestCase):
             response.json(),
             [
                 {
-                    "datetime": "2023-10-19T23:00:00+00:00",
+                    "datetime": "2023-10-19T23:00:00Z",
                     "pending_vehicle_edits": 0,
                     "service_vehicle_journeys": 0,
                     "trip_vehicle_journeys": 0,
@@ -56,7 +56,7 @@ class StatsTest(TestCase):
             response.json(),
             [
                 {
-                    "datetime": "2023-10-19T23:00:00+00:00",
+                    "datetime": "2023-10-19T23:00:00Z",
                     "sources": {"Top Mops Limited": 1},
                 }
             ],

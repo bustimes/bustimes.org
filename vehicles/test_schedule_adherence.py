@@ -356,10 +356,10 @@ class ScheduleAdherenceTest(TestCase):
                 }
             )
             response_json = self.client.get("/stops/210021509680/times.json").json()
-            self.assertEqual(response_json["times"][0]["delay"], "P0DT00H16M07S")
+            self.assertEqual(response_json["times"][0]["delay"], "PT967S")
             self.assertEqual(
                 response_json["times"][0]["expected_departure_time"],
-                "2024-02-16T10:59:07+00:00",
+                "2024-02-16T10:59:07Z",
             )
 
             with self.assertNumQueries(13):
@@ -386,10 +386,10 @@ class ScheduleAdherenceTest(TestCase):
                 }
             )
             response_json = self.client.get("/stops/210021509680/times.json").json()
-            self.assertEqual(response_json["times"][0]["delay"], "-P0DT00H33M53S")
+            self.assertEqual(response_json["times"][0]["delay"], "-PT2033S")
             self.assertEqual(
                 response_json["times"][0]["expected_departure_time"],
-                "2024-02-16T10:09:07+00:00",
+                "2024-02-16T10:09:07Z",
             )
 
             # delay already calculated (eg TfW)
@@ -406,10 +406,10 @@ class ScheduleAdherenceTest(TestCase):
                 }
             )
             response_json = self.client.get("/stops/210021509680/times.json").json()
-            self.assertEqual(response_json["times"][0]["delay"], "P0DT00H01M00S")
+            self.assertEqual(response_json["times"][0]["delay"], "PT60S")
             self.assertEqual(
                 response_json["times"][0]["expected_departure_time"],
-                "2024-02-16T10:44:00+00:00",
+                "2024-02-16T10:44:00Z",
             )
 
             # a long way off-route - no prediction
@@ -602,6 +602,7 @@ class SplitTripDeparturesTest(TestCase):
         self.assertEqual(item["delay"], 300)
         self.assertEqual(item["trip_ids"], [self.trip_1.id, self.trip_2.id])
         self.assertEqual(item["progress"]["trip_id"], self.trip_1.id)
+        self.assertEqual(item["progress"]["prev_time"], 9 * 3600)
 
         redis_client = fakeredis.FakeStrictRedis()
         redis_client.sadd(f"service{self.trip_1.route.service_id}vehicles", 1)
@@ -611,7 +612,7 @@ class SplitTripDeparturesTest(TestCase):
             with time_machine.travel("2026-09-07T08:06:00Z"):
                 times = self.client.get("/stops/c/times.json").json()["times"]
                 self.assertEqual(times[0]["trip_id"], self.trip_2.id)
-                self.assertEqual(times[0]["delay"], "P0DT00H05M00S")
+                self.assertEqual(times[0]["delay"], "PT300S")
 
             # overdue, but the vehicle is still on the first part
             with time_machine.travel("2026-09-07T08:22:00Z"):
@@ -629,6 +630,38 @@ class SplitTripDeparturesTest(TestCase):
             with time_machine.travel("2026-09-07T08:06:00Z"):
                 times = self.client.get("/stops/c/times.json").json()["times"]
                 self.assertNotIn("delay", times[0])
+
+    def test_is_before_stop(self):
+        def is_before_stop(stop_id, hour, **progress):
+            progress = {
+                "id": 100,
+                "prev_stop": "a",
+                "prev_time": 9 * 3600,
+                "next_stop": "b",
+                "progress": 0.5,
+            } | progress
+            item = {"progress": {k: v for k, v in progress.items() if v is not None}}
+            stop_time = StopTime(
+                id=50,
+                trip_id=self.trip_1.id,
+                stop_id=stop_id,
+                departure=datetime.timedelta(hours=hour),
+            )
+            return rtpi.is_before_stop(item, stop_time)
+
+        # stop time ids from before the timetable was reimported
+        self.assertFalse(is_before_stop("x", 8, id=1))
+        self.assertTrue(is_before_stop("x", 10, id=1000))
+
+        # same time
+        self.assertFalse(is_before_stop("a", 9, id=1))
+        self.assertTrue(is_before_stop("a", 9, id=1000, progress=0))
+        self.assertTrue(is_before_stop("b", 9, id=1000))
+        self.assertTrue(is_before_stop("x", 9, id=1))
+        self.assertFalse(is_before_stop("x", 9, id=1000))
+
+        # no prev_time
+        self.assertTrue(is_before_stop("x", 8, id=1, prev_time=None))
 
     def test_adjacent_pair(self):
         # 3/4 of the way from a to b, but also near enough to b-c

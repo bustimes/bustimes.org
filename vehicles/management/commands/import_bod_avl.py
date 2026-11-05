@@ -19,11 +19,12 @@ from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import get_channel_layer
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry
-from django.db import IntegrityError, connection
+from django.db import IntegrityError, close_old_connections, connection
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_duration
 from django.utils.http import http_date, parse_http_date_safe
+from haversine import haversine
 from lxml import etree
 
 from busstops.models import (
@@ -81,6 +82,9 @@ class QueryCounter:
 
 _SIRI_NS = "http://www.siri.org.uk/siri"
 
+# like at the start of each request - so a worker survives the database restarting
+reconnect_if_broken = sync_to_async(close_old_connections, thread_sensitive=True)
+
 
 def _elem_to_dict(elem):
     children = list(elem)
@@ -107,22 +111,31 @@ occupancies = {
 }
 
 
-def get_destination_ref(destination_ref: str) -> str | None:
-    destination_ref = destination_ref.removeprefix("NT")  # Nottingham City Transport
-
-    if (
-        " " in destination_ref
-        or len(destination_ref) < 4
-        or not destination_ref[:4].isdigit()
-        or destination_ref[:3] == "000"
-        or destination_ref[:3] == "999"
-        or destination_ref[:3] == "980"
-        or destination_ref[:3] == "900"
+def get_stop_ref(monitored_vehicle_journey: dict, key: str) -> str | None:
+    if not (stop_ref := monitored_vehicle_journey.get(key)):
+        return
+    if stop_ref in (
+        monitored_vehicle_journey.get("LineRef"),
+        monitored_vehicle_journey.get("PublishedLineName"),
     ):
-        # destination ref is not in the expected ATCO code format - maybe a postcode or other placeholder
+        # Ticketer bullshit placeholder e.g. OriginRef and DestinationRef "23" on line 23
         return
 
-    return destination_ref
+    stop_ref = stop_ref.removeprefix("NT")  # Nottingham City Transport
+
+    if (
+        " " in stop_ref
+        or len(stop_ref) < 4
+        or not stop_ref[:4].isdigit()
+        or stop_ref[:3] == "000"
+        or stop_ref[:3] == "999"
+        or stop_ref[:3] == "980"
+        or stop_ref[:3] == "900"
+    ):
+        # not in the expected ATCO code format - maybe a postcode or other placeholder
+        return
+
+    return stop_ref
 
 
 @functools.cache
@@ -158,6 +171,46 @@ def get_line_name_query(line_ref: str) -> Q:
             Route.objects.filter(service=OuterRef("id"), line_name__iexact=line_name)
         )
     )
+
+
+def _position(item):
+    location = item["MonitoredVehicleJourney"].get("VehicleLocation") or {}
+    try:
+        return float(location["Latitude"]), float(location["Longitude"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def exclude_misplaced_new_feed_items(items):
+    # (Stagecoach) a vehicle can be in both the old feed, as "SCEM-19684",
+    # and the new feed, as "19684" - the latter sometimes with another bus's position
+    old_feed = {}
+    for item in items:
+        journey = item["MonitoredVehicleJourney"]
+        prefix = f"{journey.get('OperatorRef')}-"
+        vehicle_ref = journey.get("VehicleRef") or ""
+        if vehicle_ref.startswith(prefix):
+            old_feed[(journey["OperatorRef"], vehicle_ref.removeprefix(prefix))] = item
+
+    if not old_feed:
+        return items
+
+    def is_misplaced(item):
+        journey = item["MonitoredVehicleJourney"]
+        old = old_feed.get((journey.get("OperatorRef"), journey.get("VehicleRef")))
+        if not old:
+            return False
+        position = _position(item)
+        old_position = _position(old)
+        if not position or not old_position:
+            return False
+        if abs(Command.get_datetime(item) - Command.get_datetime(old)) > timedelta(
+            minutes=2
+        ):
+            return False
+        return 1 < haversine(position, old_position) < 100  # km
+
+    return [item for item in items if not is_misplaced(item)]
 
 
 class Command(ImportLiveVehiclesCommand):
@@ -292,6 +345,7 @@ class Command(ImportLiveVehiclesCommand):
         handle_message = sync_to_async(self.handle_message, thread_sensitive=True)
         while True:
             message = await channel_layer.receive(f"bod_avl.{shard}")
+            await reconnect_if_broken()
             try:
                 await handle_message(message)
             except Exception:
@@ -314,6 +368,7 @@ class Command(ImportLiveVehiclesCommand):
         handle = sync_to_async(handle_siri_post.call_local, thread_sensitive=True)
         while True:
             message = await channel_layer.receive(SIRI_CHANNEL)
+            await reconnect_if_broken()
             try:
                 await handle(message["uuid"], message["data"])
             except Exception:
@@ -439,8 +494,7 @@ class Command(ImportLiveVehiclesCommand):
     def get_service(self, operators, item, line_ref, vehicle_operator_id):
         monitored_vehicle_journey = item["MonitoredVehicleJourney"]
 
-        if destination_ref := monitored_vehicle_journey.get("DestinationRef"):
-            destination_ref = get_destination_ref(destination_ref)
+        destination_ref = get_stop_ref(monitored_vehicle_journey, "DestinationRef")
 
         # filter by LineRef or (if present and different) TicketMachineServiceCode
         line_name_query = get_line_name_query(line_ref)
@@ -518,7 +572,7 @@ class Command(ImportLiveVehiclesCommand):
                 and destination_ref[3] == "0"
             ):
                 atco_code__startswith |= Q(
-                    atco_code__startswith=f"0{destination_ref}[:3]"
+                    atco_code__startswith=f"0{destination_ref[:2]}"
                 )
 
             stops = StopPoint.objects.filter(
@@ -535,24 +589,34 @@ class Command(ImportLiveVehiclesCommand):
                         service=OuterRef("pk"), atco_code=destination_ref
                     )
                 )
-                origin_ref = monitored_vehicle_journey.get("OriginRef")
+                origin_ref = get_stop_ref(monitored_vehicle_journey, "OriginRef")
                 if origin_ref:
-                    condition &= Exists(
+                    origin_condition = Exists(
                         StopPoint.objects.filter(
                             service=OuterRef("pk"), atco_code=origin_ref
                         )
                     )
-                try:
-                    return services.get(condition)
-                except Service.DoesNotExist:
-                    pass
-                except Service.MultipleObjectsReturned:
-                    services = services.filter(condition)
+                    try:
+                        return services.get(condition & origin_condition)
+                    except Service.DoesNotExist:
+                        # e.g. timetable uses a different stop at the bus station
+                        condition |= origin_condition
+                    except Service.MultipleObjectsReturned:
+                        services = services.filter(condition & origin_condition)
+                        condition = None
+                if condition is not None:
+                    try:
+                        return services.get(condition)
+                    except Service.DoesNotExist:
+                        pass
+                    except Service.MultipleObjectsReturned:
+                        services = services.filter(condition)
 
         else:
             latlong = self.create_vehicle_location(item).latlong
             try:
-                return services.get(geometry__bboverlaps=latlong)
+                # buffer for vehicles parked at a bus station just outside the route
+                return services.get(geometry__bboverlaps=latlong.buffer(0.005))
             except (Service.DoesNotExist, Service.MultipleObjectsReturned):
                 pass
 
@@ -683,8 +747,7 @@ class Command(ImportLiveVehiclesCommand):
         if journey_ref:
             journey.code = journey_ref
 
-        if destination_ref := monitored_vehicle_journey.get("DestinationRef"):
-            destination_ref = get_destination_ref(destination_ref)
+        destination_ref = get_stop_ref(monitored_vehicle_journey, "DestinationRef")
 
         if operator_ref == "TFLO":
             journey.destination = monitored_vehicle_journey.get("DestinationName", "")
@@ -698,7 +761,9 @@ class Command(ImportLiveVehiclesCommand):
         else:
             journey.direction = monitored_vehicle_journey.get("DirectionRef", "")
 
+        first_attempt = False
         if not journey.service_id and route_name:
+            first_attempt = True
             operators = self.get_operator(operator_ref)
             journey.service = self.get_service(
                 operators, item, route_name, vehicle.operator_id
@@ -717,50 +782,55 @@ class Command(ImportLiveVehiclesCommand):
                     with contextlib.suppress(IntegrityError):
                         vehicle.save(update_fields=["operator"])
 
-            # match trip (timetable) to journey:
-            if journey.service and (origin_aimed_departure_time or journey_ref):
-                block_ref = monitored_vehicle_journey.get("BlockRef")
+        # match trip (timetable) to journey:
+        if (
+            journey.service_id
+            and not journey.trip_id
+            and (origin_aimed_departure_time or journey_ref)
+            and (first_attempt or self.stops_changed(item, vehicle))
+        ):
+            block_ref = monitored_vehicle_journey.get("BlockRef")
 
-                arrival_time = monitored_vehicle_journey.get(
-                    "DestinationAimedArrivalTime"
-                )
-                if arrival_time:
-                    arrival_time = datetime.fromisoformat(arrival_time)
+            arrival_time = monitored_vehicle_journey.get("DestinationAimedArrivalTime")
+            if arrival_time:
+                arrival_time = datetime.fromisoformat(arrival_time)
 
-                if trip := journey.get_trip(
-                    datetime=dt,
-                    operator_ref=operator_ref,
-                    origin_ref=monitored_vehicle_journey.get("OriginRef"),
-                    destination_ref=destination_ref,
-                    departure_time=origin_aimed_departure_time,
-                    arrival_time=arrival_time,
-                    journey_code=journey_code,
-                    block_ref=block_ref,
+            if trip := journey.get_trip(
+                datetime=dt,
+                operator_ref=operator_ref,
+                origin_ref=get_stop_ref(monitored_vehicle_journey, "OriginRef"),
+                destination_ref=destination_ref,
+                departure_time=origin_aimed_departure_time,
+                arrival_time=arrival_time,
+                journey_code=journey_code,
+                block_ref=block_ref,
+            ):
+                journey.trip = trip
+                if not first_attempt:
+                    journey.date = None  # work out again from the trip
+
+                if (
+                    not (destination_ref and journey.destination)
+                    and trip.destination_id
                 ):
-                    journey.trip = trip
+                    journey.destination = (
+                        trip.headsign
+                        or get_destination_name(trip.destination_id)
+                        or journey.destination
+                    )
 
-                    if (
-                        not (destination_ref and journey.destination)
-                        and trip.destination_id
-                    ):
-                        journey.destination = (
-                            trip.headsign
-                            or get_destination_name(trip.destination_id)
-                            or journey.destination
-                        )
-
-                    if (
-                        (vehicle.operator_id is None or vehicle.operator_id == "TFLO")
-                        and trip.operator_id
-                        or (
-                            vehicle.operator_id == "PLYC"
-                            and trip.operator_id == "TFCN"
-                            or vehicle.operator_id == "TFCN"
-                            and trip.operator_id == "PLYC"
-                        )
-                    ):
-                        vehicle.operator_id = trip.operator_id
-                        vehicle.save(update_fields=["operator"])
+                if (
+                    (vehicle.operator_id is None or vehicle.operator_id == "TFLO")
+                    and trip.operator_id
+                    or (
+                        vehicle.operator_id == "PLYC"
+                        and trip.operator_id == "TFCN"
+                        or vehicle.operator_id == "TFCN"
+                        and trip.operator_id == "PLYC"
+                    )
+                ):
+                    vehicle.operator_id = trip.operator_id
+                    vehicle.save(update_fields=["operator"])
 
         if (
             not journey.date
@@ -772,6 +842,19 @@ class Command(ImportLiveVehiclesCommand):
             journey.date = progress_journey.date
 
         return journey
+
+    @staticmethod
+    def stops_changed(item, vehicle):
+        # e.g. TfL briefly giving a new journey the previous journey's stops
+        # (latest_journey_data might be from another source, in another format)
+        previous = (vehicle.latest_journey_data or {}).get("MonitoredVehicleJourney")
+        if not previous:
+            return False
+        current = item["MonitoredVehicleJourney"]
+        return any(
+            current.get(key) != previous.get(key)
+            for key in ("OriginRef", "DestinationRef")
+        )
 
     def get_progress_journey(self, item, journey):
         if (
@@ -836,16 +919,14 @@ class Command(ImportLiveVehiclesCommand):
         if self.last_modified:
             headers["if-modified-since"] = http_date(self.last_modified.timestamp())
 
-        response = self.session.get(self.source.url, headers=headers, timeout=(11, 31))
+        response = self.session.get(self.source.url, headers=headers, timeout=35)
         self.fetched_at = timezone.now()
 
         self.not_modified = response.status_code == HTTPStatus.NOT_MODIFIED
         if self.not_modified:
             return
 
-        if not response.ok:
-            logger.warning("%s %s %s", response, response.headers, response.content)
-            return
+        response.raise_for_status()
 
         # when this archive was published - a steadier guide to when to poll
         # next than the ResponseTimestamp inside it, which lags it by a
@@ -911,6 +992,11 @@ class Command(ImportLiveVehiclesCommand):
             ]
 
         return items
+
+    def get_changed_items(self, items=None):
+        if items is None:
+            items = self.get_items() or ()
+        return super().get_changed_items(exclude_misplaced_new_feed_items(items))
 
     @staticmethod
     def get_vehicle_identity(item):
@@ -979,11 +1065,15 @@ class Command(ImportLiveVehiclesCommand):
 
             if self.not_modified:
                 # nothing new published yet, and the 304 cost us nothing,
-                # so try again shortly rather than waiting out the cycle
+                # so try again in a second rather than waiting out the cycle
                 since = (timezone.now() - self.last_modified).total_seconds()
                 if since < 20:
-                    return 0.5
-                return 10 - (since % 10) + 0.5
+                    return 1
+                return 10 - (since % 10) + 1
+
+            if not total_items:
+                # error page or old data
+                return 10
 
             age = int((self.fetched_at - self.source.datetime).total_seconds())
             if age > 0:

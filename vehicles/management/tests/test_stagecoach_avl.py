@@ -47,14 +47,14 @@ class StagecoachTest(TestCase):
         with vcr.use_cassette(
             str(Path(__file__).resolve().parent / "vcr" / "stagecoach_vehicles.yaml")
         ) as cassette:
-            with self.assertNumQueries(87):
+            with self.assertNumQueries(85):
                 command.update()
 
             cassette.rewind()
             # make it think 2 vehicles have moved
             del command.identifiers["SCCM:CA:19617"]
             del command.identifiers["SCOX:SOX:50275"]
-            with self.assertNumQueries(2):
+            with self.assertNumQueries(1):
                 command.update()
 
         self.assertEqual(

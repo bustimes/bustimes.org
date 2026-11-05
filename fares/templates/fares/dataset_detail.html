@@ -29,10 +29,17 @@
 
     <h2>Tariffs</h2>
 
-    {% for tariff in object.tariff_set.all %}
+    {% for tariff in tariffs %}
+        {% ifchanged tariff.service %}
+            {% if tariff.service %}
+                <h3><a href="{{ tariff.service.get_absolute_url }}/fares">{{ tariff.service }}</a></h3>
+            {% elif not forloop.first %}
+                <h3>Other tickets</h3>
+            {% endif %}
+        {% endifchanged %}
         <p>
             <a href="{{ tariff.get_absolute_url }}">
-                {{ tariff }}
+                {{ tariff }}{% for table in tariff.faretable_set.all %}{% ifchanged table.name %}{% if table.name != tariff.name %} – {{ table.name }}{% endif %}{% endifchanged %}{% endfor %}
                 {% if tariff.user_profile_id %} ({{ tariff.user_profile }} {{ tariff.trip_type }}){% endif %}
                 {% ifchanged tariff.valid_between %} ({{ tariff.valid_between|date_range }}){% endifchanged %}
             </a>

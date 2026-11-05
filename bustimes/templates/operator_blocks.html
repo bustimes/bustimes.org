@@ -89,7 +89,7 @@
     <div class="blocks" style="width: 3048px">
         {% for block, trips in blocks.items %}
             <div class="block">
-                <a href="{{ trips.0.get_absolute_url }}/block?date={{ date.isoformat }}">{{ block }}</a>
+                <a href="{{ trips.0.get_block_url }}?date={{ date.isoformat }}">{% ifchanged block.0 %}{% if block.0 %}{{ block.0 }}{% endif %}{% endifchanged %}{{ block.1 }}</a>
                 <div class="trips">
                     {% for trip in trips %}
                         <div class="trip" style="left: {{ trip.left }}px; width: {{ trip.width }}px">

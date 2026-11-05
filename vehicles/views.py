@@ -37,11 +37,11 @@ from django.utils.cache import (
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_control
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST, require_safe
+from django.views.decorators.http import require_GET, require_POST, require_safe
 from django.views.generic.detail import DetailView
-from django_orjson.http import JsonResponse
+from django_msgspec.http import JsonResponse
 from haversine import haversine
-from orjson import loads
+from msgspec.json import decode
 from redis.exceptions import ConnectionError
 from requests import RequestException
 from sql_util.utils import Exists, SubqueryMax, SubqueryMin
@@ -54,7 +54,7 @@ from busstops.models import (
     OperatorGroup,
     Service,
 )
-from busstops.utils import get_bounding_box
+from busstops.utils import Crumb, get_bounding_box
 from bustimes.models import Garage, Route, Trip
 from departures.gtfsr import get_trip_updates
 from photos.forms import PhotoForm
@@ -70,6 +70,7 @@ from .models import (
     VehicleJourney,
     VehicleRevision,
     VehicleRevisionFeature,
+    get_text_colour,
 )
 from .tasks import queue_siri_post
 from .utils import apply_revision, get_revision, redis_client
@@ -84,21 +85,14 @@ def get_redirect_view(*args, **kwargs):
     return redirect_view
 
 
-class Vehicles:
-    """for linking to an operator's /vehicles page (fleet list) in a breadcrumb list"""
-
-    def __init__(self, vehicle=None, operator=None):
-        self.vehicle = vehicle
-        self.operator = operator or vehicle.operator
-
-    def __str__(self):
-        return "Vehicles"
-
-    def get_absolute_url(self):
-        url = reverse("operator_vehicles", args=(self.operator.slug,))
-        if self.vehicle:
-            url = f"{url}#{self.vehicle.slug}"
-        return url
+@require_safe
+def map(request):
+    if request.headers.get("cf_ipcountry") == "IE":
+        coords = (53.45, -7.5)
+    else:
+        coords = (54, -2.9)
+    initial_view_state = {"latitude": coords[0], "longitude": coords[1], "zoom": 5}
+    return render(request, "map.html", {"initial_view_state": initial_view_state})
 
 
 @require_safe
@@ -320,7 +314,7 @@ def operator_vehicles(request, slug=None, group_slug=None):
 
 @require_safe
 def operator_map(request, slug):
-    operator = get_object_or_404(Operator.objects.select_related("region"), slug=slug)
+    operator = get_object_or_404(Operator, slug=slug)
 
     return render(
         request,
@@ -328,7 +322,11 @@ def operator_map(request, slug):
         {
             "object": operator,
             "operator": operator,
-            "breadcrumb": [operator.region, operator],
+            "operator_data": {
+                "noc": operator.noc,
+                "slug": operator.slug,
+                "name": operator.name,
+            },
         },
     )
 
@@ -409,7 +407,7 @@ def get_vehicle_locations(
     vehicle_locations = redis_client.mget(
         [f"vehicle{vehicle_id}" for vehicle_id in vehicle_ids]
     )
-    vehicle_locations = [loads(item) if item else item for item in vehicle_locations]
+    vehicle_locations = [decode(item) if item else item for item in vehicle_locations]
 
     # remove expired items from 'vehicle_location_locations'
     to_remove = [
@@ -426,27 +424,29 @@ def get_vehicle_locations(
     )
 
     # get vehicles from the database IF they have unexpired locations AND weren't in the cache
-    try:
-        vehicles = (
-            Vehicle.objects.select_related("vehicle_type")
-            .annotate(
-                feature_names=features_string_agg,
-                service_line_name=F("latest_journey__trip__route__line_name"),
-                service_slug=F("latest_journey__service__slug"),
-                colour=F("livery__colour"),
-            )
-            .defer("data", "latest_journey_data")
-        ).in_bulk(
-            [
-                vehicle_id
-                for vehicle_id, item in zip(vehicle_ids, vehicle_locations)
-                if item
-                and "vehicle" not in item
-                and f"journey{item['journey_id']}" not in journeys
-            ]
-        )
-    except OperationalError:
-        vehicles = {}
+    uncached_vehicle_ids = [
+        vehicle_id
+        for vehicle_id, item in zip(vehicle_ids, vehicle_locations)
+        if item
+        and "vehicle" not in item
+        and f"journey{item['journey_id']}" not in journeys
+    ]
+    vehicles = {}
+    if uncached_vehicle_ids:
+        try:
+            vehicles = (
+                Vehicle.objects.select_related("vehicle_type")
+                .annotate(
+                    feature_names=features_string_agg,
+                    service_line_name=F("latest_journey__trip__route__line_name"),
+                    service_slug=F("latest_journey__service__slug"),
+                    colour=F("livery__colour"),
+                    service_colour=F("latest_journey__service__colour__background"),
+                )
+                .defer("data", "latest_journey_data")
+            ).in_bulk(uncached_vehicle_ids)
+        except OperationalError:
+            pass
 
     locations = []
     journeys_to_cache_later = {}
@@ -468,6 +468,14 @@ def get_vehicle_locations(
                     continue  # vehicle was deleted?
                 else:
                     journey = {"vehicle": vehicle.get_json()}
+                    # no livery - use the service colour
+                    if vehicle.service_colour and not (
+                        vehicle.livery_id or vehicle.colours
+                    ):
+                        journey["vehicle"]["css"] = vehicle.service_colour
+                        journey["vehicle"]["text_colour"] = get_text_colour(
+                            vehicle.service_colour
+                        )
                     if vehicle.service_slug:
                         journey["service"] = {
                             "url": f"/services/{vehicle.service_slug}",
@@ -565,6 +573,8 @@ def vehicles_json(request) -> JsonResponse:
         return cachable_400()
 
     response = JsonResponse(locations)
+    if not request.GET:
+        patch_cache_control(response, s_maxage=10)  # Cloudflare
 
     return respond_conditionally(request, response)
 
@@ -654,7 +664,10 @@ def journeys_list(request, journeys, service=None, vehicle=None) -> dict:
         context["date"] = date
 
         journeys = (
-            journeys.filter(date=date).select_related("trip").order_by("datetime", "id")
+            journeys.filter(date=date)
+            .select_related("trip")
+            .annotate(trip_service_id=F("trip__route__service"))
+            .order_by("datetime", "id")
         )
 
         if dates and date not in dates:
@@ -689,7 +702,7 @@ def journeys_list(request, journeys, service=None, vehicle=None) -> dict:
     # "Track this bus" button
     if vehicle and vehicle.latest_journey_id:
         if redis_client and redis_client.get(f"vehicle{vehicle.id}"):
-            context["tracking"] = f"/journeys/{vehicle.latest_journey_id}"
+            context["tracking"] = f"/map#journey={vehicle.latest_journey_id}"
 
         predictions = None
         last_trip = None
@@ -852,7 +865,11 @@ class VehicleDetailView(DetailView):
         if self.object.operator:
             context["breadcrumb"] = [
                 self.object.operator,
-                Vehicles(vehicle=self.object),
+                Crumb(
+                    "Vehicles",
+                    reverse("operator_vehicles", args=(self.object.operator.slug,))
+                    + f"#{self.object.slug}",
+                ),
             ]
 
             context["previous"] = self.object.get_previous()
@@ -1042,7 +1059,15 @@ def edit_vehicle(request, **kwargs):
         )
 
     if vehicle.operator:
-        context["breadcrumb"] = [vehicle.operator, Vehicles(vehicle=vehicle), vehicle]
+        context["breadcrumb"] = [
+            vehicle.operator,
+            Crumb(
+                "Vehicles",
+                reverse("operator_vehicles", args=(vehicle.operator.slug,))
+                + f"#{vehicle.slug}",
+            ),
+            vehicle,
+        ]
     else:
         context["breadcrumb"] = [vehicle]
 
@@ -1161,7 +1186,7 @@ def debug(request):
     if form.is_valid():
         data = form.cleaned_data["data"]
         try:
-            item = loads(data)
+            item = decode(data)
         except ValueError:
             form.add_error("data", "that isn't valid JSON")
         else:
@@ -1190,17 +1215,27 @@ def debug(request):
     return render(request, "vehicles/debug.html", {"form": form, "result": result})
 
 
-@csrf_exempt
-def siri_post(request, uuid):
-    subscription = get_object_or_404(SiriSubscription, uuid=uuid)
+@require_GET
+def siri_get(request, **kwargs):
+    subscription = get_object_or_404(SiriSubscription, **kwargs)
     last_post_key = subscription.get_status_key().replace("_status", "_last_post")
 
+    last_post = cache.get(last_post_key)
+
+    content_type = last_post["headers"].get("content-type")
+    if content_type not in ("application/json", "application/xml", "text/xml"):
+        content_type = "text_plain"
+
+    return HttpResponse(last_post["body"], content_type=content_type)
+
+
+@csrf_exempt
+def siri_post(request, uuid):
     if request.method == "GET":
-        last_post = cache.get(last_post_key)
-        return HttpResponse(
-            last_post["body"],
-            content_type=last_post["headers"].get("content-type", "text/plain"),
-        )
+        return siri_get(request, uuid=uuid)
+
+    subscription = get_object_or_404(SiriSubscription, uuid=uuid)
+    last_post_key = subscription.get_status_key().replace("_status", "_last_post")
 
     body = request.body.decode()
     data = xmltodict.parse(body, force_list=["VehicleActivity"])
@@ -1292,7 +1327,7 @@ def overland(request, uuid=None):
 
     subscription = get_object_or_404(SiriSubscription, uuid=uuid)
 
-    data = loads(request.body)
+    data = decode(request.body)
 
     for item in data["locations"][-1:]:
         lon, lat = item["geometry"]["coordinates"]
@@ -1321,7 +1356,7 @@ def traccar(request, uuid):
     cache_last_post(request, subscription)
 
     if request.content_type == "application/json":
-        data = loads(request.body)
+        data = decode(request.body)
         location = data["location"]
         device_id = data["device_id"]
         when = location["timestamp"]
@@ -1330,6 +1365,8 @@ def traccar(request, uuid):
         bearing = location["coords"].get("heading")
     else:
         params = request.GET or request.POST
+        if "timestamp" not in params:
+            return HttpResponse()
         device_id = params.get("id") or params["deviceid"]
         when = params["timestamp"]
         if when.isdigit():

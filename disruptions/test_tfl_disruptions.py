@@ -63,3 +63,6 @@ class TfLDisruptionsTest(TestCase):
         consequence = situation.consequence_set.first()
         self.assertEqual("", str(consequence))
         self.assertEqual("/services/211", consequence.get_absolute_url())
+
+        response = self.client.get(situation.get_absolute_url())
+        self.assertContains(response, "validityPeriods")

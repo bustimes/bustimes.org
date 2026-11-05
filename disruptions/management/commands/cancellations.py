@@ -10,7 +10,7 @@ from django.utils.timezone import localtime
 from busstops.models import DataSource
 from bustimes.models import Calendar, Trip
 
-from ...models import AffectedJourney, Call, Situation
+from ...models import AffectedJourney, Call, Situation, delete_old_situations
 from ...siri_sx import get_period
 
 
@@ -166,9 +166,4 @@ class Command(BaseCommand):
 
                 element.clear()
 
-        # archive old situations
-        print(
-            source.situation_set.filter(current=True)
-            .exclude(id__in=situations)
-            .update(current=False)
-        )
+        delete_old_situations(source, situations)

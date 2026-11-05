@@ -240,6 +240,7 @@ class Progress:
             "id": self.prev_stop_time.id,
             "sequence": self.sequence,
             "prev_stop": self.prev_stop_time.stop_id,
+            "prev_time": int(scheduled_time(self.prev_stop_time).total_seconds()),
             "next_stop": self.next_stop_time.stop_id,
             "progress": self.progress,
         }
@@ -406,9 +407,29 @@ def by_trip_id(items) -> dict:
     return by_trip
 
 
-def is_before_stop(item, stop_time_id, trip_id) -> bool:
+def scheduled_time(stop_time):
+    if stop_time.departure is not None:
+        return stop_time.departure
+    return stop_time.arrival
+
+
+def is_before_stop(item, stop_time) -> bool:
     """is the vehicle yet to leave this stop?"""
     progress = item["progress"]
+
+    # compare scheduled times first - stop time ids can be stale
+    # (if the timetable has been reimported since progress was calculated)
+    if "prev_time" in progress:
+        time = int(scheduled_time(stop_time).total_seconds())
+        if progress["prev_time"] != time:
+            return progress["prev_time"] < time
+        if progress["prev_stop"] == stop_time.stop_id:
+            return progress["progress"] == 0
+        if progress["next_stop"] == stop_time.stop_id:
+            return True
+
+    stop_time_id = stop_time.id
+    trip_id = stop_time.trip_id
     trip_ids = item.get("trip_ids")
     if (
         trip_ids

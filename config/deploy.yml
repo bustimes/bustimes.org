@@ -14,14 +14,14 @@ servers:
   web:
     hosts:
       - 10.131.240.97
-      - 10.131.240.98
+      - 10.131.240.98: backpressure4
     options:
       ulimit: nofile=65536:65536
     env:
       clear:
-        GRANIAN_WORKERS: 8
-        GRANIAN_BLOCKING_THREADS: 8
-        GRANIAN_BACKPRESSURE: 8
+        GRANIAN_WORKERS: 12
+        GRANIAN_BLOCKING_THREADS: 2
+        GRANIAN_BACKPRESSURE: 32
         EMAIL_HOST: email-smtp.eu-west-1.amazonaws.com
         ALLOWED_HOSTS: bustimes.org
       secret:
@@ -38,6 +38,12 @@ servers:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
         - FLICKR_API_KEY
+        - STADIA_MAPS_API_KEY
+
+env:
+  tags:
+    backpressure4:
+      GRANIAN_BACKPRESSURE: 4
 
 accessories:
   # re-exposes the web containers' granian metrics on port 9394 for prometheus
@@ -50,13 +56,26 @@ accessories:
       - config/otel-collector.yaml:/etc/otelcol-contrib/config.yaml
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/hostfs:ro
     options:
       # the image runs as an unprivileged user, which can't read the docker socket
       user: "0:0"
 
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    host: 10.131.240.96
+    port: 127.0.0.1:9090:9090
+    files:
+      - config/prometheus.yml:/etc/prometheus/prometheus.yml
+    directories:
+      - prometheus-data:/prometheus
+    cmd: --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.retention.time=30d
+    options:
+      user: "0:0"
+
   tileserver:
     image: maptiler/tileserver-gl-light
-    host: 167.99.89.1
+    host: 10.131.240.96
     port: 80:8080
     volumes:
       - /root/data:/data
@@ -84,6 +103,8 @@ proxy:
     # to reduce the time-to-first-byte,
     # so we disable response buffering which would undo all that hard work
     responses: false
+  run:
+    metrics_port: 9091
   logging:
     request_headers:
       - Referer

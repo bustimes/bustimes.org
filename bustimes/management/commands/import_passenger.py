@@ -1,6 +1,7 @@
 """Import timetable data "fresh from the cow" """
 
 import os
+from datetime import timedelta
 from time import sleep
 from urllib.parse import urljoin, urlparse
 
@@ -8,7 +9,8 @@ import bs4
 import requests
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.db.models import Q
+from django.db.models import Min, Q, Value
+from django.db.models.functions import Coalesce, Least
 from django.utils import timezone
 from requests import Session
 
@@ -87,6 +89,40 @@ def get_versions(session, source):
     return versions
 
 
+def archive_old_versions(source, data_source, current_versions):
+    """delete old versions, but keep their routes (vehicle journeys may refer to
+    their trips), ending them the day before the next version starts
+    """
+    old_versions = source.version_set.exclude(
+        id__in=[version.id for version in current_versions]
+    )
+    for old_version in old_versions:
+        end_date = None
+        if old_version.start_date:
+            end_date = source.version_set.filter(
+                Q(start_date__gt=old_version.start_date)
+                | Q(start_date=old_version.start_date, name__gt=old_version.name),
+            ).aggregate(Min("start_date"))["start_date__min"]
+        if end_date:
+            end_date -= timedelta(days=1)
+        if old_version.end_date and not (end_date and end_date < old_version.end_date):
+            end_date = old_version.end_date
+
+        routes = data_source.route_set.filter(
+            version=old_version, service__isnull=False
+        )
+        if end_date:
+            routes.update(
+                service=None,
+                version=None,
+                end_date=Least(Coalesce("end_date", Value(end_date)), Value(end_date)),
+            )
+        else:
+            routes.update(service=None, version=None)
+
+    return old_versions.delete()
+
+
 class Command(BaseCommand):
     @staticmethod
     def add_arguments(parser):
@@ -153,13 +189,9 @@ class Command(BaseCommand):
                 logger.info(f"  {foreign_operators}")
 
             # even if there are no new versions, delete non-current
-            old_versions = source.version_set.filter(
-                ~Q(id__in=[version.id for version, _ in versions])
+            old_versions = archive_old_versions(
+                source, command.source, [version for version, _ in versions]
             )
-            command.source.route_set.filter(
-                version__in=old_versions, service__isnull=False
-            ).update(service=None, version=None)
-            old_versions = old_versions.delete()
 
             if not (new_versions or operator_name):
                 if old_versions[0]:

@@ -1,5 +1,7 @@
 import datetime
 import graphlib
+import re
+from collections import defaultdict
 from copy import copy
 from dataclasses import dataclass
 from difflib import Differ
@@ -13,8 +15,13 @@ from django.utils.timezone import localdate
 from sql_util.utils import Exists
 
 from .formatting import format_timedelta
-from .models import Calendar, Note, Route, StopTime, Trip, chain_split_trips
-from .utils import get_descriptions
+from .models import Calendar, Note, StopTime, Trip, chain_split_trips
+from .utils import (
+    get_active_calendar_ids,
+    get_active_route_ids,
+    get_descriptions,
+    is_wrong_way_round,
+)
 
 differ = Differ(charjunk=lambda _: True)
 
@@ -63,12 +70,16 @@ class Timetable:
         operators=None,
         loose_trip_chaining=False,
     ):
-        self.today = localdate()
-
         self.operators = operators
         self.loose_trip_chaining = loose_trip_chaining
 
-        routes = list(routes.order_by("id").select_related("source"))
+        routes = list(
+            routes.order_by("id").select_related("source").with_service_modified_at()
+        )
+        # today where the service runs (e.g. Las Vegas), not necessarily in London
+        self.today = localdate(
+            timezone=next((route.timezone for route in routes if route.timezone), None)
+        )
         self.routes = self.current_routes = routes
         # self.current_routes is a subset of self.routes
         self.yesterday = None
@@ -148,24 +159,19 @@ class Timetable:
         # consider revision numbers:
         if self.date:
             revisions = any(route.revision_number for route in routes)
-            routes_qs = Route.objects.filter(
-                id__in=[route.id for route in routes]
-            ).select_related("source")
-            self.current_routes = routes_qs.active_on(self.date, revisions)
             self.yesterday = self.date - datetime.timedelta(days=1)
-            self.yesterday_routes = routes_qs.active_on(self.yesterday, revisions)
+            current = set(get_active_route_ids(routes, self.date, revisions))
+            yesterday = set(get_active_route_ids(routes, self.yesterday, revisions))
+            self.current_routes = [route for route in routes if route.id in current]
+            self.yesterday_routes = [route for route in routes if route.id in yesterday]
 
         if not self.calendar and self.calendars:
             calendar_ids = [calendar.id for calendar in self.calendars]
-            self.calendar_ids = list(
-                Calendar.objects.active_on(
-                    self.date, calendar_ids, scotland=scotland
-                ).values_list("id", flat=True)
+            self.calendar_ids = get_active_calendar_ids(
+                routes, self.date, scotland, calendar_ids
             )
-            self.yesterday_calendar_ids = list(
-                Calendar.objects.active_on(
-                    self.yesterday, calendar_ids, scotland=scotland
-                ).values_list("id", flat=True)
+            self.yesterday_calendar_ids = get_active_calendar_ids(
+                routes, self.yesterday, scotland, calendar_ids
             )
 
     def correct_directions(self, trips):
@@ -317,30 +323,38 @@ class Timetable:
 
         self.apply_stops(self.stop_situations)
 
-        # correct origin and destination/inbound and outbound descriptions being the wrong way round
-        # if self.groupings and len(self.origins_and_destinations) == 1:
-        #     rows = self.groupings[0].rows
-        #     if type(rows[0].stop) is Stop or type(rows[-1].stop) is Stop:
-        #         pass
-        #     else:
-        #         origin = self.origins_and_destinations[0][0]
-        #         destination = self.origins_and_destinations[0][-1]
-        #         actual_origin = rows[0].stop.get_qualified_name()
-        #         actual_destination = rows[-1].stop.get_qualified_name()
-        #         if (
-        #             SequenceMatcher(None, destination, actual_destination).quick_ratio()
-        #             + SequenceMatcher(None, origin, actual_origin).quick_ratio()
-        #             <
-        #             SequenceMatcher(None, destination, actual_origin).quick_ratio()
-        #             + SequenceMatcher(None, origin, actual_destination).quick_ratio()
-        #         ):
-        #             self.origins_and_destinations = [
-        #                 tuple(reversed(pair)) for pair in self.origins_and_destinations
-        #             ]
-        #             self.inbound_outbound_descriptions = [
-        #                 tuple(reversed(pair))
-        #                 for pair in self.inbound_outbound_descriptions
-        #             ]
+        # correct origin and destination, or inbound and outbound descriptions, being the wrong way round
+        # (check each against the actual stops independently - one can be right when the other is wrong)
+        if self.groupings:
+            grouping = self.groupings[0]
+            first, last = grouping.rows[0].stop, grouping.rows[-1].stop
+            if type(first) is not Stop and type(last) is not Stop:
+                if grouping.inbound:
+                    first, last = last, first
+                first = first.get_qualified_name()
+                last = last.get_qualified_name()
+
+                if len(self.inbound_outbound_descriptions) == 1:
+                    outbound, inbound = next(iter(self.inbound_outbound_descriptions))
+                    parts = re.split(" to | - ", outbound)
+                    if len(parts) > 1 and is_wrong_way_round(
+                        parts[0], parts[-1], first, last
+                    ):
+                        self.inbound_outbound_descriptions = [(inbound, outbound)]
+                elif (
+                    not self.inbound_outbound_descriptions
+                    and len(self.origins_and_destinations) == 1
+                ):
+                    if is_wrong_way_round(
+                        self.origins_and_destinations[0][0],
+                        self.origins_and_destinations[0][-1],
+                        first,
+                        last,
+                    ):
+                        self.origins_and_destinations = [
+                            tuple(reversed(parts))
+                            for parts in self.origins_and_destinations
+                        ]
 
         return self
 
@@ -650,13 +664,9 @@ class Grouping:
             .order_by("-id")[: len(self.trips) * 7]
         )
 
-        by_date = {}
+        by_date = defaultdict(dict)
         for journey in journeys:
-            date = journey.datetime.date()
-            if date in by_date:
-                by_date[date][journey.trip_id] = journey
-            else:
-                by_date[date] = {journey.trip_id: journey}
+            by_date[journey.date][journey.trip_id] = journey
 
         for date, by_trip in sorted(by_date.items()):
             yield date, [by_trip.get(trip.id) for trip in self.trips]
@@ -837,6 +847,8 @@ class Grouping:
                 and prev_trip.end == trip.end
                 and prev_trip.destination_id == trip.destination_id
                 and len(prev_trip.times) == len(trip.times)
+                # (don't remove real duplicates, e.g. FECS UTC)
+                and prev_trip.ticket_machine_code == trip.ticket_machine_code
             ):
                 continue
             prev_trip = trip

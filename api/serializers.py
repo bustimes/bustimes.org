@@ -259,7 +259,6 @@ class TripSerializer(serializers.ModelSerializer):
                     "timing_status": stop_time.timing_status(),
                     "pick_up": stop_time.pick_up,
                     "set_down": stop_time.set_down,
-                    # "call_condition": stop_time.call_condition,
                     "note_codes": notes,
                 }
                 for key in (
@@ -267,6 +266,7 @@ class TripSerializer(serializers.ModelSerializer):
                     "expected_departure_time",
                     "actual_arrival_time",
                     "actual_departure_time",
+                    "call_condition",
                 ):
                     if hasattr(stop_time, key):
                         time[key] = getattr(stop_time, key)

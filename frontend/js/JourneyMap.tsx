@@ -20,7 +20,7 @@ import VehicleMarker, {
 } from "./VehicleMarker";
 import VehiclePopup from "./VehiclePopup";
 import { recordSkew } from "./clockSkew";
-import { decodeTimeAwarePolyline } from "./time-aware-polyline";
+import { decodeTimeAwarePolyline, dropOutOfOrder } from "./time-aware-polyline";
 import { getBounds } from "./utils";
 
 export type VehicleJourneyLocation = {
@@ -88,7 +88,7 @@ export function locationsFromPolyline(
   polyline: string,
   utcOffsetSeconds = 0,
 ): VehicleJourneyLocation[] {
-  const points = decodeTimeAwarePolyline(polyline);
+  const points = dropOutOfOrder(decodeTimeAwarePolyline(polyline));
   const offsetMs = utcOffsetSeconds * 1000;
   return points.map(([lat, lng, ts], i) => {
     const coordinates: [number, number] = [lng, lat];

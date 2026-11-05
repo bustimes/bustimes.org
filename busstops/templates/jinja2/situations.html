@@ -1,30 +1,25 @@
 {% if situations %}
 <div class="situations">
 {% for situation in situations %}
-    {% if situation.summary != 'Does not stop here' %}
+    {% if situation.summary and situation.show_summary %}
+        <details class="situation"{% if loop.first and loop.last and situation.text|length < 100 %} open{% endif %}>
+        <summary>
+            {{ situation.summary }}
+            {% for validity_period in situation.list_validity_periods() %}
+                <div class="dates">{{ validity_period }}</div>
+            {% endfor %}
+        </summary>
+    {% else %}<div class="situation">{% endif %}
 
-        {% if situation.summary and situation.show_summary %}
-            <details class="situation"{% if loop.first and loop.last and loop.text|length < 100 %} open{% endif %}>
-            <summary>
-                {{ situation.summary }}
-                {% for validity_period in situation.list_validity_periods() %}
-                    <div class="dates">{{ validity_period }}</div>
-                {% endfor %}
-            </summary>
-        {% else %}<div class="situation">{% endif %}
-
-        {% if situation.text %}
-            {{ urlise(linebreaks(situation.text)) }}
-        {% endif %}
-        {% for consequence in situation.consequences %}
-            {% if not loop.previtem or consequence.text != loop.previtem.text %}{% if consequence.text and consequence.text not in situation.text %}
-                {{ urlise(linebreaks(consequence.text)) }}
-            {% endif %}{% endif %}
-        {% endfor %}
-        {% for link in situation.link_set.all() %}
-            <p>{{ urlise(link.url) }}</p>
-        {% endfor %}
+    {% if situation.text %}
+        {{ urlise(linebreaks(situation.text)) }}
     {% endif %}
+    {% for text in situation.consequence_texts() %}
+        {{ urlise(linebreaks(text)) }}
+    {% endfor %}
+    {% for link in situation.link_set.all() %}
+        <p>{{ urlise(link.url) }}</p>
+    {% endfor %}
 
     {% if request.user.has_perm('disruptions.change_situation') %}
         <p><a href="{{ url('admin:disruptions_situation_change', args=[situation.id]) }}">✎</a></p>

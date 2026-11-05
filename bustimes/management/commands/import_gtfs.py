@@ -302,7 +302,11 @@ class Command(BaseCommand):
             path: Path = settings.DATA_DIR / Path(source.url).name
 
             modified, last_modified = download_if_modified(path, source)
-            if modified or last_modified != source.datetime or options["collections"]:
+            if (
+                modified
+                or (last_modified and last_modified != source.datetime)
+                or options["collections"]
+            ):
                 logger.info(f"{source} {last_modified}")
                 if last_modified:
                     source.datetime = last_modified

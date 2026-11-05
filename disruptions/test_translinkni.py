@@ -25,12 +25,14 @@ class TranslinkNorthernIrelandTest(TestCase):
             str(vcr_dir / "disruptions_translinkni.yaml"),
             decode_compressed_response=True,
         ) as cassette:
-            with self.assertNumQueries(36):
+            with self.assertNumQueries(46):
                 translink_disruptions("")
 
             cassette.rewind()
 
-            with self.assertNumQueries(43):
+            Situation.objects.filter(situation_number="ems-7682").update(data="")
+
+            with self.assertNumQueries(22):
                 translink_disruptions("")
 
         situation = Situation.objects.get(situation_number="ems-7682")
@@ -54,3 +56,6 @@ Subject to change.""",
 
         consequence = situation.consequence_set.first()
         self.assertEqual("/services/338a", consequence.get_absolute_url())
+
+        response = self.client.get(situation.get_absolute_url())
+        self.assertContains(response, "urlText")

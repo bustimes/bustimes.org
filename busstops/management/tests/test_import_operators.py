@@ -77,7 +77,7 @@ class ImportOperatorsTest(TestCase):
 
         with (
             time_machine.travel("2024-01-01", tick=False),
-            vcr.use_cassette(str(FIXTURES_DIR / "noc.yaml")) as cassette,
+            vcr.use_cassette(FIXTURES_DIR / "noc.yaml") as cassette,
             patch(
                 "busstops.management.commands.import_noc.yaml.safe_load",
                 return_value=mock_overrides,

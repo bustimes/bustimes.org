@@ -162,14 +162,6 @@ class JourneyTest(TestCase):
             type=1,
             start_time=timedelta(hours=18, minutes=30),
         )
-        # a stand - not where passengers are told the bus is going
-        models.Stop.objects.create(
-            base_version=old, idx=14781, naptan_code="", name="Chingford Stand"
-        )
-        models.StopInPattern.objects.create(
-            base_version=old, idx=11531, pattern_idx=1316, stop_idx=14781, sequence_no=2
-        )
-
         source = DataSource.objects.create(name="Bus Open Data")
         vehicle = Vehicle.objects.create(
             code="LJ123",
@@ -190,7 +182,26 @@ class JourneyTest(TestCase):
         self.assertEqual(str(prediction), "18:30")
         self.assertEqual(prediction.line_name, "97")
         self.assertEqual(prediction.destination_name, "Chingford Station")
-        self.assertNotContains(response, "Chingford Stand")
+        self.assertContains(response, "<td>105401</td>")
+
+        # run in to the garage
+        models.Journey.objects.filter(base_version=old, idx=255601).update(type=3)
+        models.Stop.objects.create(
+            base_version=old, idx=14781, naptan_code="", name="Chingford Garage"
+        )
+        models.StopInPattern.objects.create(
+            base_version=old, idx=11531, pattern_idx=1316, stop_idx=14781, sequence_no=2
+        )
+        models.Garage.objects.create(
+            base_version=old,
+            number=1,
+            operator_code="LI",
+            code="CH",
+            name="CHINGFORD GARAGE",
+        )
+        response = self.client.get(f"{vehicle.get_absolute_url()}?date=2026-10-08")
+        (prediction,) = response.context_data["predictions"]
+        self.assertEqual(prediction.destination_name, "CHINGFORD GARAGE")
 
         # block doesn't run that day in this base version
         models.BlockCalendarDay.objects.filter(

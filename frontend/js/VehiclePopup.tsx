@@ -64,10 +64,10 @@ export default function VehiclePopup({
     if (!activeLink) {
       if (snazzyTripLink) {
         line_name = (
-          <Link href={`/journeys/${item.journey_id}`}>{line_name}</Link>
+          <Link href={`/map#journey=${item.journey_id}`}>{line_name}</Link>
         );
       } else {
-        line_name = <a href={`/journeys/${item.journey_id}`}>{line_name}</a>;
+        line_name = <a href={`/map#journey=${item.journey_id}`}>{line_name}</a>;
       }
     }
   } else if (item.service?.url) {

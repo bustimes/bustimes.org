@@ -58,7 +58,7 @@ class EdinburghImportTest(TestCase):
             with mock.patch(
                 "vehicles.management.import_live_vehicles.redis_client", redis_client
             ):
-                with self.assertNumQueries(186):
+                with self.assertNumQueries(191):
                     command.update()
 
                 # NaPTAN code -> ATCO code

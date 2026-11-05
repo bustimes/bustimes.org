@@ -253,7 +253,7 @@ class FlixbusTest(TestCase):
                 "vehicles.management.commands.import_gtfsr_flixbus.get_channel_layer",
                 return_value=channel_layer,
             ),
-            vcr.use_cassette(str(FIXTURES_DIR / "flixbus_gtfsr.yml")),
+            vcr.use_cassette(FIXTURES_DIR / "flixbus_gtfsr.yml"),
         ):
             with self.assertNumQueries(27):
                 command.update()
@@ -326,7 +326,7 @@ class FlixbusTest(TestCase):
                     datetime.datetime(2024, 6, 18, 10, 0, 0, tzinfo=datetime.UTC),
                 ),
             ),
-            vcr.use_cassette(str(FIXTURES_DIR / "ember_gtfsr.yml")),
+            vcr.use_cassette(FIXTURES_DIR / "ember_gtfsr.yml"),
         ):
             call_command("import_gtfs_ember")
             call_command("import_gtfs_ember")
@@ -357,11 +357,11 @@ class FlixbusTest(TestCase):
                     }
                 }
             ),
-            vcr.use_cassette(str(FIXTURES_DIR / "ember_gtfsr.yml")),
+            vcr.use_cassette(FIXTURES_DIR / "ember_gtfsr.yml"),
         ):
             with self.assertNumQueries(81):
                 command.update()
-            with self.assertNumQueries(31):
+            with self.assertNumQueries(32):
                 command.update()
 
             journey = service.vehiclejourney_set.first()

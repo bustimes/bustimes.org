@@ -27,6 +27,9 @@ class PolylineWrapper:
         self.last_time = 0
 
     def extend(self, lat, lng, time):
+        if time < self.last_time:
+            # e.g. a vehicle in the feed twice (under two VehicleRefs) with different lags
+            return
         extension = extend_time_aware_polyline(
             "",
             ((lat, lng, time),),

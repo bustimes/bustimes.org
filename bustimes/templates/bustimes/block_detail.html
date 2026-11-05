@@ -10,6 +10,8 @@
 
     <h1>{{ object }}</h1>
 
+    {% if garage %}<p>{{ garage }}</p>{% endif %}
+
     <form>
         <input type="date" name="date" aria-label="Date" value="{{ date.isoformat }}" required>
         <input type="submit" value="Go">
@@ -36,9 +38,9 @@
             <td>{{ trip.ticket_machine_code }}</td>
             <td>{{ trip.destination_name }}</td>
             <td class="link">
-                {% for j in trip.vehicle_journeys %}
-                    <a href="{{ j.get_absolute_url }}">{{ j.vehicle }}</a>
-                {% endfor %}
+                {% for j in trip.vehicle_journeys %}{% if j.vehicle %}
+                    <a href="{{ j.vehicle.get_absolute_url }}?date={{ j.date.isoformat }}#journey-{{ j.id }}">{{ j.vehicle }}</a>
+                {% endif %}{% endfor %}
             </td>
         </tr>
     {% endfor %}
@@ -47,6 +49,8 @@
         </table>
     </div>
 
-    <p class="credit">Timetable data from {{ trip.route.source.credit }}</p>
+    {% if sources %}
+        <p class="credit">Timetable data from {% for source in sources %}{{ source.credit }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
 
 {% endblock content %}

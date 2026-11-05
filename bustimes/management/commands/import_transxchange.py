@@ -20,7 +20,7 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib.gis.geos import GEOSGeometry, Point
 from django.core.management.base import BaseCommand
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Exists, OuterRef, Q
 from django.db.models.functions import Now, Upper
 from django.utils.timezone import localdate
@@ -269,11 +269,10 @@ def route_link_is_dodgy(
                 f"{context}: {stop.atco_code} {stop.latlong.y},{stop.latlong.x} "
                 f"is {metres:.0f}m from {point.y},{point.x}"
             )
-            logger.warning(text)
-            return DodgyRouteLink(comment=text)
+            return DodgyRouteLink(category="dodgy RouteLink", comment=text)
 
 
-def do_route_links(journeys, transxchange, stops, service, task):
+def do_route_links(journeys, transxchange, stops, service, task, filename, seen):
     route_links = list(get_route_links(journeys, transxchange))
 
     # we're not interested in straight lines between stops
@@ -283,6 +282,12 @@ def do_route_links(journeys, transxchange, stops, service, task):
         route_links_to_create = {}  # or update
 
         for route_link in route_links:
+            # same stops can appear many times, with different RouteLink ids and lines
+            seen_key = (service.id, route_link.from_stop, route_link.to_stop)
+            if seen_key in seen:
+                continue
+            seen.add(seen_key)
+
             from_stop = stops.get(route_link.from_stop)
             to_stop = stops.get(route_link.to_stop)
 
@@ -306,7 +311,12 @@ def do_route_links(journeys, transxchange, stops, service, task):
                 if dodgy := route_link_is_dodgy(
                     start_point, from_stop, service.slug
                 ) or route_link_is_dodgy(end_point, to_stop, service.slug):
+                    if dodgy.comment in seen:
+                        continue
+                    seen.add(dodgy.comment)
+                    logger.warning(dodgy.comment)
                     dodgy.task = task
+                    dodgy.file_name = filename
                     dodgy.geometry = route_link.wkt()
                     dodgy.from_stop_id = from_stop.atco_code
                     dodgy.to_stop_id = to_stop.atco_code
@@ -411,6 +421,27 @@ def merge_layover(a, b):
     a.pick_up = b.pick_up
 
 
+def get_times(journey, departure_time_is_departure: bool):
+    """Most publishers add a WaitTime at the first stop to the DepartureTime,
+    but Elydium (maybe more correctly) doesn't"""
+
+    cells = journey.get_times()
+    if not departure_time_is_departure:
+        yield from cells
+        return
+
+    offset = None
+    for cell in cells:
+        if offset is None:
+            offset = cell.departure_time - cell.arrival_time
+            cell.departure_time = cell.arrival_time
+            cell.wait_time = None
+        elif offset:
+            cell.arrival_time -= offset
+            cell.departure_time -= offset
+        yield cell
+
+
 def get_description(txc_service):
     description = txc_service.description
 
@@ -444,6 +475,42 @@ def get_description(txc_service):
                         return f"{description} via {via}"
                 description = " - ".join([origin] + vias + [destination])
     return description
+
+
+def delete_unused_trips(routes) -> int:
+    """delete trips on routes no longer linked to a service,
+    unless a vehicle journey refers to them
+    """
+    unused_trips = Trip.objects.filter(
+        ~Exists(VehicleJourney.objects.filter(trip=OuterRef("pk")))
+    )
+    route_ids = list(
+        routes.filter(
+            Exists(unused_trips.filter(route=OuterRef("pk"))), service=None
+        ).values_list("id", flat=True)
+    )
+
+    total = 0
+    for route_id in route_ids:
+        with transaction.atomic():
+            route = (
+                Route.objects.select_for_update()
+                .filter(id=route_id, service=None)
+                .first()
+            )
+            if not route:
+                continue
+            deleted, _ = unused_trips.filter(route=route).delete()
+            total += deleted
+            if route.trip_set.exists():
+                # so a reimport of the same file reloads the trips
+                Route.objects.filter(id=route_id).update(file_hash=None)
+            else:
+                route.delete()
+
+    if total:
+        logger.info(f"  deleted {total} unused trips")
+    return total
 
 
 class Command(BaseCommand):
@@ -608,6 +675,13 @@ class Command(BaseCommand):
         old_services = self.source.service_set.filter(current=True, route=None)
         if old_services.update(current=False):
             logger.info(f"  {old_services=}")
+
+        delete_unused_trips(self.source.route_set)
+
+        self.source.calendar_set.filter(
+            ~Exists(Trip.objects.filter(calendar=OuterRef("pk")))
+        ).delete()
+        self.calendar_cache = {}  # in case it held a calendar just deleted
 
     def handle_sub_archive(self, archive, sub_archive_name):
         if sub_archive_name.startswith("__MACOSX"):
@@ -1075,8 +1149,13 @@ class Command(BaseCommand):
         trips = []
         trip_notes = []
         stop_time_notes = []
+        seen_journeys = set()
 
         for i, journey in enumerate(journeys):
+            first_stop_time = len(stop_times)
+            first_trip_note = len(trip_notes)
+            first_stop_time_note = len(stop_time_notes)
+
             calendar = None
             if journey.operating_profile:
                 calendar = self.get_calendar(
@@ -1144,7 +1223,9 @@ class Command(BaseCommand):
 
             blank = False
             previous_stop_time = None
-            for sequence, cell in enumerate(journey.get_times()):
+            for sequence, cell in enumerate(
+                get_times(journey, self.departure_time_is_departure)
+            ):
                 stop_time = get_stop_time(
                     trip, cell, stops, self.invalid_timing_statuses
                 )
@@ -1188,6 +1269,32 @@ class Command(BaseCommand):
                 stop_time.departure = None
 
             trip.end = stop_time.arrival_or_departure()
+
+            # identical apart from VehicleJourneyCode etc (Stagecoach West)
+            key = (
+                id(calendar),
+                trip.inbound,
+                trip.ticket_machine_code,
+                trip.block,
+                id(trip.operator),
+                trip.garage_id,
+                trip.vehicle_type_id,
+                tuple(journey.notes.items()),
+                journey.frequency_interval,
+                tuple(id(tn.note) for tn in trip_notes[first_trip_note:]),
+                tuple(
+                    (st.stop_id, st.arrival, st.departure, st.pick_up, st.set_down)
+                    for st in stop_times[first_stop_time:]
+                ),
+            )
+            if key in seen_journeys:
+                del stop_times[first_stop_time:]
+                del stop_time_blanks[first_stop_time:]
+                del trip_notes[first_trip_note:]
+                del stop_time_notes[first_stop_time_note:]
+                continue
+            seen_journeys.add(key)
+
             trips.append(trip)
 
             if trip.start == trip.end:
@@ -1233,7 +1340,9 @@ class Command(BaseCommand):
                         )
                         journey.departure_time = trip.start
                         previous_stop_time = None
-                        for cell in journey.get_times():
+                        for cell in get_times(
+                            journey, self.departure_time_is_departure
+                        ):
                             stop_time = get_stop_time(
                                 trip, cell, stops, self.invalid_timing_statuses
                             )
@@ -1735,7 +1844,15 @@ class Command(BaseCommand):
 
             # route links (geometry between stops):
             if transxchange.route_sections:
-                do_route_links(journeys, transxchange, stops, service, self.task)
+                do_route_links(
+                    journeys,
+                    transxchange,
+                    stops,
+                    service,
+                    self.task,
+                    filename,
+                    self.seen_route_links,
+                )
 
             route_code = filename
             if len(transxchange.services) > 1:
@@ -1907,6 +2024,11 @@ class Command(BaseCommand):
         file_hash = sha1.hexdigest()
         open_file.seek(0)
 
+        self.departure_time_is_departure = (
+            b"Elydium Timetable Manager" in open_file.read(500)
+        )
+        open_file.seek(0)
+
         transxchange = TransXChange(open_file)
 
         if not transxchange.journeys:
@@ -1915,6 +2037,7 @@ class Command(BaseCommand):
 
         self.vehicle_types = {}
         self.invalid_timing_statuses = set()
+        self.seen_route_links = set()
 
         stops = self.do_stops(transxchange.stops)
 

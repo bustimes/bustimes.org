@@ -1,6 +1,16 @@
 <div class="table-wrapper">
 <table class="compact nowrap">
     <tbody>
+        {% if object.staircase %}
+        {% for stop in object.staircase %}
+            <tr>
+                {% for cell in stop.cells %}
+                    <td headers="{{ cell.headers }}">{% if cell.price %}£{{ cell.price }}{% endif %}</td>
+                {% endfor %}
+                <th id="{{ stop.id }}" colspan="{{ stop.colspan }}">{{ stop.name }}</th>
+            </tr>
+        {% endfor %}
+        {% else %}
         {% if not object.is_triangular %}
         <tr class="head">
             <th></th>
@@ -26,6 +36,7 @@
                 {% if object.is_triangular %}<th colspan="{{ row.colspan }}">{{ row }}</th>{% endif %}
             </tr>
         {% endfor %}
+        {% endif %}
     </tbody>
 </table>
 </div>

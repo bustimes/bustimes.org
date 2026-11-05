@@ -188,7 +188,7 @@ class TflDepartures(RemoteDepartures):
             if (vehicle := row.get("vehicle")) and (vehicle := vehicles.get(vehicle)):
                 row["vehicle"] = vehicle
                 if vehicle.latest_journey_id:
-                    row["link"] = f"/journeys/{vehicle.latest_journey_id}"
+                    row["link"] = f"/map#journey={vehicle.latest_journey_id}"
         rows.sort(key=lambda row: row["live"])
         return rows
 
@@ -297,7 +297,7 @@ class TimetableDepartures(Departures):
             for journey in time["stop_time"].trip.vehicle_journeys:
                 if journey.date == trip_date:
                     time["vehicle"] = journey.vehicle
-                    time["link"] = f"/journeys/{journey.id}"
+                    time["link"] = f"/map#journey={journey.id}"
                     break
 
         # # add tomorrow's times until there are 10, or the next day until there more than 0

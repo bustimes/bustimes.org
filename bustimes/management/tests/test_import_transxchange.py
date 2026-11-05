@@ -32,6 +32,7 @@ from ...models import (
     Calendar,
     CalendarDate,
     DataQualityObservation,
+    DodgyRouteLink,
     Garage,
     Note,
     Route,
@@ -256,7 +257,7 @@ class ImportTransXChangeTest(TestCase):
             with self.assertNumQueries(21):
                 res = self.client.get(url)
 
-            with self.assertNumQueries(16):
+            with self.assertNumQueries(13):
                 res_2 = self.client.get(url)
 
         self.assertEqual(res.text, res_2.text)
@@ -523,6 +524,52 @@ class ImportTransXChangeTest(TestCase):
         service = Service.objects.get()
         self.assertTrue(service.stopusage_set.exists())
         self.assertFalse(service.stopusage_set.filter(timing_point=False).exists())
+
+    @time_machine.travel("2017-12-10")
+    def test_first_stop_wait_time(self):
+        xml = (FIXTURES_DIR / "em_11-1-J-y08-1.xml").read_text()
+        xml = xml.replace(
+            '<From SequenceNumber="1">',
+            '<From SequenceNumber="1"><WaitTime>PT5M</WaitTime>',
+        )
+        elydium_xml = xml.replace(
+            "<TransXChange ",
+            "<!-- File written by Elydium Timetable Manager API v4.0.30319 -->\n"
+            "<TransXChange ",
+            1,
+        )
+
+        def get_times():
+            trip = Trip.objects.filter(
+                vehicle_journey_code="VJ_11-1-J-y08-1-114-UG"
+            ).latest("id")
+            stop_times = list(trip.stoptime_set.order_by("id"))
+            return (
+                str(trip.start),
+                str(stop_times[0].arrival),
+                str(stop_times[0].departure),
+                str(stop_times[1].departure),
+                str(trip.end),
+            )
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "em_11-1-J-y08-1.xml"
+            with patch(f"{__name__}.FIXTURES_DIR", Path(directory)):
+                # most publishers: wait after the DepartureTime
+                path.write_text(xml)
+                self.handle_files("EA.zip", ["em_11-1-J-y08-1.xml"])
+                self.assertEqual(
+                    get_times(),
+                    ("09:38", "09:33", "09:38", "09:39", "10:25"),
+                )
+
+                # Elydium: DepartureTime is the departure time
+                path.write_text(elydium_xml)
+                self.handle_files("EA.zip", ["em_11-1-J-y08-1.xml"])
+                self.assertEqual(
+                    get_times(),
+                    ("09:33", "None", "09:33", "09:34", "10:20"),
+                )
 
     @time_machine.travel("2017-12-10")
     def test_timetable_derby_alvaston_circular(self):
@@ -1585,6 +1632,11 @@ class ImportTransXChangeTest(TestCase):
         self.assertEqual(3, Service.objects.filter(current=True).count())  # A, B, C
         self.assertEqual(6, Route.objects.count())
 
+        dodgy = DodgyRouteLink.objects.all()
+        self.assertEqual(len(dodgy), len({(d.file_name, d.comment) for d in dodgy}))
+        self.assertEqual(dodgy[0].category, "dodgy RouteLink")
+        self.assertTrue(dodgy[0].file_name.endswith("BODS_V1_1.xml"))
+
         service = Service.objects.first()
         response = self.client.get(service.get_absolute_url())
 
@@ -1611,28 +1663,40 @@ class ImportTransXChangeTest(TestCase):
             self.assertEqual(len(response["results"]), 24)
 
         # all trips in block
-        with self.assertNumQueries(7):
-            response = self.client.get(f"/trips/{trip.id}/block")
+        block_url = trip.get_block_url()
+        self.assertEqual(block_url, f"/operators/{self.fecs.slug}/blocks/KL/6001")
+        response = self.client.get(f"/trips/{trip.id}/block?date=2025-01-26")
+        self.assertRedirects(response, f"{block_url}?date=2025-01-26", status_code=301)
+
+        with self.assertNumQueries(4):
+            response = self.client.get(block_url)
         self.assertContains(response, "07:00")
         self.assertContains(response, "12:25")
 
-        with self.assertNumQueries(7):
-            response = self.client.get(f"/trips/{trip.id}/block?date=2025-01-26")
+        with self.assertNumQueries(4):
+            response = self.client.get(f"{block_url}?date=2025-01-26")
         self.assertContains(response, "07:25")
         self.assertContains(response, "16:00")
+
+        for url in ("XX/6001", "6001"):
+            response = self.client.get(f"/operators/{self.fecs.slug}/blocks/{url}")
+            self.assertEqual(response.status_code, 404)
 
         # operator block view
         with self.assertNumQueries(2):
             response = self.client.get(f"/operators/{self.fecs.slug}/blocks")
             self.assertContains(response, "23 Oct 2023")
-            self.assertContains(response, ">6001</a>")
+            self.assertContains(
+                response,
+                f'<a href="{block_url}?date=2023-10-23">KL6001</a>',
+            )
 
         with self.assertNumQueries(2):
             response = self.client.get(
                 f"/operators/{self.fecs.slug}/blocks?date=2025-10-12"
             )
             self.assertContains(response, "12 Oct 2025")
-            self.assertContains(response, ">6001</a>")
+            self.assertContains(response, ">KL6001</a>")
 
         # test "next trips in block"
         v = Vehicle.objects.create(code="BB69BUS")

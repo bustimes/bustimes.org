@@ -41,3 +41,15 @@ export function decodeTimeAwarePolyline(
   }
   return response;
 }
+
+// skip points older than the one before - e.g. a vehicle in the feed twice
+export function dropOutOfOrder(
+  points: [number, number, number][],
+): [number, number, number][] {
+  let last = Number.NEGATIVE_INFINITY;
+  return points.filter(([, , timestamp]) => {
+    if (timestamp < last) return false;
+    last = timestamp;
+    return true;
+  });
+}

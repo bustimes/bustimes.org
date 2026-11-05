@@ -58,7 +58,7 @@ class ImportBusOpenDataTest(TestCase):
         )
         cls.user = User.objects.create()
 
-    @use_cassette(str(FIXTURES_DIR / "bod_lynx.yaml"))
+    @use_cassette(FIXTURES_DIR / "bod_lynx.yaml")
     @time_machine.travel("2020-05-01T00:00:00Z", tick=False)
     def test_import_bod(self):
         admin_area = AdminArea.objects.create(
@@ -224,23 +224,23 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
             ]
         }
 
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             response = self.client.get("/stops/2900W0321/times.json")
         self.assertEqual(response.json(), expected_json)
 
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             response = self.client.get(
                 "/stops/2900W0321/times.json?when=2020-05-01T09:15:00%2b01:00"
             )
         self.assertEqual(response.json(), expected_json)
 
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             response = self.client.get(
                 "/stops/2900W0321/times.json?when=2020-05-01T09:15:00"
             )
         self.assertEqual(response.json(), expected_json)
 
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             response = self.client.get("/stops/2900W0321/times.json?limit=10")
         self.assertEqual(1, len(response.json()["times"]))
 
@@ -386,7 +386,7 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
             TemporaryDirectory() as directory,
             override_settings(DATA_DIR=Path(directory)),
         ):
-            with use_cassette(str(FIXTURES_DIR / "bod_ticketer.yaml")):
+            with use_cassette(FIXTURES_DIR / "bod_ticketer.yaml"):
                 with self.assertLogs(
                     "bustimes.management.commands.import_transxchange", "WARNING"
                 ) as cm:
@@ -493,7 +493,7 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
                     datetime.datetime.fromisoformat("2020-06-10T12:00:00+01:00"),
                 ),
             ) as download_if_modified:
-                with self.assertNumQueries(128):
+                with self.assertNumQueries(130):
                     call_command("import_bod_timetables", "stagecoach")
                 download_if_modified.assert_called_with(
                     path, DataSource.objects.get(name="Stagecoach East"), ANY
@@ -513,7 +513,7 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
                 with self.assertNumQueries(1):
                     call_command("import_bod_timetables", "stagecoach", "SCOX")
 
-                with self.assertNumQueries(64):
+                with self.assertNumQueries(66):
                     call_command("import_bod_timetables", "stagecoach", "SCCM")
 
                 route_link.refresh_from_db()
@@ -571,7 +571,7 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
         BankHolidayDate.objects.create(
             bank_holiday=BankHoliday.objects.get(name="ChristmasDay"), date="2020-12-25"
         )
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(18):
             response = self.client.get(
                 "/services/904-huntingdon-peterborough?date=2020-12-25"
             )

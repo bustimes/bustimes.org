@@ -1,7 +1,7 @@
 import datetime
 from pathlib import Path
 from shutil import ReadError
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import time_machine
 import vcr
@@ -65,7 +65,6 @@ class GTFSTest(TestCase):
             vcr.use_cassette(
                 str(FIXTURES_DIR / "google_transit_ie.yaml"),
             ) as cassette,
-            self.assertLogs("bustimes.download_utils", "ERROR") as errors,
             self.assertLogs(
                 "bustimes.management.commands.import_gtfs", "WARNING"
             ) as warnings,
@@ -77,27 +76,6 @@ class GTFSTest(TestCase):
             # import a second time - test that it's OK if stuff already exists
             call_command("import_gtfs", ["Mortons", "Wexford Bus", "Seamus Doherty"])
 
-        self.assertEqual(
-            sorted(errors.output),
-            [
-                (
-                    "ERROR:bustimes.download_utils:<Response [404]> "
-                    "https://www.transportforireland.ie/transitData/Data/GTFS_Mortons.zip"
-                ),
-                (
-                    "ERROR:bustimes.download_utils:<Response [404]> "
-                    "https://www.transportforireland.ie/transitData/Data/GTFS_Mortons.zip"
-                ),
-                (
-                    "ERROR:bustimes.download_utils:<Response [404]> "
-                    "https://www.transportforireland.ie/transitData/Data/GTFS_Seamus_Doherty.zip"
-                ),
-                (
-                    "ERROR:bustimes.download_utils:<Response [404]> "
-                    "https://www.transportforireland.ie/transitData/Data/GTFS_Seamus_Doherty.zip"
-                ),
-            ],
-        )
         self.assertEqual(
             warnings.output,
             [
@@ -210,6 +188,12 @@ class GTFSTest(TestCase):
 
             changed, when = download_if_modified(path, source)
             self.assertFalse(changed)
+
+        session = Mock()
+        session.get.return_value = Mock(ok=False, status_code=503, headers={})
+        with self.assertLogs("bustimes.download_utils", "ERROR"):
+            changed, when = download_if_modified(path, source, session)
+        self.assertIsNone(changed)
 
         self.assertTrue(path.exists())
         path.unlink()

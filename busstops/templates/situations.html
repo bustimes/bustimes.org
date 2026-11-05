@@ -16,10 +16,8 @@
     {% if situation.text %}
         {{ situation.text|linebreaks|urlise }}
     {% endif %}
-    {% for consequence in situation.consequences %}
-        {% ifchanged consequence.text %}{% if consequence.text and consequence.text not in situation.text %}
-            {{ consequence.text|linebreaks|urlise }}
-        {% endif %}{% endifchanged %}
+    {% for text in situation.consequence_texts %}
+        {{ text|linebreaks|urlise }}
     {% endfor %}
     {% for link in situation.link_set.all %}
         <p>{{ link.url|urlise }}</p>

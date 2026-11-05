@@ -23,7 +23,7 @@ from django.core.mail import EmailMessage
 from django.core.paginator import Paginator
 from django.db import connection
 from django.db.models import Case, F, OuterRef, Prefetch, Q, StringAgg, Value, When
-from django.db.models.functions import Coalesce, Now
+from django.db.models.functions import Coalesce, Length, Now
 from django.http import (
     Http404,
     HttpResponse,
@@ -39,7 +39,7 @@ from django.utils.functional import SimpleLazyObject
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import last_modified
 from django.views.generic.detail import DetailView
-from django_orjson.http import JsonResponse
+from django_msgspec.http import JsonResponse
 from redis.exceptions import ConnectionError
 from sql_util.utils import Exists, SubqueryMax, SubqueryMin
 from ukpostcodeutils import validation
@@ -84,10 +84,23 @@ def get_colours(services):
         return ServiceColour.objects.filter(id__in=colours)
 
 
+def get_vehicle_mode(mode):
+    """Service.mode as a SIRI VehicleMode"""
+    if mode == "ferry":
+        return "ferryService"
+    return mode or "bus"
+
+
 def get_service_situations(service, operators):
-    """Currently-published situations affecting a service (or its operators)."""
+    """Currently-published situations affecting a service,
+    or one of its operators,
+    or one of its stops' administrative areas."""
+    areas = Q(
+        admin_areas__in=StopPoint.objects.filter(service=service).values("admin_area"),
+        vehicle_mode=get_vehicle_mode(service.mode),
+    )
     consequences = Consequence.objects.filter(
-        Q(services=service) | (Q(operators__in=operators, services=None))
+        Q(services=service) | (Q(operators__in=operators, services=None)) | areas
     )
     return (
         Situation.objects.filter(
@@ -96,7 +109,8 @@ def get_service_situations(service, operators):
             .union(
                 Consequence.objects.filter(
                     operators__in=operators, services=None
-                ).values("situation")
+                ).values("situation"),
+                Consequence.objects.filter(areas).values("situation"),
             ),
             publication_window__contains=Now(),
             current=True,
@@ -219,7 +233,7 @@ def not_found(request, exception):
         try:
             resolver_match = resolve(request.path[:-1])
             return resolver_match.func(request, **resolver_match.kwargs)
-        except Http404:
+        except (Http404, PermissionDenied):
             pass
 
     # anonymise request (cos response may be cached)
@@ -248,6 +262,9 @@ Disallow: /accounts/
 Disallow: /fares/
 Disallow: /vehicles/*?date=*
 Disallow: /stops/*?date=*
+Disallow: /stations/*?date=*
+Disallow: /search
+Disallow: /operators/*/blocks/
 Disallow: /services/*?date=*
 Disallow: /services/*/*
 Disallow: /sources
@@ -269,12 +286,9 @@ User-agent: Quantcastbot
 User-agent: CriteoBot/0.1
 User-agent: InteractiveAdvertisingBureau
 User-agent: Leikibot
-User-agent: GrapeshotCrawler
 User-agent: adidxbot
 User-agent: Yahoo Ad Monitoring
 User-agent: peer39_crawler
-User-agent: Connatix/FeedCrawler
-User-agent: Connatix/WebCrawler
 User-agent: bidswitchbot
 User-agent: Verity
 User-agent: GumGumAdsTxtCrawler/1.0
@@ -714,7 +728,7 @@ class LocalityDetailView(UppercasePrimaryKeyMixin, DetailView):
                 service__current=True,
             )
             .annotate(line_names=stop_line_names)
-            .order_by("common_name", "indicator")
+            .order_by("common_name", Length("indicator"), "indicator")
             .defer("latlong")
         )
 
@@ -878,19 +892,22 @@ class StopPointDetailView(DetailView):
 
         nearby = (
             StopPoint.objects.filter(active=True)
-            .order_by("common_name", "indicator")
+            .order_by("common_name", Length("indicator"), "indicator")
             .filter(service__current=True)
         )
 
-        same_name = None
-        if self.object.locality or self.object.admin_area:
-            same_name = Q(common_name=self.object.common_name)
-            if self.object.locality:
-                same_name &= Q(locality=self.object.locality)
-            else:
-                same_name &= Q(admin_area=self.object.admin_area)
-                if self.object.town:
-                    same_name &= Q(town=self.object.town)
+        same_name = Q(common_name__iexact=self.object.common_name)
+        if self.object.locality:
+            same_name &= Q(locality=self.object.locality)
+        elif self.object.admin_area:
+            same_name &= Q(admin_area=self.object.admin_area)
+            if self.object.town:
+                same_name &= Q(town=self.object.town)
+        elif self.object.source_id:
+            # e.g. GTFS stops outside the UK
+            same_name &= Q(source=self.object.source_id, town=self.object.town)
+        else:
+            same_name = None
 
         # NaPTAN stop areas are often incomplete (e.g. a new stop opposite not added to the pair)
         if self.object.stop_area_id is not None:
@@ -919,14 +936,29 @@ class StopPointDetailView(DetailView):
                 # stop area (if it is not an on-street pair)
                 context["breadcrumb"].append(self.object.stop_area)
 
-        consequences = Consequence.objects.filter(stops=self.object)
+        stop_consequences = Q(stops=self.object)
+        situation_ids = Consequence.objects.filter(stop_consequences).values(
+            "situation"
+        )
+        if self.object.admin_area_id and context["modes"]:
+            area_consequences = Q(
+                admin_areas=self.object.admin_area_id,
+                vehicle_mode__in=[get_vehicle_mode(mode) for mode in context["modes"]],
+            )
+            situation_ids = situation_ids.union(
+                Consequence.objects.filter(area_consequences).values("situation")
+            )
+            consequences = Consequence.objects.filter(
+                stop_consequences | area_consequences
+            )
+        else:
+            consequences = Consequence.objects.filter(stop_consequences)
         context["situations"] = (
             Situation.objects.filter(
                 publication_window__contains=Now(),
-                consequence__stops=self.object,
+                id__in=situation_ids,
                 current=True,
             )
-            .distinct()
             .order_by("publication_window")
             .prefetch_related(
                 Prefetch(
@@ -960,7 +992,7 @@ class StopAreaDetailView(DetailView):
         stops = (
             self.object.stoppoint_set.filter(service__current=True)
             .annotate(line_names=stop_line_names)
-            .order_by("common_name", "indicator")
+            .order_by("common_name", Length("indicator"), "indicator")
         )
         context["children"] = stops
 
@@ -1330,7 +1362,7 @@ class ServiceDetailView(DetailView):
                         context["timetable"].calendars
                         and context["timetable"].calendar_ids
                     )
-                    and date < timezone.localdate()
+                    and date < context["timetable"].today
                     and not form.cleaned_data["detailed"]
                 ):
                     return {"redirect_to": self.object}
@@ -1354,7 +1386,10 @@ class ServiceDetailView(DetailView):
             .defer("data")
         )
         stop_situations = build_stop_situations(
-            context["situations"], when=date or timezone.localdate()
+            context["situations"],
+            when=date
+            or (context["timetable"].today if context.get("timetable") else None)
+            or timezone.localdate(),
         )
 
         # mark disrupted stops in the timetable (applied lazily when rendered)

@@ -77,10 +77,7 @@ def calculate_bearing(a, b):
     bearing_radians = math.atan2(y, x)
     bearing_degrees = math.degrees(bearing_radians)
 
-    if bearing_degrees < 0:
-        bearing_degrees += 360
-
-    return round(bearing_degrees)
+    return round(bearing_degrees) % 360
 
 
 def get_revision(vehicle, data):

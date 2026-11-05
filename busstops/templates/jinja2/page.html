@@ -20,15 +20,26 @@
 {% block head %}{% endblock %}
 
 {% block fuse %}
-{% if ad %}
 <script src="{{ static('consent.js') }}"></script>
+<script>
+var tz = window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone,
+    bot = navigator.webdriver || screen.width === 1280 && screen.height === 1200 || tz && !/^(Europe\/|Etc\/|UTC$)/.test(tz);
+</script>
+{% if ad %}
 <script>(function(){
-    if(window.top!==window.self||!window.__tcfapi||!Array.prototype.toSorted){window.noAds=true;return}
+    if(window.top!==window.self||!window.__tcfapi||!Array.prototype.toSorted||bot){window.noAds=true;return}
     var s=document.getElementsByTagName("script")[0];
     var sc=document.createElement("script");
     sc.async=true;
     sc.src="https://cdn.adfirst.media/hb/bustimes.js?v"+Math.floor(new Date().getTime()/600000);
     s.parentNode.insertBefore(sc,s);
+    var pbjs=window.pbjs=window.pbjs||{};
+    pbjs.que=pbjs.que||[];
+    pbjs.que.push(function(){
+        pbjs.onEvent("bidWon",function(b){
+            gtag("event","prebid_won",{ad_unit:b.adUnitCode,bidder:b.bidder,cpm:b.cpm,advertiser:(b.meta&&b.meta.advertiserDomains||[])[0],media_type:b.mediaType,size:b.size,deal:b.dealId});
+        });
+    });
     window.__tcfapi("addEventListener",2,function(tcData,success){
         if(!success)return;
         if(tcData.eventStatus!=="tcloaded"&&tcData.eventStatus!=="useractioncomplete")return;
@@ -51,8 +62,42 @@
 <script>
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
+gtag('consent', 'default', {
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+    analytics_storage: 'denied',
+    wait_for_update: 500
+});
+if (window.__tcfapi) {
+    window.__tcfapi('addEventListener', 2, function(tcData, success) {
+        if (!success || tcData.eventStatus !== 'tcloaded' && tcData.eventStatus !== 'useractioncomplete') return;
+        var p = tcData.purpose && tcData.purpose.consents || {},
+            v = tcData.vendor && tcData.vendor.consents && tcData.vendor.consents[755],
+            all = !tcData.gdprApplies;
+        function c(ok) { return all || ok ? 'granted' : 'denied'; }
+        gtag('consent', 'update', {
+            ad_storage: c(p[1] && v),
+            ad_user_data: c(p[1] && p[7] && v),
+            ad_personalization: c(p[3] && p[4] && v),
+            analytics_storage: c(p[1] && p[8])
+        });
+    });
+}
 gtag('js', new Date());
-gtag('config', 'G-X2Z0KM7Z5C');
+var gaConfig = {
+    timezone: tz,
+    webdriver: navigator.webdriver ? 'true' : 'false'
+};
+if (bot) {
+    gaConfig.traffic_type = 'bot';
+}
+{% if request.resolver_match.url_name %}
+gaConfig.view_name = '{{ request.resolver_match.url_name }}';
+{% endif %}
+if (location.hostname === 'bustimes.org') {
+    gtag('config', 'G-X2Z0KM7Z5C', gaConfig);
+}
 </script>
 {% endblock fuse %}
 

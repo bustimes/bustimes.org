@@ -21,7 +21,10 @@ User = get_user_model()
 
 
 def invite_code_is_valid(code):
-    return Invitation.objects.filter(uuid=code, expires_at__gt=Now()).exists()
+    try:
+        return Invitation.objects.filter(uuid=code, expires_at__gt=Now()).exists()
+    except ValidationError:
+        return False
 
 
 class InviteCodeField(UUIDField):

@@ -1,9 +1,7 @@
-import xml.etree.ElementTree as ET
 import zipfile
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-import folium
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.cache import cache
@@ -13,7 +11,7 @@ from django.db.models import (
     Prefetch,
     prefetch_related_objects,
 )
-from django.db.models.functions import Coalesce, Now, TruncDate
+from django.db.models.functions import Coalesce, Length, Now, TruncDate
 from django.http import (
     FileResponse,
     Http404,
@@ -21,12 +19,13 @@ from django.http import (
     HttpResponseBadRequest,
 )
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_GET
 from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
-from django_orjson.http import JsonResponse
+from django_msgspec.http import JsonResponse
 from rest_framework.renderers import JSONRenderer
 
 from api.serializers import TripSerializer
@@ -39,6 +38,7 @@ from busstops.models import (
     Service,
     StopPoint,
 )
+from busstops.utils import Crumb
 from departures import avl, gtfsr, live
 from vehicles import rtpi
 from vehicles.forms import DateForm, TripUpdatesFeedForm
@@ -52,8 +52,14 @@ from .forms import (
     SnapForm,
     UploadGTFSForm,
 )
-from .gtfs_utils import handle_gtfs_upload
-from .models import BankHolidayDate, Route, RouteLink, Trip
+from .models import (
+    BankHolidayDate,
+    Calendar,
+    ImportTask,
+    Route,
+    RouteLink,
+    Trip,
+)
 
 
 class ServiceDebugView(DetailView):
@@ -110,6 +116,8 @@ def route_link_view(request, pk):
 
     start = [route_link.from_stop.latlong.y, route_link.from_stop.latlong.x]
     end = [route_link.to_stop.latlong.y, route_link.to_stop.latlong.x]
+
+    import folium
 
     m = folium.Map()
     m.fit_bounds([start, end])
@@ -173,6 +181,8 @@ def snap(request):
     proposals, problems = (
         snap_utils.propose(journey, service, coords) if len(coords) > 1 else ([], [])
     )
+
+    import folium
 
     colours = ("#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#008080")
     m = folium.Map(tiles="Stadia.OSMBright")
@@ -265,6 +275,10 @@ class SourceDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        context["updates"] = self.object.importtask_set.annotate(
+            observations=Count("dataqualityobservation")
+        ).order_by("-id")
+
         context["routes"] = (
             self.object.route_set.filter(service__isnull=False)
             .order_by("service_code", "line_name", "start_date", "revision_number")
@@ -276,10 +290,24 @@ class SourceDetailView(DetailView):
         if not context["routes"]:
             raise Http404
 
-        context["breadcrumb"] = [
-            {"get_line_name_and_brand": "Sources", "get_absolute_url": "/sources"}
-        ]
+        context["breadcrumb"] = [Crumb("Sources", "/sources")]
 
+        return context
+
+
+class ImportTaskDetailView(DetailView):
+    model = ImportTask
+
+    def get_queryset(self):
+        return super().get_queryset().filter(source_id=self.kwargs["source_id"])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context["breadcrumb"] = [
+            Crumb("Sources", "/sources"),
+            self.object.source,
+        ]
         return context
 
 
@@ -412,7 +440,11 @@ def stop_times_json(request, atco_code):
             "'limit' isn't in the right format (an integer or nothing)"
         )
 
-    routes = Route.objects.filter(service__in=services).select_related("source")
+    routes = (
+        Route.objects.filter(service__in=services)
+        .select_related("source")
+        .with_service_modified_at()
+    )
 
     departures = live.TimetableDepartures(stop, services, None, routes, by_trip)
     time_since_midnight = timedelta(
@@ -430,7 +462,7 @@ def stop_times_json(request, atco_code):
         "trip__destination__locality", "trip__route__service", "trip__operator"
     )[:limit]:
         times.append(stop_time_json(stop_time, yesterday_date))
-        dates.append(yesterday_date)
+        dates.append((stop_time, yesterday_date))
 
     today = when.date()
 
@@ -443,17 +475,17 @@ def stop_times_json(request, atco_code):
         )[:limit]:
             # (might have started yesterday)
             times.append(stop_time_json(stop_time, stop_time.date))
-            dates.append(stop_time.date)
+            dates.append((stop_time, stop_time.date))
 
     stop_times = departures.get_times(today, time_since_midnight)
     for stop_time in stop_times.select_related(
         "trip__destination__locality", "trip__route__service", "trip__operator"
     )[:limit]:
         times.append(stop_time_json(stop_time, today))
-        dates.append(today)
+        dates.append((stop_time, today))
 
     if by_trip:
-        for time, date in zip(times, dates):
+        for time, (stop_time, date) in zip(times, dates):
             item = by_trip.get(time["trip_id"])
             if item and item["date"] == str(date):
                 if (time["aimed_arrival_time"] or time["aimed_departure_time"]) < when:
@@ -467,7 +499,7 @@ def stop_times_json(request, atco_code):
                 if (
                     "overdue" not in time
                     or progress
-                    and rtpi.is_before_stop(item, time["id"], time["trip_id"])
+                    and rtpi.is_before_stop(item, stop_time)
                 ):
                     delay = timedelta(seconds=item["delay"])
                     time["delay"] = delay
@@ -508,7 +540,7 @@ def stop_debug(request, atco_code: str):
         try:
             # XML
             response_text = format_xml(response.text)
-        except ET.ParseError:
+        except SyntaxError:
             # JSON
             response_text = format_json(response.json())
         responses.append(
@@ -589,10 +621,27 @@ class TripDetailView(DetailView):
 
 @require_GET
 def trip_block(request, pk: int):
-    trip = get_object_or_404(Trip, pk=pk)
-
-    if not trip.block:
+    trip = get_object_or_404(
+        Trip.objects.select_related("operator", "garage"), pk=pk, block__gt=""
+    )
+    if not trip.operator_id:
         raise Http404
+
+    url = trip.get_block_url()
+    if request.GET:
+        url = f"{url}?{request.GET.urlencode()}"
+    return redirect(url, permanent=True)
+
+
+@require_GET
+def block_detail(request, slug, block, garage=None):
+    operator = get_object_or_404(Operator, slug=slug)
+
+    trips = operator.trip_set.filter(block=block, route__service__isnull=False)
+    if garage:
+        trips = trips.filter(garage__code=garage)
+    else:
+        trips = trips.filter(garage=None)
 
     form = DateForm(request.GET)
     if form.is_valid():
@@ -600,15 +649,24 @@ def trip_block(request, pk: int):
     else:
         date = timezone.localdate()
 
-    trips = trip.get_trips_in_block(date)
+    calendar_ids = list(trips.values_list("calendar", flat=True).distinct())
+    if not calendar_ids:
+        raise Http404
 
-    trips = trips.annotate(
-        destination_name=Coalesce(
-            "headsign",
-            "destination__locality__name",
-            "destination__common_name",
-        ),
-    ).select_related("route")
+    calendars = Calendar.objects.active_on(date, calendar_ids)
+    routes = Route.objects.filter(trip__in=trips).active_on(date)
+    trips = (
+        trips.filter(calendar__in=calendars, route__in=routes)
+        .annotate(
+            destination_name=Coalesce(
+                "headsign",
+                "destination__locality__name",
+                "destination__common_name",
+            ),
+        )
+        .select_related("route__source", "garage")
+        .order_by("start")
+    )
 
     if trips := list(trips):
         prefetch_related_objects(
@@ -626,12 +684,16 @@ def trip_block(request, pk: int):
         request,
         "bustimes/block_detail.html",
         {
-            "object": trip.block,
-            "breadcrumb": [trip.operator],
+            "object": block,
+            "garage": trips[0].garage if trips else None,
+            "breadcrumb": [
+                operator,
+                Crumb("Blocks", reverse("operator_blocks", args=(operator.slug,))),
+            ],
             "form": form,
             "date": date,
             "trips": trips,
-            "trip": trip,
+            "sources": {trip.route.source for trip in trips},
         },
     )
 
@@ -653,15 +715,8 @@ def tfl_vehicle(request, reg: str):
 
 
 trip_updates_sources = {
-    "flixbus": {
-        "source_name": "FlixBus",
-    },
-    "ember": {
-        "source_name": "Ember",
-    },
-    "ntaie": {
-        "source_name": "Realtime Transport Operators",
-    },
+    feed_name: {"source_name": source_name}
+    for source_name, feed_name in gtfsr.FEED_NAMES.items()
 }
 
 
@@ -729,12 +784,14 @@ def operator_blocks(request, slug):
     else:
         date = timezone.localdate()
 
-    routes = Route.objects.filter(trip__operator=operator).active_on(date)
+    routes = Route.objects.filter(
+        trip__operator=operator, service__isnull=False
+    ).active_on(date)
     trips = (
         operator.trip_set.filter(route__in=routes)
-        .select_related("route")
+        .select_related("route", "garage")
         .active_on(date)
-        .order_by("block", "start")
+        .order_by("garage__code", Length("block"), "block", "start")
     )
 
     timescale = []
@@ -761,7 +818,7 @@ def operator_blocks(request, slug):
         trip.width = int((trip.end - trip.start).total_seconds() / length_of_day * 3000)
 
         if trip.block:
-            blocks[trip.block].append(trip)
+            blocks[trip.garage and trip.garage.code, trip.block].append(trip)
 
     context = {
         "object": operator,
@@ -784,6 +841,8 @@ def upload_gtfs(request):
     context = {"form": form}
 
     if request.method == "POST" and form.is_valid():
+        from .gtfs_utils import handle_gtfs_upload
+
         source = handle_gtfs_upload(**form.cleaned_data)
 
         return redirect(source)

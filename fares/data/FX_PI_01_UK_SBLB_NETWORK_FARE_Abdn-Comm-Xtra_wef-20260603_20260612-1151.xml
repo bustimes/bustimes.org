@@ -1,0 +1,675 @@
+<?xml version='1.0' encoding='utf-8'?>
+<PublicationDelivery xmlns="http://www.netex.org.uk/netex" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.1" xsi:schemaLocation="http://www.netex.org.uk/netex http://netex.uk/netex/schema/1.10/xsd/NeTEx_publication.xsd">
+  <PublicationTimestamp>2026-06-12T11:51:17.3190047Z</PublicationTimestamp>
+  <ParticipantRef>SBLB</ParticipantRef>
+  <PublicationRequest version="1.0">
+    <RequestTimestamp>2026-06-12T11:51:17.2561896Z</RequestTimestamp>
+    <Description>Request for SBLB bus pass fares</Description>
+    <topics>
+      <NetworkFrameTopic>
+        <selectionValidityConditions>
+          <AvailabilityCondition version="1.0" id="r1">
+            <FromDate>2026-06-03T02:00:00Z</FromDate>
+          </AvailabilityCondition>
+        </selectionValidityConditions>
+        <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_NETWORK_FARE_OFFER:FXCP" />
+        <NetworkFilterByValue>
+          <objectReferences>
+            <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            <GroupOfLinesRef versionRef="1.0" ref="SBLB@groupOfLines" />
+            <TypeOfFareProductRef versionRef="fxc:v1.0" ref="fxc:standard_product@pass@period" />
+            <PreassignedFareProductRef version="1.0" ref="pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra" />
+            <BrandingRef versionRef="1.0" ref="op:SBLB@brand" />
+          </objectReferences>
+        </NetworkFilterByValue>
+      </NetworkFrameTopic>
+    </topics>
+    <RequestPolicy>
+      <RequestDetail>AllWithXref</RequestDetail>
+    </RequestPolicy>
+  </PublicationRequest>
+  <Description>SBLB bus fares</Description>
+  <dataObjects>
+    <CompositeFrame version="1.1" id="epd:UK:SBLB:CompositeFrame_UK_PI_NETWORK_FARE_OFFER:pass@SBLB_products:op" dataSourceRef="op:src" responsibilitySetRef="op:tariff_data">
+      <ValidBetween>
+        <FromDate>2026-06-03T02:00:00Z</FromDate>
+      </ValidBetween>
+      <Name>Fares for SBLB pass</Name>
+      <Description>pass ticket for SBLB</Description>
+      <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_NETWORK_FARE_OFFER:FXCP" />
+      <codespaces>
+        <CodespaceRef ref="epd_data" />
+        <CodespaceRef ref="fxc_metadata" />
+        <CodespaceRef ref="naptStop_data" />
+        <CodespaceRef ref="nptgLocality_data" />
+        <CodespaceRef ref="noc_data" />
+        <CodespaceRef ref="op_data" />
+      </codespaces>
+      <FrameDefaults>
+        <DefaultCodespaceRef ref="op_data" />
+        <DefaultDataSourceRef version="1.0" ref="op:src" />
+        <DefaultResponsibilitySetRef version="1.0" ref="op:tariff_data" />
+        <DefaultCurrency>GBP</DefaultCurrency>
+      </FrameDefaults>
+      <prerequisites>
+        <CompositeFrameRef versionRef="1.0" ref="epd:UK:SBLB:CompositeFrame_UK_PI_METADATA::op" />
+      </prerequisites>
+      <frames>
+        <ResourceFrame version="1.0" id="epd:UK:SBLB:ResourceFrame_UK_PI_COMMON:SBLB_products:op" dataSourceRef="op:src" responsibilitySetRef="op:tariff_data">
+          <Name>Operator specific common resources</Name>
+          <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_COMMON:FXCP" />
+          <codespaces>
+            <Codespace id="epd_data">
+              <Xmlns>epd</Xmlns>
+              <XmlnsUrl>http://fnetex-cen.eu/epd</XmlnsUrl>
+              <Description>European Passenger Information profile data -use for UK frame names</Description>
+            </Codespace>
+            <Codespace id="fxc_metadata">
+              <Xmlns>fxc_metadata</Xmlns>
+              <XmlnsUrl>netex.org.uk/fxc</XmlnsUrl>
+              <Description>UK FareXChange Profile metadata</Description>
+            </Codespace>
+            <Codespace id="naptStop_data">
+              <Xmlns>naptStop</Xmlns>
+              <XmlnsUrl>http://www.naptan.org.uk/stops</XmlnsUrl>
+              <Description>UK National Public Transport Access Nodes: Stops.</Description>
+            </Codespace>
+            <Codespace id="noc_data">
+              <Xmlns>noc</Xmlns>
+              <XmlnsUrl>http://www.traveline.co.uk/noc</XmlnsUrl>
+              <Description>UK national operator codes</Description>
+            </Codespace>
+            <Codespace id="op_data">
+              <Xmlns>op</Xmlns>
+              <XmlnsUrl>http://www.stagecoachbus.com/regional-help-and-contact/north-scotland</XmlnsUrl>
+              <Description>Operator Data</Description>
+            </Codespace>
+            <Codespace id="nptgLocality_data">
+              <Xmlns>nptgLocality</Xmlns>
+              <XmlnsUrl>http://nptg.org.uk/locations</XmlnsUrl>
+              <Description>National Public Transport gazetteer locations</Description>
+            </Codespace>
+          </codespaces>
+          <dataSources>
+            <DataSource version="1.0" id="op:src">
+              <Email>bluebird.enquiries@stagecoachbus.com</Email>
+            </DataSource>
+          </dataSources>
+          <responsibilitySets>
+            <ResponsibilitySet version="1.0" id="op:tariff_data">
+              <Name>Operator Tariffs</Name>
+              <roles>
+                <ResponsibilityRoleAssignment version="1.0" id="op:tariff_data@creates">
+                  <DataRoleType>creates</DataRoleType>
+                  <StakeholderRoleType>FareManagement</StakeholderRoleType>
+                  <ResponsibleOrganisationRef version="1.0" ref="noc:SBLB" />
+                </ResponsibilityRoleAssignment>
+              </roles>
+            </ResponsibilitySet>
+            <ResponsibilitySet version="1.0" id="op:network_data">
+              <Name>Operator Network data</Name>
+              <roles>
+                <ResponsibilityRoleAssignment version="1.0" id="op:network_data@creates">
+                  <DataRoleType>creates</DataRoleType>
+                  <StakeholderRoleType>Planning</StakeholderRoleType>
+                  <ResponsibleOrganisationRef version="1.0" ref="noc:SBLB" />
+                </ResponsibilityRoleAssignment>
+              </roles>
+            </ResponsibilitySet>
+            <ResponsibilitySet version="1.0" id="op:metadata">
+              <Name>Operator Metadata</Name>
+              <roles>
+                <ResponsibilityRoleAssignment version="1.0" id="op:metadata@creates">
+                  <DataRoleType>creates</DataRoleType>
+                  <StakeholderRoleType>Planning</StakeholderRoleType>
+                  <ResponsibleOrganisationRef version="1.0" ref="noc:SBLB" />
+                </ResponsibilityRoleAssignment>
+              </roles>
+            </ResponsibilitySet>
+          </responsibilitySets>
+          <typesOfValue>
+            <ValueSet version="1.0" id="op:Branding" classOfValues="Branding">
+              <Name>Operator Branding</Name>
+              <values>
+                <Branding version="1.0" id="op:SBLB@brand">
+                  <Name>Stagecoach Bluebird</Name>
+                  <Url>http://www.stagecoachbus.com/regional-help-and-contact/north-scotland</Url>
+                </Branding>
+              </values>
+            </ValueSet>
+          </typesOfValue>
+          <organisations>
+            <Operator version="1.0" id="noc:SBLB">
+              <PublicCode>SBLB</PublicCode>
+              <PrivateCode>135748</PrivateCode>
+              <Name>Stagecoach Bluebird</Name>
+              <ShortName>Stagecoach Bluebird</ShortName>
+              <TradingName>Bluebird Buses Ltd</TradingName>
+              <ContactDetails>
+                <Phone>03452418000</Phone>
+                <Url>http://www.stagecoachbus.com/regional-help-and-contact/north-scotland</Url>
+              </ContactDetails>
+              <OrganisationType>operator</OrganisationType>
+              <Address>
+                <Street>Union Square Bus Station, Guild Street, Aberdeen AB11 6NA</Street>
+              </Address>
+              <PrimaryMode>bus</PrimaryMode>
+              <CustomerServiceContactDetails>
+                <Email>bluebird.enquiries@stagecoachbus.com</Email>
+              </CustomerServiceContactDetails>
+            </Operator>
+          </organisations>
+        </ResourceFrame>
+        <ServiceFrame version="1.0" id="epd:UK:SBLB:ServiceFrame_UK_PI_NETWORK:SBLB_products:op" dataSourceRef="op:src" responsibilitySetRef="op:network_data">
+          <Description>This frame contains the line definitions for pass ticket. It could also be exchanged separately.</Description>
+          <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_NETWORK:FXCP" />
+          <lines>
+            <Line version="1.0" id="SBLB:PM0000005:661:107">
+              <Name>Montrose Montrose Railway Station - Stonehaven Barclay Street</Name>
+              <PublicCode>107</PublicCode>
+              <PrivateCode type="txc:Line@id">107</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:710:201">
+              <Name>Braemar Auchendryne Square - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>201</PublicCode>
+              <PrivateCode type="txc:Line@id">201</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:710:202">
+              <Name>Braemar Auchendryne Square - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>202</PublicCode>
+              <PrivateCode type="txc:Line@id">202</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:880:206">
+              <Name>Tarland The Square - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>206</PublicCode>
+              <PrivateCode type="txc:Line@id">206</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:585:218">
+              <Name>Alford Victoria Road - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>218</PublicCode>
+              <PrivateCode type="txc:Line@id">218</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:684:220">
+              <Name>Alford Community Campus - Aberdeen Union Sq Stance 1</Name>
+              <PublicCode>220</PublicCode>
+              <PrivateCode type="txc:Line@id">220</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:670:231">
+              <Name>Alford Kingsford Road - Huntly Gordon Schools</Name>
+              <PublicCode>231</PublicCode>
+              <PrivateCode type="txc:Line@id">231</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:436:301">
+              <Name>Huntly The Square - Macduff Hutcheon Street</Name>
+              <PublicCode>301</PublicCode>
+              <PrivateCode type="txc:Line@id">301</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:551:303">
+              <Name>Turriff High Street - Huntly The Square</Name>
+              <PublicCode>303</PublicCode>
+              <PrivateCode type="txc:Line@id">303</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:600:35">
+              <Name>Aberdeen Union Square Bus Station - Elgin Bus Station</Name>
+              <PublicCode>35</PublicCode>
+              <PrivateCode type="txc:Line@id">35</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:902:4">
+              <Name>Westhill Drive Turning Circle - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>4</PublicCode>
+              <PrivateCode type="txc:Line@id">4</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:811:4A">
+              <Name>Stonehaven Barclay Street - Stonehaven Barclay Street</Name>
+              <PublicCode>4A</PublicCode>
+              <PrivateCode type="txc:Line@id">4A</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:811:4C">
+              <Name>Stonehaven Barclay Street - Stonehaven Barclay Street</Name>
+              <PublicCode>4C</PublicCode>
+              <PrivateCode type="txc:Line@id">4C</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:667:5">
+              <Name>Westhill Berryhill Circle - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>5</PublicCode>
+              <PrivateCode type="txc:Line@id">5</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:4:59">
+              <Name>Torry Finnan Brae - Northfield Howes Road</Name>
+              <PublicCode>59</PublicCode>
+              <PrivateCode type="txc:Line@id">59</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:667:6">
+              <Name>Westhill Berryhill Circle - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>6</PublicCode>
+              <PrivateCode type="txc:Line@id">6</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:660:61">
+              <Name>Peterhead Grange Road - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>61</PublicCode>
+              <PrivateCode type="txc:Line@id">61</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:660:62">
+              <Name>Peterhead Grange Road - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>62</PublicCode>
+              <PrivateCode type="txc:Line@id">62</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:891:64">
+              <Name>Peterhead Windmill Street - Inverurie Market Place</Name>
+              <PublicCode>64</PublicCode>
+              <PrivateCode type="txc:Line@id">64</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:891:64A">
+              <Name>Peterhead Windmill Street - Huntly The Square</Name>
+              <PublicCode>64A</PublicCode>
+              <PrivateCode type="txc:Line@id">64A</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:389:68">
+              <Name>Fraserburgh Bus Station - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>68</PublicCode>
+              <PrivateCode type="txc:Line@id">68</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:357:727">
+              <Name>Dyce Railway Station - Stonehaven Forest Park</Name>
+              <PublicCode>727</PublicCode>
+              <PrivateCode type="txc:Line@id">727</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:725:8S">
+              <Name>Chapelton Landale Court - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>8S</PublicCode>
+              <PrivateCode type="txc:Line@id">8S</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:667:N6">
+              <Name>Westhill Berryhill Circle - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>N6</PublicCode>
+              <PrivateCode type="txc:Line@id">N6</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:585:X18">
+              <Name>Alford David McLean Drive - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>X18</PublicCode>
+              <PrivateCode type="txc:Line@id">X18</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:684:X20">
+              <Name>Alford Community Campus - Aberdeen Union Sq Stance 1</Name>
+              <PublicCode>X20</PublicCode>
+              <PrivateCode type="txc:Line@id">X20</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:600:X35">
+              <Name>Aberdeen Union Square Bus Station - Elgin Bus Station</Name>
+              <PublicCode>X35</PublicCode>
+              <PrivateCode type="txc:Line@id">X35</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:662:X60">
+              <Name>Peterhead Grange Road - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>X60</PublicCode>
+              <PrivateCode type="txc:Line@id">X60</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:662:X63">
+              <Name>Peterhead Grange Road - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>X63</PublicCode>
+              <PrivateCode type="txc:Line@id">X63</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:389:X67">
+              <Name>Fraserburgh Bus Station - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>X67</PublicCode>
+              <PrivateCode type="txc:Line@id">X67</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:389:X68">
+              <Name>Fraserburgh Bus Station - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>X68</PublicCode>
+              <PrivateCode type="txc:Line@id">X68</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:725:X8">
+              <Name>Aberdeen Union Square Bus Station - Stonehaven Forest Park</Name>
+              <PublicCode>X8</PublicCode>
+              <PrivateCode type="txc:Line@id">X8</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+            <Line version="1.0" id="SBLB:PM0000005:912:X9">
+              <Name>Stonehaven Martin Drive - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>X9</PublicCode>
+              <PrivateCode type="txc:Line@id">X9</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+          </lines>
+          <groupsOfLines>
+            <GroupOfLines version="1.0" id="SBLB@groupOfLines">
+              <Name>A group of available services.</Name>
+              <members>
+                <LineRef versionRef="1.0" ref="SBLB:PM0000005:661:107" />
+                <LineRef versionRef="1.0" ref="SBLB:PM0000005:710:201" />
+                <LineRef versionRef="1.0" ref="SBLB:PM0000005:710:202" />
+                </members>
+            </GroupOfLines>
+          </groupsOfLines>
+          <scheduledStopPoints>
+            <ScheduledStopPoint version="1.0" id="atco:639003772">
+              <Name>Abbey Place</Name>
+              <NameSuffix>adj 236</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES003680" />
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:639002402">
+              <Name>Abbotswell Drive</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002091" />
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:639002401">
+              <Name>Abbotswell Drive</Name>
+              <NameSuffix>opp</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002091" />
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            </scheduledStopPoints>
+        </ServiceFrame>
+        <ServiceCalendarFrame version="1.0" id="epd:UK:SBLB:ServiceCalendarFrame_UK_PI_CALENDAR:SBLB_products:op" dataSourceRef="op:src" responsibilitySetRef="op:tariff_data">
+          <dayTypes>
+            <DayType version="1.0" id="day_type@Public_Holiday">
+              <Name>Public Holiday</Name>
+              <properties>
+                <PropertyOfDay>
+                  <HolidayTypes>AnyHoliday</HolidayTypes>
+                </PropertyOfDay>
+              </properties>
+            </DayType>
+            <DayType version="1.0" id="day_type@School_Holiday">
+              <Name>School Holiday</Name>
+              <properties>
+                <PropertyOfDay>
+                  <HolidayTypes>AnyHoliday</HolidayTypes>
+                </PropertyOfDay>
+              </properties>
+            </DayType>
+            <DayType version="1.0" id="day_type@Weekday">
+              <Name>Weekday</Name>
+              <properties>
+                <PropertyOfDay>
+                  <DaysOfWeek>Monday Tuesday Wednesday Thursday Friday</DaysOfWeek>
+                  <HolidayTypes>WorkingDay</HolidayTypes>
+                </PropertyOfDay>
+              </properties>
+            </DayType>
+            <DayType version="1.0" id="day_type@Saturday">
+              <Name>Saturday</Name>
+              <properties>
+                <PropertyOfDay>
+                  <DaysOfWeek>Saturday</DaysOfWeek>
+                  <HolidayTypes>NotWorkingDay</HolidayTypes>
+                </PropertyOfDay>
+              </properties>
+            </DayType>
+            <DayType version="1.0" id="day_type@Sunday">
+              <Name>Sunday</Name>
+              <properties>
+                <PropertyOfDay>
+                  <DaysOfWeek>Sunday</DaysOfWeek>
+                  <HolidayTypes>NotWorkingDay</HolidayTypes>
+                </PropertyOfDay>
+              </properties>
+            </DayType>
+          </dayTypes>
+        </ServiceCalendarFrame>
+        <FareFrame version="1.0" id="epd:UK:SBLB:FareFrame_UK_PI_FARE_NETWORK:SBLB_products:op" dataSourceRef="op:src" responsibilitySetRef="op:network_data">
+          <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_FARE_NETWORK:FXCP" />
+          <fareZones>
+            <FareZone version="1.0" id="zone@Aberdeen_Commuter">
+              <Name>Aberdeen Commuter</Name>
+              <members>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:639003772">Abbey Place</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:639002402">Abbotswell Drive</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:639002401">Abbotswell Drive</ScheduledStopPointRef>
+                </members>
+              <types>
+                <TypeOfZoneRef versionRef="fxc:v1.0" ref="fxc:fare_zone" />
+              </types>
+            </FareZone>
+          </fareZones>
+        </FareFrame>
+        <FareFrame version="1.0" id="epd:UK:SBLB:FareFrame_UK_PI_FARE_PRODUCT:SBLB_products:op" dataSourceRef="op:src" responsibilitySetRef="op:tariff_data">
+          <Name>Fare products</Name>
+          <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_FARE_PRODUCT:FXCP" />
+          <tariffs>
+            <Tariff version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra">
+              <validityConditions>
+                <ValidBetween>
+                  <FromDate>2026-06-03T02:00:00Z</FromDate>
+                </ValidBetween>
+              </validityConditions>
+              <Name>Tariff for Aberdeen Commuter MegaRider Xtra</Name>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+              <GroupOfLinesRef versionRef="1.0" ref="SBLB@groupOfLines" />
+              <TypeOfTariffRef versionRef="fxc:v1.0" ref="fxc:zonal" />
+              <TariffBasis>zone</TariffBasis>
+              <timeIntervals>
+                <TimeInterval version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Pass@1_Month">
+                  <Name>1 Month</Name>
+                  <EndTime>03:59:59</EndTime>
+                  <DayOffset>1</DayOffset>
+                  <Duration>P1M</Duration>
+                </TimeInterval>
+              </timeIntervals>
+              <fareStructureElements>
+                <FareStructureElement version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Conditions_of_travel">
+                  <Name>Conditions of travel</Name>
+                  <TypeOfFareStructureElementRef versionRef="fxc:v1.0" ref="fxc:travel_conditions" />
+                  <GenericParameterAssignment version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Conditions_of_travel" order="1">
+                    <TypeOfAccessRightAssignmentRef versionRef="fxc:v1.0" ref="fxc:condition_of_use" />
+                    <LimitationGroupingType>AND</LimitationGroupingType>
+                    <limitations>
+                      <Transferability version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Conditions_of_travel@Transferability">
+                        <Name>Ticket is not transferable</Name>
+                        <CanTransfer>false</CanTransfer>
+                      </Transferability>
+                      <FrequencyOfUse version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Conditions_of_travel@Frequency">
+                        <FrequencyOfUseType>unlimited</FrequencyOfUseType>
+                      </FrequencyOfUse>
+                      <UsageValidityPeriod version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Conditions_of_travel@Validity">
+                        <UsageEnd>endOfFareDay</UsageEnd>
+                        <EndTime>03:59:59</EndTime>
+                      </UsageValidityPeriod>
+                    </limitations>
+                  </GenericParameterAssignment>
+                </FareStructureElement>
+                <FareStructureElement version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Durations">
+                  <Name>Pass durations</Name>
+                  <TypeOfFareStructureElementRef versionRef="fxc:v1.0" ref="fxc:durations" />
+                  <timeIntervals>
+                    <TimeIntervalRef version="1.0" ref="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Pass@1_Month" />
+                  </timeIntervals>
+                </FareStructureElement>
+                <FareStructureElement version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Eligibility">
+                  <Name>Eligible user types</Name>
+                  <TypeOfFareStructureElementRef versionRef="fxc:v1.0" ref="fxc:eligibility" />
+                  <GenericParameterAssignment version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Eligibility" order="1">
+                    <Name>Eligibility to purchase</Name>
+                    <TypeOfAccessRightAssignmentRef versionRef="fxc:v1.0" ref="fxc:eligible" />
+                    <limitations>
+                      <UserProfile version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@UP@adult">
+                        <Name>Adult</Name>
+                        <TypeOfConcessionRef versionRef="fxc:v1.0" ref="fxc:adult" />
+                        <UserType>adult</UserType>
+                      </UserProfile>
+                    </limitations>
+                  </GenericParameterAssignment>
+                </FareStructureElement>
+                <FareStructureElement version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Access_Zones">
+                  <Name>Available zones</Name>
+                  <TypeOfFareStructureElementRef versionRef="fxc:v1.0" ref="fxc:access" />
+                  <GenericParameterAssignment version="1.0" id="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Access_Zones" order="1">
+                    <Name>Zones</Name>
+                    <TypeOfAccessRightAssignmentRef versionRef="fxc:v1.0" ref="fxc:can_access" />
+                    <ValidityParameterAssignmentType>EQ</ValidityParameterAssignmentType>
+                    <validityParameters>
+                      <FareZoneRef versionRef="1.0" ref="zone@Aberdeen_Commuter" />
+                    </validityParameters>
+                  </GenericParameterAssignment>
+                </FareStructureElement>
+              </fareStructureElements>
+            </Tariff>
+          </tariffs>
+          <fareProducts>
+            <PreassignedFareProduct version="1.0" id="pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra">
+              <Name>Aberdeen Commuter MegaRider Xtra</Name>
+              <ChargingMomentRef versionRef="fxc:v1.0" ref="fxc:prepayment" />
+              <ChargingMomentType>beforeTravel</ChargingMomentType>
+              <TypeOfFareProductRef versionRef="fxc:v1.0" ref="fxc:standard_product@pass@period" />
+              <OperatorRef version="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+              <validableElements>
+                <ValidableElement version="1.0" id="pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Access">
+                  <Name>Pass</Name>
+                  <fareStructureElements>
+                    <FareStructureElementRef version="1.0" ref="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Eligibility" />
+                    <FareStructureElementRef version="1.0" ref="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Conditions_of_travel" />
+                    <FareStructureElementRef version="1.0" ref="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Access_Zones" />
+                    <FareStructureElementRef version="1.0" ref="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Durations" />
+                  </fareStructureElements>
+                </ValidableElement>
+              </validableElements>
+              <accessRightsInProduct>
+                <AccessRightInProduct version="1.0" id="pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra" order="1">
+                  <ValidableElementRef version="1.0" ref="pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra@Access" />
+                </AccessRightInProduct>
+              </accessRightsInProduct>
+              <ProductType>periodPass</ProductType>
+            </PreassignedFareProduct>
+          </fareProducts>
+          <salesOfferPackages>
+            <SalesOfferPackage version="1.0" id="SOP@pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra@smartOnWeb">
+              <Name>Aberdeen Commuter MegaRider Xtra - Online (smart)</Name>
+              <distributionAssignments>
+                <DistributionAssignment version="1.0" id="SOP@pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra@smartOnWeb@online" order="1">
+                  <DistributionChannelType>online</DistributionChannelType>
+                  <PaymentMethods>creditCard debitCard</PaymentMethods>
+                  <FulfilmentMethodRef version="1.0" ref="Fulfilment@onlinePropagation" />
+                </DistributionAssignment>
+              </distributionAssignments>
+              <salesOfferPackageElements>
+                <SalesOfferPackageElement version="1.0" id="SOP@pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra@smartOnWeb@smartCard" order="1">
+                  <TypeOfTravelDocumentRef version="1.0" ref="TravelDocument@smartCard" />
+                  <PreassignedFareProductRef version="1.0" ref="pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra" />
+                  <validityParameterAssignments>
+                    <GenericParameterAssignment version="1.0" id="SOP@pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra@smartOnWeb@smartCard" order="1">
+                      <TypeOfAccessRightAssignmentRef versionRef="fxc:v1.0" ref="fxc:can_purchase_when" />
+                      <limitations>
+                        <PurchaseWindow version="1.0" id="SOP@pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra@smartOnWeb@smartCard@purchase_window">
+                          <MinimumPeriodBeforeDeparture>P2D</MinimumPeriodBeforeDeparture>
+                        </PurchaseWindow>
+                      </limitations>
+                    </GenericParameterAssignment>
+                  </validityParameterAssignments>
+                </SalesOfferPackageElement>
+              </salesOfferPackageElements>
+            </SalesOfferPackage>
+          </salesOfferPackages>
+        </FareFrame>
+        <FareFrame version="1.0" id="epd:UK:SBLB:FareFrame_UK_PI_FARE_NETWORK_PRICE:SBLB_products:op" dataSourceRef="op:src" responsibilitySetRef="op:tariff_data">
+          <Name>Prices for Abdn Comm  Xtra</Name>
+          <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_PRICE:FXCP" />
+          <FrameDefaults>
+            <DefaultCurrency>GBP</DefaultCurrency>
+          </FrameDefaults>
+          <prerequisites>
+            <FareFrameRef versionRef="1.0" ref="epd:UK:SBLB:FareFrame_UK_PI_FARE_PRODUCT:SBLB_products:op" />
+          </prerequisites>
+          <fareTables>
+            <FareTable version="1.0" id="fareTable@pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra">
+              <Name>Abdn Comm Xtra</Name>
+              <pricesFor>
+                <PreassignedFareProductRef version="1.0" ref="pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra" />
+                <SalesOfferPackageRef version="1.0" ref="SOP@pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra@smartOnWeb" />
+                <UserProfileRef version="1.0" ref="Tariff@Abdn_Comm__Xtra@Abdn_Comm_Xtra@UP@adult" />
+              </pricesFor>
+              <prices>
+                <DistanceMatrixElementPrice version="1.0" id="price@pass@Abdn_Comm__Xtra@Abdn_Comm_Xtra">
+                  <Amount>118</Amount>
+                </DistanceMatrixElementPrice>
+              </prices>
+            </FareTable>
+          </fareTables>
+        </FareFrame>
+      </frames>
+    </CompositeFrame>
+    <CompositeFrame version="1.0" id="epd:UK:SBLB:CompositeFrame_UK_PI_METADATA_OFFER::op" dataSourceRef="op:src" responsibilitySetRef="op:metadata">
+      <Name>Common resources for SBLB</Name>
+      <Description>Set of SBLB profile metadata.</Description>
+      <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_METADATA_OFFER:FXCP" />
+      <frames>
+        <FareFrame version="1.0" id="epd:UK:SBLB:FareFrame_UK_PI_METADATA:SBLB_products:op" dataSourceRef="op:src" responsibilitySetRef="op:metadata">
+          <fulfilmentMethods>
+            <FulfilmentMethod version="1.0" id="Fulfilment@mobileApp">
+              <Name>Mobile App</Name>
+              <FulfilmentMethodType>mobileApp</FulfilmentMethodType>
+            </FulfilmentMethod>
+            <FulfilmentMethod version="1.0" id="Fulfilment@onlinePropagation">
+              <Name>Online propagation</Name>
+              <FulfilmentMethodType>validator</FulfilmentMethodType>
+            </FulfilmentMethod>
+            <FulfilmentMethod version="1.0" id="Fulfilment@post">
+              <Name>Send ticket by post</Name>
+              <FulfilmentMethodType>post</FulfilmentMethodType>
+            </FulfilmentMethod>
+            <FulfilmentMethod version="1.0" id="Fulfilment@collectAtCounter">
+              <Name>Collect at counter</Name>
+              <FulfilmentMethodType>ticketOffice</FulfilmentMethodType>
+            </FulfilmentMethod>
+            <FulfilmentMethod version="1.0" id="Fulfilment@collectOnBoard">
+              <Name>Collect on board</Name>
+              <FulfilmentMethodType>conductor</FulfilmentMethodType>
+            </FulfilmentMethod>
+          </fulfilmentMethods>
+          <typesOfTravelDocuments>
+            <TypeOfTravelDocument version="1.0" id="TravelDocument@mobileApp">
+              <Name>Stored on your mobile phone as m-tickets</Name>
+              <MediaType>mobileApp</MediaType>
+              <MachineReadable>barCode</MachineReadable>
+            </TypeOfTravelDocument>
+            <TypeOfTravelDocument version="1.0" id="TravelDocument@smartCard">
+              <Name>Smart_Card_Ticket</Name>
+              <MediaType>smartCard</MediaType>
+              <MachineReadable>nfc</MachineReadable>
+            </TypeOfTravelDocument>
+            <TypeOfTravelDocument version="1.0" id="TravelDocument@paperTicket">
+              <Name>Printed Ticket</Name>
+              <MediaType>paperTicket</MediaType>
+            </TypeOfTravelDocument>
+          </typesOfTravelDocuments>
+        </FareFrame>
+      </frames>
+    </CompositeFrame>
+  </dataObjects>
+</PublicationDelivery>

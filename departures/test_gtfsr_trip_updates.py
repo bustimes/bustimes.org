@@ -1,8 +1,10 @@
 from datetime import timedelta
 from http import HTTPStatus
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import fakeredis
+import time_machine
 import vcr
 from django.test import TestCase, override_settings
 
@@ -143,14 +145,52 @@ class GTFSRTTest(TestCase):
             response = self.client.get(self.cancellable_trip.get_absolute_url())
             self.assertTrue(response.context["stops_json"])
 
-    def test_no_feed(self):
-        with patch("departures.gtfsr.get_trip_updates", return_value=None):
-            self.assertIsNone(gtfsr.update_stop_departures((), "ntaie"))
+    @time_machine.travel("2022-05-04T05:50:00Z")  # 06:50 BST
+    def test_late_departure(self):
+        trip_updates = {
+            "4323_12791": {
+                "trip": {"tripId": "4323_12791"},
+                "stopTimeUpdate": [{"stopSequence": 12, "departure": {"delay": 600}}],
+            }
+        }
+        with patch("departures.gtfsr.get_trip_updates", return_value=trip_updates):
+            response = self.client.get("/stops/8250DB000429")
+        # scheduled 06:45, but running 10 minutes late
+        self.assertContains(response, self.trip.get_absolute_url())
+        self.assertContains(response, "06:55")
+        # scheduled 06:45, no real time information
+        self.assertNotContains(response, self.cancellable_trip.get_absolute_url())
+
+        trip_updates["4323_12791"]["stopTimeUpdate"][0]["departure"]["delay"] = 60
+        with patch("departures.gtfsr.get_trip_updates", return_value=trip_updates):
+            response = self.client.get("/stops/8250DB000429")
+        # departed at 06:46
+        self.assertNotContains(response, self.trip.get_absolute_url())
+
+    def test_no_trip_updates(self):
+        self.assertIsNone(gtfsr.update_stop_departures((), {}))
 
     def test_update_departure_without_stop_time_updates(self):
         departure = {"stop_time": StopTime(sequence=1)}
         gtfsr.update_departure(departure, {"trip": {}})
         self.assertEqual(departure, {"stop_time": departure["stop_time"]})
+
+    def test_apply_trip_update_skipped(self):
+        stops = [
+            StopTime(sequence=1, departure=timedelta(hours=8)),
+            StopTime(sequence=2, departure=timedelta(hours=8, minutes=5)),
+        ]
+        gtfsr.apply_trip_update(
+            stops,
+            {
+                "stopTimeUpdate": [
+                    {"stopSequence": 1, "departure": {"delay": 60}},
+                    {"stopSequence": 2, "scheduleRelationship": "SKIPPED"},
+                ]
+            },
+        )
+        self.assertFalse(hasattr(stops[0], "call_condition"))
+        self.assertEqual(stops[1].call_condition, "notStopping")
 
     def test_get_expected_time(self):
         update = {
@@ -166,6 +206,15 @@ class GTFSRTTest(TestCase):
         self.assertEqual(
             str(gtfsr.get_expected_time(time, update, "arrival")),
             "2024-09-03 08:39:18+01:00",
+        )
+
+        self.assertEqual(
+            str(
+                gtfsr.get_expected_time(
+                    time, update, "arrival", ZoneInfo("Europe/Paris")
+                )
+            ),
+            "2024-09-03 09:39:18+02:00",
         )
 
         time += timedelta(minutes=10)

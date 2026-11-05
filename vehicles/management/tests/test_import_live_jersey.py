@@ -33,7 +33,7 @@ class JerseyImportTest(TestCase):
         self.assertEqual(StopPoint.objects.count(), 763)
 
     def test_routes(self):
-        with vcr.use_cassette(str(VCR_DIR / "jersey_routes.yaml")):
+        with vcr.use_cassette(VCR_DIR / "jersey_routes.yaml"):
             call_command("jersey_routes")
 
         response = self.client.get("/regions/JE")

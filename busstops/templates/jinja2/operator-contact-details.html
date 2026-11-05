@@ -1,4 +1,4 @@
-{% if operator.url or licences or nocs %}
+{% if operator.url %}
 <div itemscope itemtype="http://schema.org/LocalBusiness">
 
     <h2 itemprop="name">{{ operator }}</h2>
@@ -11,21 +11,6 @@
             </div>
         {% endif %}
 
-        {% if licences %}
-            <div>
-                <dt>Licence number{{ licences|length|pluralize }}</dt>
-                <dd>{% for licence in licences %}
-                    <a href="{{ licence.get_absolute_url() }}" title="{{ licence.name }}">{{ licence }}</a>{% if not forloop.last %},{% endif %}
-                {% endfor %}</dd>
-            </div>
-        {% endif %}
-
-        {% if nocs %}
-            <div>
-                <dt>National operator code{{ nocs|length|pluralize }}</dt>
-                <dd>{{ nocs.join(", ") }}</dd>
-            </div>
-        {% endif %}
     </dl>
 
 </div>

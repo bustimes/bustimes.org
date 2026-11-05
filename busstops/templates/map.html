@@ -6,7 +6,6 @@
 
 {% block head %}
     <meta property="og:title" content="Map – bustimes.org">
-    <link rel="stylesheet" href="{% static 'dist/js/app.css' %}">
     <link rel="stylesheet" media="print" href="/liveries.{{ liveries_css_version }}.css" onload="this.onload=null;this.removeAttribute('media')">
 {% endblock head %}
 
@@ -37,17 +36,6 @@
 {% endblock content %}
 
 {% block footer %}
-    <script>
-        INITIAL_VIEW_STATE = {
-        {% if request.headers.cf_ipcountry == "IE" %}
-            latitude: 53.45,
-            longitude: -7.5,
-        {% else %}
-            latitude: 54,
-            longitude: -2.9,
-        {% endif %}
-            zoom: 5,
-        };
-    </script>
+    {{ initial_view_state|json_script:"initialViewState" }}
     <script src="{% static 'dist/js/app.js' %}"></script>
 {% endblock footer %}

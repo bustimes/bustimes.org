@@ -11,7 +11,8 @@ from busstops.templatetags.date_range import date_range
 
 
 def from_now():
-    return [timezone.now()]
+    """default publication_window"""
+    return [timezone.now(), None]
 
 
 def time_range(lower, upper):
@@ -37,8 +38,7 @@ class Situation(models.Model):
         default=236,
     )
     situation_number = models.CharField(max_length=36, blank=True)
-    reason = models.CharField(max_length=25, blank=True)
-    severity = models.CharField(max_length=25, blank=True)
+    reason = models.CharField(max_length=50, blank=True)
     summary = models.CharField(max_length=255, blank=True, help_text="(title)")
     show_summary = models.BooleanField(default=True)
     participant_ref = models.CharField(max_length=36, blank=True)
@@ -81,6 +81,16 @@ class Situation(models.Model):
             ):
                 return True
         return False
+
+    def consequence_texts(self) -> list[str]:
+        texts = []
+        for consequence in self.consequences:
+            text = consequence.text
+            if self.text and text.startswith(self.text):
+                text = text[len(self.text) :].strip()
+            if text and text not in self.text and text not in texts:
+                texts.append(text)
+        return texts
 
     def list_validity_periods(self) -> list[str]:
         validity_periods = list(self.validityperiod_set.all())
@@ -155,8 +165,18 @@ class Situation(models.Model):
         return result
 
 
+def delete_old_situations(source, situation_ids, empty_feed_ok=False):
+    """Delete a source's situations that weren't in its latest feed -
+    unless the feed was empty, which (for some feeds) is probably an error"""
+    if not (situation_ids or empty_feed_ok):
+        return
+    old_situations = source.situation_set.exclude(id__in=situation_ids)
+    while ids := list(old_situations.values_list("id", flat=True)[:1000]):
+        Situation.objects.filter(id__in=ids).delete()
+
+
 class Link(models.Model):
-    url = models.URLField()
+    url = models.URLField(max_length=255)
     situation = models.ForeignKey(Situation, models.DB_CASCADE)
 
     def __str__(self):
@@ -184,8 +204,15 @@ class Consequence(models.Model):
     operators = models.ManyToManyField(
         "busstops.Operator", blank=True, through="ConsequenceOperator"
     )
+    admin_areas = models.ManyToManyField(
+        "busstops.AdminArea", blank=True, through="ConsequenceAdminArea"
+    )
     text = models.TextField(blank=True)
     data = models.TextField(blank=True)
+    severity = models.CharField(max_length=25, blank=True)
+    vehicle_mode = models.CharField(max_length=25, blank=True)
+    direction = models.CharField(max_length=25, blank=True)
+    delay = models.DurationField(null=True, blank=True)
 
     def __str__(self):
         return self.text
@@ -235,6 +262,19 @@ class ConsequenceOperator(models.Model):
     class Meta:
         db_table = "disruptions_consequence_operators"
         unique_together = ("consequence", "operator")
+
+
+class ConsequenceAdminArea(models.Model):
+    # as ConsequenceStop
+    consequence = models.ForeignKey(
+        Consequence, models.DB_CASCADE, related_name="consequenceadminarea+"
+    )
+    adminarea = models.ForeignKey(
+        "busstops.AdminArea", models.DO_NOTHING, related_name="consequenceadminarea+"
+    )
+
+    class Meta:
+        unique_together = ("consequence", "adminarea")
 
 
 class AffectedJourney(models.Model):

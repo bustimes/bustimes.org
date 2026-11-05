@@ -308,7 +308,7 @@ class VehiclesTests(TestCase):
         self.assertEqual(str(self.journey), "19 Oct 20 23:47 2  ")
         self.assertEqual(
             self.journey.get_absolute_url(),
-            f"/vehicles/{self.vehicle_1.id}?date=2020-10-20#journey-{self.journey.id}",
+            f"/journeys/{self.journey.id}",
         )
 
         response = self.client.get(f"/api/vehiclejourneys/{self.journey.id}.json")
@@ -322,7 +322,7 @@ class VehiclesTests(TestCase):
 
         self.assertEqual(str(location), "19 Oct 2020 23:47:00")
 
-        self.assertEqual(location.get_redis_json()["coordinates"], (0.0, 51.0))
+        self.assertEqual(location.get_redis_json()["coordinates"], [0.0, 51.0])
 
         location.occupancy = "Seats available"
         self.assertEqual(location.get_redis_json()["seats"], "Seats available")
@@ -430,7 +430,7 @@ class VehiclesTests(TestCase):
         self.client.post(
             "/admin/vehicles/vehicle/",
             {
-                "action": "deduplicate",
+                "action": "deduplicate_reg",
                 "_selected_action": [duplicate_1.id, duplicate_2.id, duplicate_3.id],
             },
         )
@@ -441,6 +441,21 @@ class VehiclesTests(TestCase):
         self.assertFalse(merged.withdrawn)
         self.assertEqual(merged.id, duplicate_1.id)
         self.assertEqual("none-60", merged.vehiclecode_set.get().code)
+
+        old = Vehicle.objects.create(fleet_code="3748", reg="MA76ZPB", code="MA76_ZPB")
+        new = Vehicle.objects.create(fleet_code="3748", code="3748")
+        self.client.post(
+            "/admin/vehicles/vehicle/",
+            {
+                "action": "deduplicate_fleet_code",
+                "_selected_action": [old.id, new.id],
+            },
+        )
+        self.assertEqual(Vehicle.objects.count(), 6)
+        merged = Vehicle.objects.get(fleet_code="3748")
+        self.assertEqual(merged.id, old.id)
+        self.assertEqual(merged.code, "3748")
+        self.assertEqual(merged.reg, "MA76ZPB")
 
         self.client.post(
             "/admin/vehicles/vehicle/",
@@ -1006,7 +1021,7 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
     def test_big_map(self):
         with self.assertNumQueries(1):
             response = self.client.get("/map")
-            self.assertContains(response, "latitude: 54,")
+            self.assertContains(response, '{"latitude": 54, ')
 
         with self.assertNumQueries(1):
             response = self.client.get("/maps")
@@ -1014,7 +1029,7 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
 
         # 🇮🇪
         response = self.client.get("/map", headers={"CF-IPCountry": "IE"})
-        self.assertContains(response, "latitude: 53.45,")
+        self.assertContains(response, '{"latitude": 53.45, ')
 
     def test_vehicles(self):
         with self.assertNumQueries(3):
@@ -1171,6 +1186,10 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
             response = self.client.get("/vehicles.json?id=1,2")
         self.assertEqual(response.json(), [])
         self.assertEqual(response.headers["ETag"], '"d751713988987e9331980363e24189ce"')
+        self.assertNotIn("Cache-Control", response.headers)
+
+        response = self.client.get("/vehicles.json")
+        self.assertEqual(response.headers["Cache-Control"], "s-maxage=10")
 
 
 class CalculateBearingTest(SimpleTestCase):

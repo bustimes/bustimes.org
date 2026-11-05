@@ -1,13 +1,15 @@
+import json
 import logging
 
 import requests
 from bs4 import BeautifulSoup
+from django.db import transaction
 from django.db.backends.postgresql.psycopg_any import DateTimeTZRange
 from django.db.models import Q
 
 from busstops.models import DataSource, Service
 
-from .models import Consequence, Situation, ValidityPeriod
+from .models import Consequence, Situation, ValidityPeriod, delete_old_situations
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +25,17 @@ def handle_item(item: dict, source: DataSource, current_situations: dict):
 
     situation = current_situations.get(situation_number)
 
+    data = json.dumps(item)
+
     if situation:
-        # return situation.id  # hasn't changed
+        if situation.data == data:
+            return situation.id  # hasn't changed
         created = False
     else:
-        situation = Situation(
-            source=source, situation_number=situation_number, current=True
-        )
+        situation = Situation(source=source, situation_number=situation_number)
         created = True
+
+    situation.current = True
 
     situation.created_at = item["timestamps"]["creation"]
     situation.modified_at = item["timestamps"]["lastModification"]
@@ -45,6 +50,7 @@ def handle_item(item: dict, source: DataSource, current_situations: dict):
     situation.text = item["infoLinks"][0]["content"]
     soup = BeautifulSoup(situation.text, "lxml")
     situation.text = soup.get_text().strip().replace("\n\xa0\n", "\n\n")
+    situation.data = data
     situation.save()
 
     for i, period_element in enumerate(item["timestamps"]["validity"]):
@@ -117,8 +123,14 @@ def translink_disruptions(api_key):
     }
 
     for element in elements:
-        if situation_id := handle_item(element, source, current_situations):
+        try:
+            with transaction.atomic():
+                situation_id = handle_item(element, source, current_situations)
+        except Exception:
+            logger.exception("situation %s", element["id"])
+            # keep showing the previous version
+            situation = current_situations.get(element["id"])
+            situation_id = situation and situation.id
+        if situation_id:
             situations.append(situation_id)
-    source.situation_set.filter(current=True).exclude(id__in=situations).update(
-        current=False
-    )
+    delete_old_situations(source, situations)

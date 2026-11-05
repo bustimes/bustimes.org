@@ -50,7 +50,7 @@ class BankHolidaysTest(TestCase):
         fixtures_dir = Path(__file__).resolve().parent / "fixtures"
 
         with (
-            use_cassette(str(fixtures_dir / "bank_holidays.yaml")) as cassette,
+            use_cassette(fixtures_dir / "bank_holidays.yaml") as cassette,
             self.assertNumQueries(6),
             self.assertLogs(
                 "bustimes.management.commands.bank_holidays", "WARNING"

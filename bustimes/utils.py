@@ -1,10 +1,12 @@
 import hashlib
+import re
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import UTC, date, datetime, timedelta
 from difflib import Differ
 from itertools import pairwise
 
+from django.core.cache import cache
 from django.db.models import (
     Case,
     DateTimeField,
@@ -19,7 +21,7 @@ from django.db.models.functions import Abs, Least
 from django.utils import timezone
 from sql_util.utils import Exists
 
-from .models import Calendar, StopTime, Trip
+from .models import Calendar, Route, StopTime, Trip
 
 differ = Differ(charjunk=lambda _: True)
 
@@ -41,6 +43,58 @@ class log_time_taken:
 
     def __exit__(self, _, __, ___):
         self.logger.info(f"  ⏱️ {datetime.now(UTC) - self.start}")
+
+
+def cached_ids(kind, routes, when, extra, get_ids) -> list[int]:
+    """Cache ids that depend on some routes and a date,
+    until the routes' services are next saved (e.g. reimported), or for an hour"""
+    if not routes:
+        return []
+    key = f"{kind}:{when}:{extra}:" + ",".join(
+        sorted(f"{route.id}:{route.service_modified_at}" for route in routes)
+    )
+    key = f"{kind}:{hashlib.sha1(key.encode(), usedforsecurity=False).hexdigest()}"
+    ids = cache.get(key)
+    if ids is None:
+        ids = get_ids()
+        cache.set(key, ids, 3600)
+    return ids
+
+
+def get_active_route_ids(routes, when, revisions=True) -> list[int]:
+    """ids of the routes that are active on a date
+    (routes must have service_modified_at - see Route.objects.with_service_modified_at)
+    """
+    return cached_ids(
+        "routes",
+        routes,
+        when,
+        revisions,
+        lambda: list(
+            Route.objects.filter(id__in=[route.id for route in routes])
+            .active_on(when, revisions)
+            .values_list("id", flat=True)
+        ),
+    )
+
+
+def get_active_calendar_ids(routes, when, scotland, calendar_ids=None) -> list[int]:
+    """ids of the calendars that are active on a date -
+    either out of `calendar_ids`, or of the routes that are active on the date"""
+
+    def get_ids():
+        calendars = Calendar.objects.active_on(when, calendar_ids, scotland=scotland)
+        if calendar_ids is None:
+            calendars = calendars.for_routes(
+                Route.objects.filter(id__in=[route.id for route in routes]).active_on(
+                    when
+                )
+            )
+        return list(calendars.values_list("id", flat=True))
+
+    return cached_ids(
+        "calendars", routes, when, (scotland, calendar_ids is None), get_ids
+    )
 
 
 def get_stop_times(date: date, time: timedelta | None, stop, routes, trip_ids=None):
@@ -68,17 +122,11 @@ def get_stop_times(date: date, time: timedelta | None, stop, routes, trip_ids=No
             )
         )
     else:
-        routes = list(routes.active_on(date))
-
         scotland = stop.pk[:1] == "6" and ":" not in stop.pk and stop.pk[:4].isdigit()
 
         times = times.filter(
-            trip__route__in=routes,
-            trip__calendar__in=list(
-                Calendar.objects.active_on(date, scotland=scotland)
-                .for_routes(routes)
-                .values_list("id", flat=True)
-            ),
+            trip__route__in=get_active_route_ids(routes, date),
+            trip__calendar__in=get_active_calendar_ids(routes, date, scotland),
         )
 
         if time is not None:
@@ -100,20 +148,83 @@ def get_stop_times(date: date, time: timedelta | None, stop, routes, trip_ids=No
     return times
 
 
+GENERIC_WORDS = {
+    "adj",
+    "and",
+    "bay",
+    "bus",
+    "centre",
+    "circ",
+    "circular",
+    "city",
+    "high",
+    "interchange",
+    "lane",
+    "opp",
+    "park",
+    "rail",
+    "railway",
+    "road",
+    "school",
+    "square",
+    "stance",
+    "stand",
+    "station",
+    "stop",
+    "street",
+    "the",
+    "town",
+    "via",
+}
+
+
+def significant_words(name: str) -> set[str]:
+    return {
+        word
+        for word in re.findall(r"[a-z]+", name.lower())
+        if len(word) > 2 and word not in GENERIC_WORDS
+    }
+
+
+def is_wrong_way_round(origin, destination, actual_origin, actual_destination) -> bool:
+    origin, destination, actual_origin, actual_destination = map(
+        significant_words, (origin, destination, actual_origin, actual_destination)
+    )
+    same = bool(origin & actual_origin) + bool(destination & actual_destination)
+    swapped = bool(origin & actual_destination) + bool(destination & actual_origin)
+    return swapped > same
+
+
+def descriptions_are_redundant(route) -> bool:
+    o, d = route.origin, route.destination
+    return bool(
+        o
+        and d
+        and route.outbound_description in ("", f"{o} - {d}", f"{o} to {d}")
+        and route.inbound_description in ("", f"{d} - {o}", f"{d} to {o}")
+    )
+
+
 def get_descriptions(routes):
     inbound_outbound_descriptions = {
         (route.outbound_description, route.inbound_description): None
         for route in routes
-        if route.outbound_description != route.inbound_description
+        if route.outbound_description
+        and route.inbound_description
+        and route.outbound_description != route.inbound_description
+        and not descriptions_are_redundant(route)
     }.keys()
 
-    origins_and_destinations = list(
-        {
-            tuple(filter(None, [route.origin, route.via, route.destination])): None
-            for route in routes
-            if route.origin and route.destination
-        }.keys()
-    )
+    origins_and_destinations = []
+    for route in routes:
+        if route.origin and route.destination:
+            parts = tuple(filter(None, [route.origin, route.via, route.destination]))
+            # ignore duplicates, and mirror images (ignoring vias) of ones we've already got
+            if not any(
+                parts == other or (parts[0], parts[-1]) == (other[-1], other[0])
+                for other in origins_and_destinations
+            ):
+                origins_and_destinations.append(parts)
 
     if len(origins_and_destinations) > 1:
         # if all have the same via
@@ -129,7 +240,7 @@ def get_descriptions(routes):
         # join "Holt - Sheringham" and "Sheringham - Cromer" for example
         # (like dominoes)
         for i, parts in enumerate(origins_and_destinations):
-            for j, other_parts in enumerate(origins_and_destinations[i:]):
+            for j, other_parts in enumerate(origins_and_destinations[i + 1 :], 1):
                 if parts[0] == other_parts[-1]:
                     origins_and_destinations[i + j] = other_parts + parts[1:]
                     origins_and_destinations[i] = None
@@ -191,20 +302,23 @@ def get_service_routes(service, when) -> list:
     if cache is None:
         return list(service.route_set.select_related("source").active_on(when))
 
-    version = (service.modified_at, when)
     entry = cache.get(service.id)
+    if not entry or entry[0] != service.modified_at:
+        entry = (service.modified_at, {})
+        cache[service.id] = entry
 
-    if entry and entry[0] == version:
+    routes_by_date = entry[1]
+    if when in routes_by_date:
         cache.hits += 1
     else:
         cache.misses += 1
-        entry = (
-            version,
-            list(service.route_set.select_related("source").active_on(when)),
+        for stale in [date for date in routes_by_date if abs(date - when).days > 1]:
+            del routes_by_date[stale]
+        routes_by_date[when] = list(
+            service.route_set.select_related("source").active_on(when)
         )
-        cache[service.id] = entry
 
-    return entry[1]
+    return routes_by_date[when]
 
 
 def get_trip(
@@ -229,10 +343,17 @@ def get_trip(
     if not date:
         date = timezone.localdate(departure_time or datetime)
 
-    # TODO: get routes for previous day, in case journey starts after midnight
     routes = get_service_routes(journey.service, date)
-    if routes:
-        trips = Trip.objects.filter(route__in=routes)
+    if timezone.localtime(departure_time or datetime).hour < 7:
+        # might be timetabled as part of the previous day (start after 24:00)
+        yesterday_routes = get_service_routes(journey.service, date - timedelta(days=1))
+    else:
+        yesterday_routes = []
+    if routes or yesterday_routes:
+        trips = Trip.objects.filter(
+            Q(route__in=routes, start__lt=timedelta(days=1))
+            | Q(route__in=yesterday_routes, start__gte=timedelta(days=1))
+        )
     else:
         trips = Trip.objects.filter(route__service=journey.service)
 
@@ -261,7 +382,7 @@ def get_trip(
             start |= Exists(
                 "stoptime", filter=Q(stop=origin_ref, departure=start_timedelta)
             )
-        if start_time.hour < 6:
+        if start_time.hour < 7:
             start |= Q(start=start_timedelta + timedelta(days=1))
             if origin:
                 start |= Exists(
@@ -275,7 +396,7 @@ def get_trip(
         hours = int(journey_code[:-2])
         minutes = int(journey_code[-2:])
         start = Q(start=timedelta(hours=hours, minutes=minutes))
-        if hours < 6:
+        if hours < 7:
             start |= Q(start=timedelta(days=1, hours=hours, minutes=minutes))
     else:
         start = Q()
@@ -283,7 +404,7 @@ def get_trip(
     if arrival_time:
         arrival_time = timezone.localtime(arrival_time)
         end = Q(end=timedelta(hours=arrival_time.hour, minutes=arrival_time.minute))
-        if arrival_time.hour < 6:
+        if arrival_time.hour < 7:
             end |= Q(
                 end=timedelta(
                     days=1, hours=arrival_time.hour, minutes=arrival_time.minute
@@ -331,7 +452,7 @@ def get_trip(
         start_time = timezone.localtime(datetime)
         start_time = timedelta(hours=start_time.hour, minutes=start_time.minute)
 
-        if start_time < timedelta(hours=6):
+        if start_time < timedelta(hours=7):
             # might be timetabled as part of the previous day
             start_times = (start_time, start_time + timedelta(days=1))
         else:

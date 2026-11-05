@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from busstops.models import Service, SIRISource, StopPoint
-from bustimes.models import Route
+from bustimes.models import Route, Trip
 from bustimes.utils import get_stop_times
 from vehicles import rtpi
 from vehicles.models import VehicleJourney
@@ -99,9 +99,11 @@ def get_departures(stop, services, when) -> dict:
                         "departures": live_departures,
                     }
 
-    routes = Route.objects.filter(
-        service__in=[s for s in services if not s.timetable_wrong]
-    ).select_related("source")
+    routes = (
+        Route.objects.filter(service__in=[s for s in services if not s.timetable_wrong])
+        .select_related("source")
+        .with_service_modified_at()
+    )
 
     now = None
     for route in routes:
@@ -117,9 +119,16 @@ def get_departures(stop, services, when) -> dict:
 
     departures = None
 
-    ntaie = any(route.source.name == "Realtime Transport Operators" for route in routes)
-    ember = any(route.source.name == "Ember" for route in routes)
-    gtfsr_available = ntaie or ember
+    gtfsr_feed_name = next(
+        (
+            feed_name
+            for route in routes
+            if (feed_name := gtfsr.FEED_NAMES.get(route.source.name))
+            and feed_name != "flixbus"
+        ),
+        None,
+    )
+    gtfsr_available = gtfsr_feed_name is not None
 
     if not when and live_departures is None and not gtfsr_available:
         vehicle_locations = avl.get_tracking(stop, services)
@@ -155,9 +164,7 @@ def get_departures(stop, services, when) -> dict:
                         if (
                             "overdue" not in departure
                             or "progress" in item
-                            and rtpi.is_before_stop(
-                                item, stop_time.id, stop_time.trip_id
-                            )
+                            and rtpi.is_before_stop(item, stop_time)
                         ):
                             delay = item["delay"]
 
@@ -194,19 +201,40 @@ def get_departures(stop, services, when) -> dict:
                     d for d in departures if "overdue" not in d or "live" in d
                 ]
 
+    trip_updates = None
+    if gtfsr_available and (trip_updates := gtfsr.get_trip_updates(gtfsr_feed_name)):
+        if not when and live_departures is None:
+            # include late-running trips' already-scheduled departures, like for AVL
+            trips = Trip.objects.filter(
+                route__in=routes, ticket_machine_code__in=trip_updates.keys()
+            ).values_list("id", flat=True)
+            departures = TimetableDepartures(
+                stop, services, now, routes, list(trips)
+            ).get_departures()
+            gtfsr.update_stop_departures(departures, trip_updates)
+
+            # filter out departures that have already happened
+            minute = now.replace(second=0, microsecond=0)
+            departures = [
+                d
+                for d in departures
+                if d["time"] >= minute or d.get("live") and d["live"] >= now
+            ]
+        else:
+            departures = None
+
     if departures is None:
         departures = TimetableDepartures(
             stop, services, when or now, routes
         ).get_departures()
+        if trip_updates:
+            gtfsr.update_stop_departures(departures, trip_updates)
 
     if live_departures:
         departures = live_departures + departures
 
     one_hour = datetime.timedelta(hours=1)
     one_hour_ago = now - one_hour
-
-    if departures and gtfsr_available:
-        gtfsr.update_stop_departures(departures, "ember" if ember else "ntaie")
 
     if when or live_departures or type(stop) is not StopPoint:
         pass

@@ -44,7 +44,7 @@ class SiriPostTest(TestCase):
         vcr_dir = Path(__file__).resolve().parent / "vcr"
 
         with (
-            use_cassette(str(vcr_dir / "siri_vm_subscribe.yaml"), match_on=["body"]),
+            use_cassette(vcr_dir / "siri_vm_subscribe.yaml", match_on=["body"]),
             time_machine.travel("2023-12-15T08:24:05Z", tick=False),
             mock.patch(
                 "vehicles.management.commands.siri_vm_subscribe.uuid.uuid4",
@@ -252,6 +252,10 @@ class SiriPostTest(TestCase):
             url = "/traccar/475d1d1f-5708-4ee1-8f51-c63d948bc0b9"
 
             for response in (
+                client.post(
+                    url,
+                    {"id": "NADT:MB183:34:1983", "notificationToken": "abc"},
+                ),
                 # current Traccar Client
                 client.post(
                     url,

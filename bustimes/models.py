@@ -3,7 +3,7 @@ from urllib.parse import parse_qs
 
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
-from django.db.models import OuterRef, Q, Subquery
+from django.db.models import F, OuterRef, Q, Subquery
 from django.db.models.functions import Upper
 from django.urls import reverse
 from django.utils.timezone import localdate
@@ -113,6 +113,10 @@ class Version(models.Model):
 
 
 class RouteQuerySet(models.QuerySet):
+    def with_service_modified_at(self):
+        """for bustimes.utils.get_active_route_ids and get_active_calendar_ids"""
+        return self.annotate(service_modified_at=F("service__modified_at"))
+
     def active_on(self, when, revisions=True):
         routes = self
         if revisions:
@@ -407,9 +411,12 @@ class Calendar(models.Model):
             return False
 
         if getattr(self, f"{date:%a}".lower()):
-            for calendar_date in self.calendardate_set.all():
-                if not calendar_date.operation and calendar_date.contains(date):
-                    return False
+            calendar_dates = self.calendardate_set.all()
+            if any(not cd.operation and cd.contains(date) for cd in calendar_dates):
+                return False
+            if any(cd.operation and not cd.special for cd in calendar_dates):
+                # serviced organisation (school term etc) dates of operation
+                return any(cd.operation and cd.contains(date) for cd in calendar_dates)
             return True
 
         for calendar_date in self.calendardate_set.all():
@@ -731,6 +738,13 @@ class Trip(models.Model):
     def get_absolute_url(self):
         return reverse("trip_detail", args=(self.id,))
 
+    def get_block_url(self):
+        if self.garage_id:
+            args = (self.operator.slug, self.garage.code, self.block)
+        else:
+            args = (self.operator.slug, self.block)
+        return reverse("block_detail", args=args)
+
     def get_trips_in_block(self, date):
         if not self.route_id:
             return Trip.objects.none()
@@ -936,6 +950,21 @@ class ImportTask(models.Model):
     source = models.ForeignKey("busstops.DataSource", models.DB_CASCADE)
     started_at = models.DateTimeField()
     finished_at = models.DateTimeField(null=True, blank=True)
+    # routes = models.PositiveSmallIntegerField(null=True, blank=True)
+    # services = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    def get_absolute_url(self):
+        return reverse(
+            "importtask_detail",
+            args=(
+                self.source_id,
+                self.id,
+            ),
+        )
+
+    def duration(self):
+        if self.started_at and self.finished_at:
+            return self.finished_at - self.started_at
 
 
 class DataQualityObservation(models.Model):

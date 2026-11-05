@@ -1,7 +1,9 @@
+import json
+
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, render
 
-from buses.utils import format_xml
+from buses.utils import format_json, format_xml
 from busstops.models import Service, StopPoint
 
 from .models import Situation
@@ -38,7 +40,10 @@ def situation(request, id):
     context = {}
 
     if situation.data:
-        context["xml"] = format_xml(situation.data)
+        try:
+            context["xml"] = format_xml(situation.data)
+        except SyntaxError:
+            context["xml"] = format_json(json.loads(situation.data))
 
     context["stops"] = StopPoint.objects.filter(consequence__situation=situation)
     context["services"] = Service.objects.filter(consequence__situation=situation)

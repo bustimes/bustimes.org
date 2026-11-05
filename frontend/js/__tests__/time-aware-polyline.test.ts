@@ -1,4 +1,7 @@
-import { decodeTimeAwarePolyline } from "../time-aware-polyline";
+import {
+  decodeTimeAwarePolyline,
+  dropOutOfOrder,
+} from "../time-aware-polyline";
 
 it("shows delay", () => {
   const polyline =
@@ -9,4 +12,15 @@ it("shows delay", () => {
   //   // [52.63092, 1.29878, 300000],
   //   // [52.63577, 1.2964, 420000],
   // ]);
+});
+
+it("drops points older than the one before", () => {
+  // 52.0,1.0 @ 10s; 52.001,1.001 @ 0s (older); 52.002,1.002 @ 20s
+  const points = dropOutOfOrder(
+    decodeTimeAwarePolyline("_gk|H_ibEsnk}xiBgEgERgEgEg@"),
+  );
+
+  expect(points.map(([, , timestamp]) => timestamp)).toEqual([
+    1791990010000, 1791990020000,
+  ]);
 });

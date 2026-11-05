@@ -1,0 +1,702 @@
+<?xml version='1.0' encoding='utf-8'?>
+<PublicationDelivery xmlns="http://www.netex.org.uk/netex" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.1" xsi:schemaLocation="http://www.netex.org.uk/netex http://netex.uk/netex/schema/1.10/xsd/NeTEx_publication.xsd">
+  <PublicationTimestamp>2026-08-12T07:56:21.2325845Z</PublicationTimestamp>
+  <ParticipantRef>SBLB</ParticipantRef>
+  <PublicationRequest version="1.0">
+    <RequestTimestamp>2026-08-12T07:56:21.1641707Z</RequestTimestamp>
+    <Description>Request for SBLB bus fares for line 107</Description>
+    <topics>
+      <NetworkFrameTopic>
+        <selectionValidityConditions>
+          <AvailabilityCondition version="1.0" id="r1">
+            <FromDate>2026-08-17T02:00:00Z</FromDate>
+          </AvailabilityCondition>
+        </selectionValidityConditions>
+        <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_LINE_FARE_OFFER:FXCP" />
+        <NetworkFilterByValue>
+          <objectReferences>
+            <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            <LineRef versionRef="1.0" ref="SBLB:PM0000005:928:107" />
+            <BrandingRef versionRef="1.0" ref="op:SBLB@brand" />
+          </objectReferences>
+        </NetworkFilterByValue>
+      </NetworkFrameTopic>
+    </topics>
+    <RequestPolicy>
+      <RequestDetail>AllWithXref</RequestDetail>
+    </RequestPolicy>
+  </PublicationRequest>
+  <Description>SBLB bus fares for line 107</Description>
+  <dataObjects>
+    <CompositeFrame version="1.1" id="epd:UK:SBLB:CompositeFrame_UK_PI_LINE_FARE_OFFER:trip@SBLB:PM0000005:928:107:op" dataSourceRef="op:src" responsibilitySetRef="op:tariff_data">
+      <ValidBetween>
+        <FromDate>2026-08-17T02:00:00Z</FromDate>
+      </ValidBetween>
+      <Name>Fares for SBLB SBLB:PM0000005:928:107</Name>
+      <Description>SBLB SBLB:PM0000005:928:107 is accessible as a single trip fare. Prices are given zone to zone, where each zone is a linear group of stops, i.e. fare stage.</Description>
+      <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_LINE_FARE_OFFER:FXCP" />
+      <codespaces>
+        <CodespaceRef ref="epd_data" />
+        <CodespaceRef ref="fxc_metadata" />
+        <CodespaceRef ref="naptStop_data" />
+        <CodespaceRef ref="nptgLocality_data" />
+        <CodespaceRef ref="noc_data" />
+        <CodespaceRef ref="op_data" />
+      </codespaces>
+      <FrameDefaults>
+        <DefaultCodespaceRef ref="op_data" />
+        <DefaultDataSourceRef version="1.0" ref="op:src" />
+        <DefaultResponsibilitySetRef version="1.0" ref="op:tariff_data" />
+        <DefaultCurrency>GBP</DefaultCurrency>
+      </FrameDefaults>
+      <prerequisites>
+        <CompositeFrameRef versionRef="1.0" ref="epd:UK:SBLB:CompositeFrame_UK_PI_METADATA::op" />
+      </prerequisites>
+      <frames>
+        <ResourceFrame version="1.0" id="epd:UK:SBLB:ResourceFrame_UK_PI_COMMON:SBLB:PM0000005:928:107:op" dataSourceRef="op:src" responsibilitySetRef="op:tariff_data">
+          <Name>Operator specific common resources</Name>
+          <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_COMMON:FXCP" />
+          <codespaces>
+            <Codespace id="epd_data">
+              <Xmlns>epd</Xmlns>
+              <XmlnsUrl>http://fnetex-cen.eu/epd</XmlnsUrl>
+              <Description>European Passenger Information profile data -use for UK frame names</Description>
+            </Codespace>
+            <Codespace id="fxc_metadata">
+              <Xmlns>fxc_metadata</Xmlns>
+              <XmlnsUrl>netex.org.uk/fxc</XmlnsUrl>
+              <Description>UK FareXChange Profile metadata</Description>
+            </Codespace>
+            <Codespace id="naptStop_data">
+              <Xmlns>naptStop</Xmlns>
+              <XmlnsUrl>http://www.naptan.org.uk/stops</XmlnsUrl>
+              <Description>UK National Public Transport Access Nodes: Stops.</Description>
+            </Codespace>
+            <Codespace id="noc_data">
+              <Xmlns>noc</Xmlns>
+              <XmlnsUrl>http://www.traveline.co.uk/noc</XmlnsUrl>
+              <Description>UK national operator codes</Description>
+            </Codespace>
+            <Codespace id="op_data">
+              <Xmlns>op</Xmlns>
+              <XmlnsUrl>http://www.stagecoachbus.com/regional-help-and-contact/north-scotland</XmlnsUrl>
+              <Description>Operator Data</Description>
+            </Codespace>
+            <Codespace id="nptgLocality_data">
+              <Xmlns>nptgLocality</Xmlns>
+              <XmlnsUrl>http://nptg.org.uk/locations</XmlnsUrl>
+              <Description>National Public Transport gazetteer locations</Description>
+            </Codespace>
+          </codespaces>
+          <dataSources>
+            <DataSource version="1.0" id="op:src">
+              <Email>bluebird.enquiries@stagecoachbus.com</Email>
+            </DataSource>
+          </dataSources>
+          <responsibilitySets>
+            <ResponsibilitySet version="1.0" id="op:tariff_data">
+              <Name>Operator Tariffs</Name>
+              <roles>
+                <ResponsibilityRoleAssignment version="1.0" id="op:tariff_data@creates">
+                  <DataRoleType>creates</DataRoleType>
+                  <StakeholderRoleType>FareManagement</StakeholderRoleType>
+                  <ResponsibleOrganisationRef version="1.0" ref="noc:SBLB" />
+                </ResponsibilityRoleAssignment>
+              </roles>
+            </ResponsibilitySet>
+            <ResponsibilitySet version="1.0" id="op:network_data">
+              <Name>Operator Network data</Name>
+              <roles>
+                <ResponsibilityRoleAssignment version="1.0" id="op:network_data@creates">
+                  <DataRoleType>creates</DataRoleType>
+                  <StakeholderRoleType>Planning</StakeholderRoleType>
+                  <ResponsibleOrganisationRef version="1.0" ref="noc:SBLB" />
+                </ResponsibilityRoleAssignment>
+              </roles>
+            </ResponsibilitySet>
+            <ResponsibilitySet version="1.0" id="op:metadata">
+              <Name>Operator Metadata</Name>
+              <roles>
+                <ResponsibilityRoleAssignment version="1.0" id="op:metadata@creates">
+                  <DataRoleType>creates</DataRoleType>
+                  <StakeholderRoleType>Planning</StakeholderRoleType>
+                  <ResponsibleOrganisationRef version="1.0" ref="noc:SBLB" />
+                </ResponsibilityRoleAssignment>
+              </roles>
+            </ResponsibilitySet>
+          </responsibilitySets>
+          <typesOfValue>
+            <ValueSet version="1.0" id="op:Branding" classOfValues="Branding">
+              <Name>Operator Branding</Name>
+              <values>
+                <Branding version="1.0" id="op:SBLB@brand">
+                  <Name>Stagecoach Bluebird</Name>
+                  <Url>http://www.stagecoachbus.com/regional-help-and-contact/north-scotland</Url>
+                </Branding>
+              </values>
+            </ValueSet>
+          </typesOfValue>
+          <organisations>
+            <Operator version="1.0" id="noc:SBLB">
+              <PublicCode>SBLB</PublicCode>
+              <PrivateCode>135748</PrivateCode>
+              <Name>Stagecoach Bluebird</Name>
+              <ShortName>Stagecoach Bluebird</ShortName>
+              <TradingName>Bluebird Buses Ltd</TradingName>
+              <ContactDetails>
+                <Phone>03452418000</Phone>
+                <Url>http://www.stagecoachbus.com/regional-help-and-contact/north-scotland</Url>
+              </ContactDetails>
+              <OrganisationType>operator</OrganisationType>
+              <Address>
+                <Street>Union Square Bus Station, Guild Street, Aberdeen AB11 6NA</Street>
+              </Address>
+              <PrimaryMode>bus</PrimaryMode>
+              <CustomerServiceContactDetails>
+                <Email>bluebird.enquiries@stagecoachbus.com</Email>
+              </CustomerServiceContactDetails>
+            </Operator>
+          </organisations>
+        </ResourceFrame>
+        <ServiceFrame version="1.0" id="epd:UK:SBLB:ServiceFrame_UK_PI_NETWORK:SBLB:PM0000005:928:107:op" dataSourceRef="op:src" responsibilitySetRef="op:network_data">
+          <Description>This frame contains the stop and line definitions for the service. It could also be exchanged separately.</Description>
+          <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_NETWORK:FXCP" />
+          <lines>
+            <Line version="1.0" id="SBLB:PM0000005:928:107">
+              <Name>Montrose Montrose Railway Station - Aberdeen Union Square Bus Station</Name>
+              <PublicCode>107</PublicCode>
+              <PrivateCode type="txc:Line@id">107</PrivateCode>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+            </Line>
+          </lines>
+          <scheduledStopPoints>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM033">
+              <Name>Montrose Railway Station</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM1887">
+              <Name>Western Road</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM1457">
+              <Name>Taxi Stance</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM1800">
+              <Name>Lloyds Pharmacy</Name>
+              <NameSuffix>at 1</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM11327">
+              <Name>Lower Hall Street</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM709">
+              <Name>Murray Lane</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM706">
+              <Name>Redfield Crescent</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM128">
+              <Name>Angus College Annexe</Name>
+              <NameSuffix>opp</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM701">
+              <Name>Newhame Road</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM696">
+              <Name>Waldron Road</Name>
+              <NameSuffix>opp</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:6490IM720">
+              <Name>Charleton Place</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES002662" />
+                <Name>Montrose</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:630040551">
+              <Name>Lochside Road</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES003412" />
+                <Name>St Cyrus</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:630040541">
+              <Name>Mercury Lone</Name>
+              <NameSuffix>opp</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES003412" />
+                <Name>St Cyrus</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            <ScheduledStopPoint version="1.0" id="atco:630045141">
+              <Name>Wayside Shoppie</Name>
+              <NameSuffix>at</NameSuffix>
+              <TopographicPlaceView>
+                <TopographicPlaceRef ref="nptgLocality:ES003412" />
+                <Name>St Cyrus</Name>
+              </TopographicPlaceView>
+            </ScheduledStopPoint>
+            </scheduledStopPoints>
+        </ServiceFrame>
+        <ServiceCalendarFrame version="1.0" id="epd:UK:SBLB:ServiceCalendarFrame_UK_PI_CALENDAR:SBLB:PM0000005:928:107:op" dataSourceRef="op:src" responsibilitySetRef="op:tariff_data">
+          <dayTypes>
+            <DayType version="1.0" id="day_type@Public_Holiday">
+              <Name>Public Holiday</Name>
+              <properties>
+                <PropertyOfDay>
+                  <HolidayTypes>AnyHoliday</HolidayTypes>
+                </PropertyOfDay>
+              </properties>
+            </DayType>
+            <DayType version="1.0" id="day_type@School_Holiday">
+              <Name>School Holiday</Name>
+              <properties>
+                <PropertyOfDay>
+                  <HolidayTypes>AnyHoliday</HolidayTypes>
+                </PropertyOfDay>
+              </properties>
+            </DayType>
+            <DayType version="1.0" id="day_type@Weekday">
+              <Name>Weekday</Name>
+              <properties>
+                <PropertyOfDay>
+                  <DaysOfWeek>Monday Tuesday Wednesday Thursday Friday</DaysOfWeek>
+                  <HolidayTypes>WorkingDay</HolidayTypes>
+                </PropertyOfDay>
+              </properties>
+            </DayType>
+            <DayType version="1.0" id="day_type@Saturday">
+              <Name>Saturday</Name>
+              <properties>
+                <PropertyOfDay>
+                  <DaysOfWeek>Saturday</DaysOfWeek>
+                  <HolidayTypes>NotWorkingDay</HolidayTypes>
+                </PropertyOfDay>
+              </properties>
+            </DayType>
+            <DayType version="1.0" id="day_type@Sunday">
+              <Name>Sunday</Name>
+              <properties>
+                <PropertyOfDay>
+                  <DaysOfWeek>Sunday</DaysOfWeek>
+                  <HolidayTypes>NotWorkingDay</HolidayTypes>
+                </PropertyOfDay>
+              </properties>
+            </DayType>
+          </dayTypes>
+        </ServiceCalendarFrame>
+        <FareFrame version="1.0" id="epd:UK:SBLB:FareFrame_UK_PI_FARE_NETWORK:SBLB:PM0000005:928:107:op" dataSourceRef="op:src" responsibilitySetRef="op:network_data">
+          <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_FARE_NETWORK:FXCP" />
+          <fareZones>
+            <FareZone version="1.0" id="zone@61@0@boarding">
+              <Name>Montrose Rail Stn</Name>
+              <members>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM033">Montrose Railway Station</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM1887">Western Road</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM1457">Taxi Stance</ScheduledStopPointRef>
+              </members>
+            </FareZone>
+            <FareZone version="1.0" id="zone@61@0@alighting">
+              <Name>Montrose Rail Stn</Name>
+              <members>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM033">Montrose Railway Station</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM1887">Western Road</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM1457">Taxi Stance</ScheduledStopPointRef>
+              </members>
+            </FareZone>
+            <FareZone version="1.0" id="zone@60@1@boarding">
+              <Name>Montrose Centre</Name>
+              <members>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM1800">Lloyds Pharmacy</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM11327">Lower Hall Street</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM709">Murray Lane</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM706">Redfield Crescent</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM128">Angus College Annexe</ScheduledStopPointRef>
+              </members>
+            </FareZone>
+            <FareZone version="1.0" id="zone@60@1@alighting">
+              <Name>Montrose Centre</Name>
+              <members>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM1800">Lloyds Pharmacy</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM11327">Lower Hall Street</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM709">Murray Lane</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM706">Redfield Crescent</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM128">Angus College Annexe</ScheduledStopPointRef>
+              </members>
+            </FareZone>
+            <FareZone version="1.0" id="zone@59@2@boarding">
+              <Name>Montrose Local</Name>
+              <members>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM701">Newhame Road</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM696">Waldron Road</ScheduledStopPointRef>
+              </members>
+            </FareZone>
+            <FareZone version="1.0" id="zone@59@2@alighting">
+              <Name>Montrose Local</Name>
+              <members>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM701">Newhame Road</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM696">Waldron Road</ScheduledStopPointRef>
+              </members>
+            </FareZone>
+            <FareZone version="1.0" id="zone@58@3@boarding">
+              <Name>Montrose Vetco Gray</Name>
+              <members>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM720">Charleton Place</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:630040551">Lochside Road</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:630040541">Mercury Lone</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:630045141">Wayside Shoppie</ScheduledStopPointRef>
+              </members>
+            </FareZone>
+            <FareZone version="1.0" id="zone@58@3@alighting">
+              <Name>Montrose Vetco Gray</Name>
+              <members>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:6490IM720">Charleton Place</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:630040551">Lochside Road</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:630040541">Mercury Lone</ScheduledStopPointRef>
+                <ScheduledStopPointRef versionRef="1.0" ref="atco:630045141">Wayside Shoppie</ScheduledStopPointRef>
+              </members>
+            </FareZone>
+            </fareZones>
+        </FareFrame>
+        <FareFrame version="1.0" id="epd:UK:SBLB:FareFrame_UK_PI_FARE_PRODUCT:SBLB:PM0000005:928:107:op" dataSourceRef="op:src" responsibilitySetRef="op:tariff_data">
+          <Name>Fare products</Name>
+          <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_FARE_PRODUCT:FXCP" />
+          <tariffs>
+            <Tariff version="1.0" id="Tariff@Adult_Single">
+              <validityConditions>
+                <ValidBetween>
+                  <FromDate>2026-08-17T02:00:00Z</FromDate>
+                </ValidBetween>
+              </validityConditions>
+              <Name>Tariff for Single</Name>
+              <OperatorRef versionRef="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+              <LineRef versionRef="1.0" ref="SBLB:PM0000005:928:107" />
+              <TypeOfTariffRef versionRef="fxc:v1.0" ref="fxc:zone_to_zone" />
+              <TariffBasis>zoneToZone</TariffBasis>
+              <fareStructureElements>
+                <FareStructureElement version="1.0" id="Tariff@Adult_Single@Conditions_of_travel">
+                  <Name>Conditions of travel</Name>
+                  <TypeOfFareStructureElementRef versionRef="fxc:v1.0" ref="fxc:travel_conditions" />
+                  <GenericParameterAssignment version="1.0" id="Tariff@Adult_Single@Conditions_of_travel" order="1">
+                    <TypeOfAccessRightAssignmentRef versionRef="fxc:v1.0" ref="fxc:condition_of_use" />
+                    <LimitationGroupingType>AND</LimitationGroupingType>
+                    <limitations>
+                      <Transferability version="1.0" id="Tariff@Adult_Single@Conditions_of_travel@Transferability">
+                        <Name>Ticket is not transferable</Name>
+                        <CanTransfer>false</CanTransfer>
+                      </Transferability>
+                      <RoundTrip version="1.0" id="Tariff@Adult_Single@Conditions_of_travel@Trip">
+                        <Name>Single Trip</Name>
+                        <TripType>single</TripType>
+                      </RoundTrip>
+                      <FrequencyOfUse version="1.0" id="Tariff@Adult_Single@Conditions_of_travel@Frequency">
+                        <Name>One trip no transfers</Name>
+                        <FrequencyOfUseType>none</FrequencyOfUseType>
+                        <MaximalFrequency>1</MaximalFrequency>
+                      </FrequencyOfUse>
+                    </limitations>
+                  </GenericParameterAssignment>
+                </FareStructureElement>
+                <FareStructureElement version="1.0" id="Tariff@Adult_Single@Eligibility">
+                  <Name>Eligible user types</Name>
+                  <TypeOfFareStructureElementRef versionRef="fxc:v1.0" ref="fxc:eligibility" />
+                  <GenericParameterAssignment version="1.0" id="Tariff@Adult_Single@Eligibility" order="1">
+                    <Name>Eligibility to purchase</Name>
+                    <TypeOfAccessRightAssignmentRef versionRef="fxc:v1.0" ref="fxc:eligible" />
+                    <limitations>
+                      <UserProfile version="1.0" id="Tariff@Adult_Single@UP@adult">
+                        <Name>Adult</Name>
+                        <TypeOfConcessionRef versionRef="fxc:v1.0" ref="fxc:adult" />
+                        <UserType>adult</UserType>
+                      </UserProfile>
+                    </limitations>
+                  </GenericParameterAssignment>
+                </FareStructureElement>
+                <FareStructureElement version="1.0" id="Tariff@Adult_Single@Access_Lines">
+                  <Name>Available lines</Name>
+                  <TypeOfFareStructureElementRef versionRef="fxc:v1.0" ref="fxc:access" />
+                  <distanceMatrixElements>
+                    <DistanceMatrixElement version="1.0" id="Tariff@Adult_Single@Distance@61@0+61@0">
+                      <Name>Montrose Rail Stn to Montrose Rail Stn</Name>
+                      <StartTariffZoneRef version="1.0" ref="zone@61@0@boarding" />
+                      <EndTariffZoneRef version="1.0" ref="zone@61@0@alighting" />
+                    </DistanceMatrixElement>
+                    <DistanceMatrixElement version="1.0" id="Tariff@Adult_Single@Distance@61@0+60@1">
+                      <Name>Montrose Rail Stn to Montrose Centre</Name>
+                      <StartTariffZoneRef version="1.0" ref="zone@61@0@boarding" />
+                      <EndTariffZoneRef version="1.0" ref="zone@60@1@alighting" />
+                    </DistanceMatrixElement>
+                    <DistanceMatrixElement version="1.0" id="Tariff@Adult_Single@Distance@61@0+59@2">
+                      <Name>Montrose Rail Stn to Montrose Local</Name>
+                      <StartTariffZoneRef version="1.0" ref="zone@61@0@boarding" />
+                      <EndTariffZoneRef version="1.0" ref="zone@59@2@alighting" />
+                    </DistanceMatrixElement>
+                    <DistanceMatrixElement version="1.0" id="Tariff@Adult_Single@Distance@61@0+58@3">
+                      <Name>Montrose Rail Stn to Montrose Vetco Gray</Name>
+                      <StartTariffZoneRef version="1.0" ref="zone@61@0@boarding" />
+                      <EndTariffZoneRef version="1.0" ref="zone@58@3@alighting" />
+                    </DistanceMatrixElement>
+                    <DistanceMatrixElement version="1.0" id="Tariff@Adult_Single@Distance@60@1+60@1">
+                      <Name>Montrose Centre to Montrose Centre</Name>
+                      <StartTariffZoneRef version="1.0" ref="zone@60@1@boarding" />
+                      <EndTariffZoneRef version="1.0" ref="zone@60@1@alighting" />
+                    </DistanceMatrixElement>
+                    <DistanceMatrixElement version="1.0" id="Tariff@Adult_Single@Distance@60@1+59@2">
+                      <Name>Montrose Centre to Montrose Local</Name>
+                      <StartTariffZoneRef version="1.0" ref="zone@60@1@boarding" />
+                      <EndTariffZoneRef version="1.0" ref="zone@59@2@alighting" />
+                    </DistanceMatrixElement>
+                    <DistanceMatrixElement version="1.0" id="Tariff@Adult_Single@Distance@60@1+58@3">
+                      <Name>Montrose Centre to Montrose Vetco Gray</Name>
+                      <StartTariffZoneRef version="1.0" ref="zone@60@1@boarding" />
+                      <EndTariffZoneRef version="1.0" ref="zone@58@3@alighting" />
+                    </DistanceMatrixElement>
+                    <DistanceMatrixElement version="1.0" id="Tariff@Adult_Single@Distance@59@2+59@2">
+                      <Name>Montrose Local to Montrose Local</Name>
+                      <StartTariffZoneRef version="1.0" ref="zone@59@2@boarding" />
+                      <EndTariffZoneRef version="1.0" ref="zone@59@2@alighting" />
+                    </DistanceMatrixElement>
+                    <DistanceMatrixElement version="1.0" id="Tariff@Adult_Single@Distance@59@2+58@3">
+                      <Name>Montrose Local to Montrose Vetco Gray</Name>
+                      <StartTariffZoneRef version="1.0" ref="zone@59@2@boarding" />
+                      <EndTariffZoneRef version="1.0" ref="zone@58@3@alighting" />
+                    </DistanceMatrixElement>
+                    <DistanceMatrixElement version="1.0" id="Tariff@Adult_Single@Distance@58@3+58@3">
+                      <Name>Montrose Vetco Gray to Montrose Vetco Gray</Name>
+                      <StartTariffZoneRef version="1.0" ref="zone@58@3@boarding" />
+                      <EndTariffZoneRef version="1.0" ref="zone@58@3@alighting" />
+                    </DistanceMatrixElement>
+                    </distanceMatrixElements>
+                  <GenericParameterAssignment version="1.0" id="Tariff@Adult_Single@Access_Lines" order="1">
+                    <Name>Lines</Name>
+                    <TypeOfAccessRightAssignmentRef versionRef="fxc:v1.0" ref="fxc:can_access" />
+                    <ValidityParameterAssignmentType>EQ</ValidityParameterAssignmentType>
+                    <validityParameters>
+                      <LineRef versionRef="1.0" ref="SBLB:PM0000005:928:107" />
+                    </validityParameters>
+                  </GenericParameterAssignment>
+                </FareStructureElement>
+              </fareStructureElements>
+            </Tariff>
+          </tariffs>
+          <fareProducts>
+            <PreassignedFareProduct version="1.0" id="trip@Adult_Single">
+              <Name>Single</Name>
+              <Description>Valid at all times. For Under 22 travel, see the terms and conditions.</Description>
+              <ChargingMomentRef versionRef="fxc:v1.0" ref="fxc:prepayment" />
+              <ChargingMomentType>beforeTravel</ChargingMomentType>
+              <TypeOfFareProductRef versionRef="fxc:v1.0" ref="fxc:standard_product@trip@single" />
+              <OperatorRef version="1.0" ref="noc:SBLB">noc:135748</OperatorRef>
+              <validableElements>
+                <ValidableElement version="1.0" id="trip@Adult_Single@Access">
+                  <Name>Single Ride</Name>
+                  <fareStructureElements>
+                    <FareStructureElementRef version="1.0" ref="Tariff@Adult_Single@Eligibility" />
+                    <FareStructureElementRef version="1.0" ref="Tariff@Adult_Single@Conditions_of_travel" />
+                    <FareStructureElementRef version="1.0" ref="Tariff@Adult_Single@Access_Lines" />
+                  </fareStructureElements>
+                </ValidableElement>
+              </validableElements>
+              <accessRightsInProduct>
+                <AccessRightInProduct version="1.0" id="trip@Adult_Single" order="1">
+                  <ValidableElementRef version="1.0" ref="trip@Adult_Single@Access" />
+                </AccessRightInProduct>
+              </accessRightsInProduct>
+              <ProductType>singleTrip</ProductType>
+            </PreassignedFareProduct>
+          </fareProducts>
+          <salesOfferPackages>
+            <SalesOfferPackage version="1.0" id="SOP@trip@Adult_Single@paperOnBus">
+              <Name>Single - Onboard (paper ticket)</Name>
+              <distributionAssignments>
+                <DistributionAssignment version="1.0" id="SOP@trip@Adult_Single@paperOnBus@onBoard" order="1">
+                  <DistributionChannelType>onBoard</DistributionChannelType>
+                  <PaymentMethods>cash contactlessPaymentCard</PaymentMethods>
+                  <FulfilmentMethodRef version="1.0" ref="Fulfilment@collectOnBoard" />
+                </DistributionAssignment>
+              </distributionAssignments>
+              <salesOfferPackageElements>
+                <SalesOfferPackageElement version="1.0" id="SOP@trip@Adult_Single@paperOnBus@paperTicket" order="1">
+                  <TypeOfTravelDocumentRef version="1.0" ref="TravelDocument@paperTicket" />
+                  <PreassignedFareProductRef version="1.0" ref="trip@Adult_Single" />
+                </SalesOfferPackageElement>
+              </salesOfferPackageElements>
+            </SalesOfferPackage>
+            <SalesOfferPackage version="1.0" id="SOP@trip@Adult_Single@mobileApp">
+              <Name>Single - Mobile App</Name>
+              <distributionAssignments>
+                <DistributionAssignment version="1.0" id="SOP@trip@Adult_Single@mobileApp@mobileDevice" order="1">
+                  <DistributionChannelType>mobileDevice</DistributionChannelType>
+                  <PaymentMethods>creditCard debitCard</PaymentMethods>
+                  <FulfilmentMethodRef version="1.0" ref="Fulfilment@mobileApp" />
+                </DistributionAssignment>
+              </distributionAssignments>
+              <salesOfferPackageElements>
+                <SalesOfferPackageElement version="1.0" id="SOP@trip@Adult_Single@mobileApp@mobileApp" order="1">
+                  <TypeOfTravelDocumentRef version="1.0" ref="TravelDocument@mobileApp" />
+                  <PreassignedFareProductRef version="1.0" ref="trip@Adult_Single" />
+                  <validityParameterAssignments>
+                    <GenericParameterAssignment version="1.0" id="SOP@trip@Adult_Single@mobileApp@mobileApp" order="1">
+                      <TypeOfAccessRightAssignmentRef versionRef="fxc:v1.0" ref="fxc:can_purchase_when" />
+                      <limitations>
+                        <UsageValidityPeriod version="1.0" id="SOP@trip@Adult_Single@mobileApp@mobileApp@hanging">
+                          <UsageTrigger>purchase</UsageTrigger>
+                          <UsageEnd>productExpiry</UsageEnd>
+                          <StandardDuration>P1M</StandardDuration>
+                          <EndTime>03:59:59</EndTime>
+                        </UsageValidityPeriod>
+                      </limitations>
+                    </GenericParameterAssignment>
+                  </validityParameterAssignments>
+                </SalesOfferPackageElement>
+              </salesOfferPackageElements>
+            </SalesOfferPackage>
+          </salesOfferPackages>
+        </FareFrame>
+        <FareFrame version="1.0" id="epd:UK:SBLB:FareFrame_UK_PI_FARE_NETWORK_PRICE:SBLB:PM0000005:928:107:op" dataSourceRef="op:src" responsibilitySetRef="op:tariff_data">
+          <Name>Prices for Adult Single</Name>
+          <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_PRICE:FXCP" />
+          <FrameDefaults>
+            <DefaultCurrency>GBP</DefaultCurrency>
+          </FrameDefaults>
+          <prerequisites>
+            <FareFrameRef versionRef="1.0" ref="epd:UK:SBLB:FareFrame_UK_PI_FARE_PRODUCT:SBLB:PM0000005:928:107:op" />
+          </prerequisites>
+          <fareTables>
+            <FareTable version="1.0" id="fareTable@SBLB:PM0000005:928:107@trip@Adult_Single">
+              <Name>Aberdeen-Montrose - Adult Single</Name>
+              <pricesFor>
+                <PreassignedFareProductRef version="1.0" ref="trip@Adult_Single" />
+                <SalesOfferPackageRef version="1.0" ref="SOP@trip@Adult_Single@paperOnBus" />
+                <SalesOfferPackageRef version="1.0" ref="SOP@trip@Adult_Single@mobileApp" />
+                <UserProfileRef version="1.0" ref="Tariff@Adult_Single@UP@adult" />
+              </pricesFor>
+              <specifics>
+                <LineRef versionRef="1.0" ref="SBLB:PM0000005:928:107" />
+              </specifics>
+              <prices>
+                <DistanceMatrixElementPrice version="1.0" id="price@Tariff@Adult_Single@Distance@61@0+60@1@trip@Adult_Single">
+                  <Amount>2.4</Amount>
+                  <DistanceMatrixElementRef version="1.0" ref="Tariff@Adult_Single@Distance@61@0+60@1" />
+                </DistanceMatrixElementPrice>
+                <DistanceMatrixElementPrice version="1.0" id="price@Tariff@Adult_Single@Distance@61@0+59@2@trip@Adult_Single">
+                  <Amount>2.4</Amount>
+                  <DistanceMatrixElementRef version="1.0" ref="Tariff@Adult_Single@Distance@61@0+59@2" />
+                </DistanceMatrixElementPrice>
+                <DistanceMatrixElementPrice version="1.0" id="price@Tariff@Adult_Single@Distance@61@0+58@3@trip@Adult_Single">
+                  <Amount>2.4</Amount>
+                  <DistanceMatrixElementRef version="1.0" ref="Tariff@Adult_Single@Distance@61@0+58@3" />
+                </DistanceMatrixElementPrice>
+                <DistanceMatrixElementPrice version="1.0" id="price@Tariff@Adult_Single@Distance@60@1+59@2@trip@Adult_Single">
+                  <Amount>2.4</Amount>
+                  <DistanceMatrixElementRef version="1.0" ref="Tariff@Adult_Single@Distance@60@1+59@2" />
+                </DistanceMatrixElementPrice>
+                <DistanceMatrixElementPrice version="1.0" id="price@Tariff@Adult_Single@Distance@60@1+58@3@trip@Adult_Single">
+                  <Amount>2.4</Amount>
+                  <DistanceMatrixElementRef version="1.0" ref="Tariff@Adult_Single@Distance@60@1+58@3" />
+                </DistanceMatrixElementPrice>
+                <DistanceMatrixElementPrice version="1.0" id="price@Tariff@Adult_Single@Distance@59@2+58@3@trip@Adult_Single">
+                  <Amount>2.4</Amount>
+                  <DistanceMatrixElementRef version="1.0" ref="Tariff@Adult_Single@Distance@59@2+58@3" />
+                </DistanceMatrixElementPrice>
+                </prices>
+            </FareTable>
+          </fareTables>
+        </FareFrame>
+      </frames>
+    </CompositeFrame>
+    <CompositeFrame version="1.0" id="epd:UK:SBLB:CompositeFrame_UK_PI_METADATA_OFFER::op" dataSourceRef="op:src" responsibilitySetRef="op:metadata">
+      <Name>Common resources for SBLB</Name>
+      <Description>Set of SBLB profile metadata.</Description>
+      <TypeOfFrameRef versionRef="fxc:v1.0" ref="fxc:UK:DFT:TypeOfFrame_UK_PI_METADATA_OFFER:FXCP" />
+      <frames>
+        <FareFrame version="1.0" id="epd:UK:SBLB:FareFrame_UK_PI_METADATA:SBLB:PM0000005:928:107:op" dataSourceRef="op:src" responsibilitySetRef="op:metadata">
+          <fulfilmentMethods>
+            <FulfilmentMethod version="1.0" id="Fulfilment@mobileApp">
+              <Name>Mobile App</Name>
+              <FulfilmentMethodType>mobileApp</FulfilmentMethodType>
+            </FulfilmentMethod>
+            <FulfilmentMethod version="1.0" id="Fulfilment@onlinePropagation">
+              <Name>Online propagation</Name>
+              <FulfilmentMethodType>validator</FulfilmentMethodType>
+            </FulfilmentMethod>
+            <FulfilmentMethod version="1.0" id="Fulfilment@post">
+              <Name>Send ticket by post</Name>
+              <FulfilmentMethodType>post</FulfilmentMethodType>
+            </FulfilmentMethod>
+            <FulfilmentMethod version="1.0" id="Fulfilment@collectAtCounter">
+              <Name>Collect at counter</Name>
+              <FulfilmentMethodType>ticketOffice</FulfilmentMethodType>
+            </FulfilmentMethod>
+            <FulfilmentMethod version="1.0" id="Fulfilment@collectOnBoard">
+              <Name>Collect on board</Name>
+              <FulfilmentMethodType>conductor</FulfilmentMethodType>
+            </FulfilmentMethod>
+          </fulfilmentMethods>
+          <typesOfTravelDocuments>
+            <TypeOfTravelDocument version="1.0" id="TravelDocument@mobileApp">
+              <Name>Stored on your mobile phone as m-tickets</Name>
+              <MediaType>mobileApp</MediaType>
+              <MachineReadable>barCode</MachineReadable>
+            </TypeOfTravelDocument>
+            <TypeOfTravelDocument version="1.0" id="TravelDocument@smartCard">
+              <Name>Smart_Card_Ticket</Name>
+              <MediaType>smartCard</MediaType>
+              <MachineReadable>nfc</MachineReadable>
+            </TypeOfTravelDocument>
+            <TypeOfTravelDocument version="1.0" id="TravelDocument@paperTicket">
+              <Name>Printed Ticket</Name>
+              <MediaType>paperTicket</MediaType>
+            </TypeOfTravelDocument>
+          </typesOfTravelDocuments>
+        </FareFrame>
+      </frames>
+    </CompositeFrame>
+  </dataObjects>
+</PublicationDelivery>

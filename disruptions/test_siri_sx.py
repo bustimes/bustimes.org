@@ -1,9 +1,16 @@
+import xml.etree.ElementTree as ET
+from datetime import timedelta
+from unittest.mock import patch
+
 from django.conf import settings
+from django.db import DataError
 from django.test import TestCase
 from vcr import use_cassette
 
 from busstops.models import (
+    AdminArea,
     DataSource,
+    Locality,
     Operator,
     OperatorCode,
     Region,
@@ -12,7 +19,8 @@ from busstops.models import (
     StopUsage,
 )
 
-from .models import Situation
+from .models import Link, Situation
+from .siri_sx import handle_item
 from .tasks import bods_disruptions
 
 VCR_DIR = settings.BASE_DIR / "fixtures" / "vcr"
@@ -100,21 +108,25 @@ class SiriSXTest(TestCase):
             ]
         )
         StopUsage.objects.create(service=service, stop_id="2800S11053A", order=69)
+        AdminArea.objects.create(id=73, atco_code="080", name="Cornwall", region=region)
 
     def test_siri_sx_request(self):
-        with use_cassette(str(VCR_DIR / "siri_sx.yaml")) as cassette:
-            with self.assertNumQueries(126):
+        with (
+            use_cassette(VCR_DIR / "siri_sx.yaml") as cassette,
+            self.assertLogs("disruptions.siri_sx", "WARNING"),
+        ):
+            with self.assertNumQueries(144):
                 bods_disruptions()
 
             cassette.rewind()
 
-            with self.assertNumQueries(3):
+            with self.assertNumQueries(21):
                 bods_disruptions()
 
             cassette.rewind()
             Situation.objects.all().update(data="")
 
-            with self.assertNumQueries(140):
+            with self.assertNumQueries(158):
                 bods_disruptions()
 
         situation = Situation.objects.first()
@@ -153,6 +165,8 @@ class SiriSXTest(TestCase):
         with self.assertNumQueries(13):
             response = self.client.get("/services/156")
 
+        # long text so collapsed by default
+        self.assertContains(response, '<details class="situation">')
         self.assertContains(
             response,
             "<p>East Lancashire Road will be subjected to restrictions,"
@@ -177,3 +191,223 @@ class SiriSXTest(TestCase):
             response,
             "subjected to restrictions, at Liverpool Road, from Monday 17 February 2020",
         )
+
+    def test_consequence_details(self):
+        xml = f"""<PtSituationElement>
+            <CreationTime>2026-10-22T13:25:31Z</CreationTime>
+            <ParticipantRef>Cornwall</ParticipantRef>
+            <SituationNumber>b42df1bb-f3b7-4159-bfdb-7ab997badb24</SituationNumber>
+            <Source><TimeOfCommunication>2026-10-23T10:16:45.192Z</TimeOfCommunication></Source>
+            <Progress>open</Progress>
+            <PublicationWindow><StartTime>2026-10-22T14:00:00.000Z</StartTime></PublicationWindow>
+            <EquipmentReason>defectivePublicAnnouncementSystem</EquipmentReason>
+            <Summary>Storm Austen - Friday 23rd October</Summary>
+            <Description>Storm Austen - Friday 23rd October</Description>
+            <InfoLinks><InfoLink><Uri>https://example.com/{"a" * 230}</Uri></InfoLink></InfoLinks>
+            <Consequences>
+                <Consequence>
+                    <Severity>verySevere</Severity>
+                    <Affects>
+                        <Operators><AllOperators /></Operators>
+                        <Networks><AffectedNetwork><VehicleMode>bus</VehicleMode><AllLines /></AffectedNetwork></Networks>
+                        <Places><AffectedPlace>
+                            <PlaceRef>073</PlaceRef>
+                            <PlaceName>Cornwall</PlaceName>
+                            <PlaceCategory>AdministrativeArea</PlaceCategory>
+                        </AffectedPlace></Places>
+                    </Affects>
+                    <Advice><Details>Stay at home</Details></Advice>
+                </Consequence>
+                <Consequence>
+                    <Severity>slight</Severity>
+                    <Affects><Networks><AffectedNetwork>
+                        <VehicleMode>bus</VehicleMode>
+                        <AffectedLine>
+                            <AffectedOperator><OperatorRef>HATT</OperatorRef></AffectedOperator>
+                            <LineRef>156</LineRef>
+                            <Direction><DirectionRef>inboundTowardsTown</DirectionRef></Direction>
+                        </AffectedLine>
+                    </AffectedNetwork></Networks></Affects>
+                    <Advice><Details>Expect delays</Details></Advice>
+                    <Delays><Delay>PT60M</Delay></Delays>
+                </Consequence>
+            </Consequences>
+        </PtSituationElement>"""
+        source = DataSource.objects.create(name="Bus Open Data")
+
+        situation_id = handle_item(ET.fromstring(xml), source, {})
+
+        situation = Situation.objects.get(id=situation_id)
+        self.assertEqual(situation.reason, "defectivePublicAnnouncementSystem")
+        self.assertEqual(situation.text, "")
+        self.assertEqual(len(situation.link_set.get().url), 250)
+
+        network, line = situation.consequence_set.order_by("id")
+        self.assertEqual(network.severity, "verySevere")
+        self.assertEqual(network.vehicle_mode, "bus")
+        self.assertEqual(network.direction, "")
+        self.assertIsNone(network.delay)
+        self.assertEqual(network.admin_areas.get().name, "Cornwall")
+
+        self.assertEqual(line.severity, "slight")
+        self.assertEqual(line.direction, "inboundTowardsTown")
+        self.assertEqual(line.delay, timedelta(hours=1))
+        self.assertEqual(line.services.get().line_name, "156")
+        self.assertFalse(line.admin_areas.exists())
+
+    def test_admin_area_situations(self):
+        def area_situation(situation_number, summary, vehicle_mode):
+            return f"""<PtSituationElement>
+                <CreationTime>2026-10-22T13:25:31Z</CreationTime>
+                <ParticipantRef>Cornwall</ParticipantRef>
+                <SituationNumber>{situation_number}</SituationNumber>
+                <Source><TimeOfCommunication /></Source>
+                <Progress>open</Progress>
+                <PublicationWindow><StartTime>2026-10-22T14:00:00.000Z</StartTime></PublicationWindow>
+                <Summary>{summary}</Summary>
+                <Description>{summary}</Description>
+                <Consequences><Consequence>
+                    <Affects>
+                        <Operators><AllOperators /></Operators>
+                        <Networks><AffectedNetwork>
+                            <VehicleMode>{vehicle_mode}</VehicleMode><AllLines />
+                        </AffectedNetwork></Networks>
+                        <Places><AffectedPlace>
+                            <PlaceRef>073</PlaceRef>
+                            <PlaceCategory>AdministrativeArea</PlaceCategory>
+                        </AffectedPlace></Places>
+                    </Affects>
+                    <Advice><Details>{summary}</Details></Advice>
+                </Consequence></Consequences>
+            </PtSituationElement>"""
+
+        source = DataSource.objects.create(name="Bus Open Data")
+        for element in (
+            area_situation("storm", "Storm Austen", "bus"),
+            area_situation("engineering", "Engineering works", "rail"),
+        ):
+            handle_item(ET.fromstring(element), source, {})
+
+        stop = StopPoint.objects.create(
+            atco_code="0800COB00001", admin_area_id=73, active=True
+        )
+        service = Service.objects.create(line_name="1", service_code="1", current=True)
+        StopUsage.objects.create(service=service, stop=stop, order=1)
+
+        for url in (stop.get_absolute_url(), service.get_absolute_url()):
+            response = self.client.get(url)
+            self.assertContains(response, "Storm Austen")
+            self.assertNotContains(response, "Engineering works")
+
+        response = self.client.get("/stops/2800S11031B")  # not in Cornwall
+        self.assertNotContains(response, "Storm Austen")
+
+    def test_locality_disambiguation(self):
+        region = Region.objects.get(id="NW")
+        operator = Operator.objects.create(region=region, noc="SCSO", name="Stagecoach")
+        OperatorCode.objects.create(
+            operator=operator,
+            source=DataSource.objects.get(name="National Operator Codes"),
+            code="SCSO",
+        )
+        admin_area = AdminArea.objects.get(id=73)
+        services = {}
+        for name in ("Alresford", "Tidworth"):
+            locality = Locality.objects.create(
+                id=name, name=name, admin_area=admin_area
+            )
+            stop = StopPoint.objects.create(
+                atco_code=name, locality=locality, active=True
+            )
+            service = Service.objects.create(
+                line_name="67", service_code=name, current=True
+            )
+            service.operator.add(operator)
+            StopUsage.objects.create(service=service, stop=stop, order=1)
+            services[name] = service
+
+        def situation(description):
+            return f"""<PtSituationElement>
+                <CreationTime>2026-11-02T13:25:31Z</CreationTime>
+                <ParticipantRef>Hampshire</ParticipantRef>
+                <SituationNumber>{description}</SituationNumber>
+                <Source><TimeOfCommunication /></Source>
+                <Progress>open</Progress>
+                <PublicationWindow><StartTime>2026-11-02T14:00:00.000Z</StartTime></PublicationWindow>
+                <Summary>Fireworks</Summary>
+                <Description>{description}</Description>
+                <Consequences><Consequence>
+                    <Affects><Networks><AffectedNetwork><AffectedLine>
+                        <AffectedOperator><OperatorRef>SCSO</OperatorRef></AffectedOperator>
+                        <LineRef>67</LineRef>
+                        <PublishedLineName>67</PublishedLineName>
+                    </AffectedLine></AffectedNetwork></Networks></Affects>
+                    <Advice><Details>Diversion</Details></Advice>
+                </Consequence></Consequences>
+            </PtSituationElement>"""
+
+        source = DataSource.objects.create(name="Bus Open Data")
+        handle_item(ET.fromstring(situation("Roads in alresford closed")), source, {})
+        with self.assertLogs("disruptions.siri_sx", "WARNING"):
+            handle_item(ET.fromstring(situation("Roads closed")), source, {})
+
+        consequence = Situation.objects.get(
+            situation_number="Roads in alresford closed"
+        ).consequence_set.get()
+        self.assertEqual(list(consequence.services.all()), [services["Alresford"]])
+        consequence = Situation.objects.get(
+            situation_number="Roads closed"
+        ).consequence_set.get()
+        self.assertEqual(consequence.services.count(), 2)
+
+    def test_old_situations(self):
+        source = DataSource.objects.create(name="Bus Open Data")
+        gone = Situation.objects.create(source=source, situation_number="gone")
+
+        with (
+            use_cassette(VCR_DIR / "siri_sx.yaml") as cassette,
+            self.assertLogs("disruptions.siri_sx", "WARNING"),
+        ):
+            bods_disruptions()
+            self.assertFalse(Situation.objects.filter(id=gone.id).exists())
+
+            hidden = Situation.objects.first()
+            hidden.current = False
+            hidden.save(update_fields=["current"])
+
+            cassette.rewind()
+            bods_disruptions()
+
+        hidden.refresh_from_db()
+        self.assertFalse(hidden.current)
+
+    def test_bad_situation(self):
+        situation_number = "RGlzcnVwdGlvbk5vZGU6MTA3NjM="
+        save = Link.save
+
+        def bad_save(link, *args, **kwargs):
+            if link.situation.situation_number == situation_number:
+                raise DataError
+            save(link, *args, **kwargs)
+
+        with (
+            use_cassette(VCR_DIR / "siri_sx.yaml") as cassette,
+            self.assertLogs("disruptions.siri_sx", "WARNING"),
+        ):
+            bods_disruptions()
+
+            cassette.rewind()
+            Situation.objects.all().update(data="")
+
+            with (
+                patch.object(Link, "save", autospec=True, side_effect=bad_save),
+                self.assertLogs("disruptions.siri_sx", "ERROR"),
+            ):
+                bods_disruptions()
+
+        # rolled back, so will be retried next time
+        bad = Situation.objects.get(situation_number=situation_number)
+        self.assertEqual(bad.data, "")
+        self.assertTrue(bad.current)
+
+        self.assertFalse(Situation.objects.filter(data="").exclude(id=bad.id).exists())

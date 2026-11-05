@@ -1,3 +1,4 @@
+import json
 import logging
 from hashlib import sha256
 
@@ -8,7 +9,7 @@ from django.db.models import Q
 
 from busstops.models import DataSource, Service, StopPoint
 
-from .models import Consequence, Situation, ValidityPeriod
+from .models import Consequence, Situation, ValidityPeriod, delete_old_situations
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,6 @@ def handle_disruption(item: dict, source: DataSource):
             created_at=item["fromDate"],
             source=source,
         )
-    situation.current = True
     situation.text = item["description"].replace("\\n", "\n").strip()
     if ": " in situation.text:
         situation.summary, situation.text = situation.text.split(": ", 1)
@@ -52,6 +52,7 @@ def handle_disruption(item: dict, source: DataSource):
     situation.text = situation.text.replace(". ", ".\n\n")
     situation.publication_window = window
     situation.reason = item["type"]
+    situation.data = json.dumps(item)
     situation.save()
 
     try:
@@ -118,7 +119,7 @@ def handle_status(item: dict, source: DataSource):
 
         situation.text = situation.text.replace(". ", ".\n\n")
 
-        situation.current = True
+        situation.data = json.dumps(status)
         situation.save()
 
         if created:
@@ -170,5 +171,4 @@ def tfl_disruptions():
         for situation in handle_status(item, source):
             situations.add(situation.id)
 
-    old_situations = source.situation_set.filter(Q(current=True), ~Q(id__in=situations))
-    old_situations.update(current=False)
+    delete_old_situations(source, situations)

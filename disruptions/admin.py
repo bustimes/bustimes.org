@@ -2,13 +2,14 @@ from django.contrib import admin
 from sql_util.utils import SubqueryCount
 
 from buses.admin_utils import M2MThroughMixin
+from bustimes.admin import log_change
 
 from .models import AffectedJourney, Consequence, Link, Situation, ValidityPeriod
 
 
 class ConsequenceInline(M2MThroughMixin, admin.StackedInline):
     model = Consequence
-    autocomplete_fields = ("stops", "services", "operators")
+    autocomplete_fields = ("stops", "services", "operators", "admin_areas")
     readonly_fields = ("data",)
     show_change_link = True
 
@@ -60,9 +61,11 @@ class SituationAdmin(admin.ModelAdmin):
         "source",
         "participant_ref",
         "reason",
+        ("consequence__admin_areas", admin.RelatedOnlyFieldListFilter),
         "created_at",
         "modified_at",
     )
+    actions = ("current_true", "current_false")
     readonly_fields = (
         "created_at",
         "situation_number",
@@ -82,6 +85,16 @@ class SituationAdmin(admin.ModelAdmin):
     @admin.display(ordering="stops")
     def stops(self, obj):
         return obj.stops
+
+    def current_true(self, request, queryset):
+        log_change(request, queryset, ["current"])
+        result = queryset.order_by().update(current=True)
+        self.message_user(request, f"{result}")
+
+    def current_false(self, request, queryset):
+        log_change(request, queryset, ["current"])
+        result = queryset.order_by().update(current=False)
+        self.message_user(request, f"{result}")
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)

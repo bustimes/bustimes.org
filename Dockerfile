@@ -18,7 +18,7 @@ WORKDIR /app/
 
 # Install dependencies
 COPY uv.lock pyproject.toml /app/
-RUN uv sync --frozen
+RUN uv sync --frozen --compile-bytecode
 
 ENV PATH="/app/.venv/bin:$PATH"
 
@@ -29,6 +29,7 @@ COPY . /app/
 
 ENV PORT=8000 STATIC_ROOT=/staticfiles
 RUN ./manage.py check --tag urls && ./manage.py collectstatic --noinput
+RUN python -m compileall -q -j 0 -x "/(\.venv|node_modules)/" .
 
 EXPOSE 8000 9090
 CMD ["granian", "--host", "0.0.0.0", "--interface", "wsgi", "--respawn-failed-workers", "--metrics", "--metrics-address", "0.0.0.0", "buses.wsgi:application"]

@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.contrib.gis.db import models
 from django.db.models import F, OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from busstops.models import StopPoint
@@ -328,6 +329,10 @@ class Journey(models.Model):
 
     def get_next_journeys(self):
         """Later journeys in the same block"""
+        stops_in_pattern = StopInPattern.objects.filter(
+            base_version=OuterRef("base_version"),
+            pattern_idx=OuterRef("pattern_idx"),
+        ).order_by("-sequence_no")
         return (
             Journey.objects.filter(
                 base_version=self.base_version_id,
@@ -336,14 +341,17 @@ class Journey(models.Model):
             )
             .annotate(
                 line_name=F("pattern__line__service_line_no"),
+                block_no=F("block__block_no"),
                 destination_name=Subquery(
-                    StopInPattern.objects.filter(
-                        base_version=OuterRef("base_version"),
-                        pattern_idx=OuterRef("pattern_idx"),
-                    )
-                    .exclude(stop__naptan_code="")
-                    .order_by("-sequence_no")
-                    .values("stop__name")[:1]
+                    stops_in_pattern.annotate(
+                        # better capitalisation, e.g. "Battersea (TUK London)"
+                        garage_name=Subquery(
+                            Garage.objects.filter(
+                                base_version=OuterRef("base_version"),
+                                name__iexact=OuterRef("stop__name"),
+                            ).values("name")[:1]
+                        )
+                    ).values(name=Coalesce("garage_name", "stop__name"))[:1]
                 ),
             )
             .order_by("start_time")

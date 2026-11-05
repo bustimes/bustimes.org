@@ -1,7 +1,6 @@
 """Import timetable data "fresh from the cow" """
 
 import logging
-import xml.etree.ElementTree as ET
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +19,7 @@ from ...download_utils import download, download_if_modified
 from ...models import Route, TimetableDataSource, Trip, is_noc
 from ...utils import get_sha1, log_time_taken
 from .import_transxchange import Command as TransXChangeCommand
+from .import_transxchange import delete_unused_trips
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ https://bustimes.org/admin/busstops/service/?route__source__source={timetable_da
     routes = Route.objects.filter(id__in=route_ids)
     # do this first to prevent IntegrityError
     routes.update(service=None)
-    # routes.delete()
+    delete_unused_trips(routes)
     Service.objects.filter(
         ~Q(source__url=""),
         operator__in=operators,
@@ -109,7 +109,7 @@ def handle_file(command, path, qualify_filename=False):
                         filename = str(Path(path) / filename)
                     try:
                         command.handle_file(open_file, filename)
-                    except (ET.ParseError, ValueError, AttributeError, DataError):
+                    except (SyntaxError, ValueError, AttributeError, DataError):
                         if filename.endswith(".xml"):
                             logger.info(filename)
                             logger.exception("error handling file")
@@ -439,7 +439,7 @@ def stagecoach(specific_operator=None):
         modified, last_modified = download_if_modified(path, command.source, session)
         sha1 = get_sha1(path)
 
-        if command.source.datetime != last_modified:
+        if last_modified and command.source.datetime != last_modified:
             modified = True
 
         if modified:

@@ -115,8 +115,8 @@ interactions:
       X-XSS-Protection:
       - 1; mode=block
     status:
-      code: 404
-      message: Not Found
+      code: 304
+      message: Not Modified
 - request:
     body: null
     headers:
@@ -168,8 +168,8 @@ interactions:
       X-XSS-Protection:
       - 1; mode=block
     status:
-      code: 404
-      message: Not Found
+      code: 304
+      message: Not Modified
 - request:
     body: null
     headers:

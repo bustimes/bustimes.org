@@ -3,8 +3,9 @@ from django.test import TestCase
 
 from busstops.models import DataSource, Operator, Region, Service, StopPoint
 from bustimes.models import Route, StopTime, Trip
+from vehicles.models import Vehicle, VehicleJourney
 
-from .models import Consequence, Situation, ValidityPeriod
+from .models import AffectedJourney, Call, Consequence, Situation, ValidityPeriod
 
 
 class DisruptionsTest(TestCase):
@@ -224,3 +225,52 @@ class DisruptedTimetableTest(TestCase):
         response = self.client.get(f"{self.timetable_url}?date=2026-06-25")
         self.assertNotContains(response, "\u26a0\ufe0f&#xfe0f; Disrupted Place")
         self.assertContains(response, "Disrupted Place")
+
+
+class CancelledStopTest(TestCase):
+    def test_cancelled_stop_marked_in_journey(self):
+        source = DataSource.objects.create(name="BODS cancellations")
+        service = Service.objects.create(line_name="17A", current=True)
+        StopPoint.objects.bulk_create(
+            [
+                StopPoint(atco_code="2800S40055A", common_name="Anfield", active=True),
+                StopPoint(atco_code="2800S40057B", common_name="Priory", active=True),
+            ]
+        )
+        route = Route.objects.create(service=service, source=source, line_name="17A")
+        trip = Trip.objects.create(route=route, start="0", end="3600")
+        cancelled, _ = StopTime.objects.bulk_create(
+            [
+                StopTime(trip=trip, stop_id="2800S40055A", departure="0", sequence=0),
+                StopTime(trip=trip, stop_id="2800S40057B", arrival="3600", sequence=1),
+            ]
+        )
+        journey = VehicleJourney.objects.create(
+            trip=trip,
+            service=service,
+            datetime="2026-10-28T23:04:00Z",
+            date="2026-10-28",
+            vehicle=Vehicle.objects.create(code="80511"),
+            source=source,
+        )
+        situation = Situation.objects.create(source=source)
+        affected_journey = AffectedJourney.objects.create(
+            situation=situation, trip=trip, date="2026-10-28", condition="altered"
+        )
+        Call.objects.create(
+            journey=affected_journey,
+            stop_time=cancelled,
+            condition="notStopping",
+            order=1,
+        )
+
+        response = self.client.get(f"/api/vehiclejourneys/{journey.id}/details.json")
+        times = response.json()["trip"]["times"]
+        self.assertEqual(times[0]["call_condition"], "notStopping")
+        self.assertNotIn("call_condition", times[1])
+
+        # a different day
+        affected_journey.date = "2026-10-29"
+        affected_journey.save()
+        response = self.client.get(f"/api/vehiclejourneys/{journey.id}/details.json")
+        self.assertNotIn("call_condition", response.json()["trip"]["times"][0])

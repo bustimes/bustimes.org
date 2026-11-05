@@ -720,8 +720,7 @@ class VehicleJourney(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
 
     def get_absolute_url(self):
-        # TODO: change to "/journeys/{self.id}" (actually using `reverse()`)
-        return f"/vehicles/{self.vehicle_id}?date={self.date}#journey-{self.id}"
+        return reverse("journey_detail", args=(self.id,))
 
     def __str__(self):
         date = f"{self.datetime:%-d %b %y %H:%M}" if self.datetime else ""
@@ -764,7 +763,7 @@ class VehicleJourney(models.Model):
     get_trip = get_trip
 
     def get_trip_block_url(self):
-        url = reverse("block_detail", args=(self.trip_id,))
+        url = reverse("trip_block", args=(self.trip_id,))
         return f"{url}?date={self.date}"
 
     def get_service_link(self):
@@ -802,6 +801,7 @@ class VehicleLocation:
         self.seated_capacity = None
         self.wheelchair_occupancy = None
         self.wheelchair_capacity = None
+        self.wheelchair = None  # "accessible" or "not accessible"
         self.occupancy_thresholds = None
         self.block = block
         # the stops the data source says the vehicle is between (either can be None)
@@ -868,7 +868,7 @@ class VehicleLocation:
         json = {
             "id": self.id,  # (same as vehicle id)
             "journey_id": journey.id,
-            "coordinates": self.latlong.coords,
+            "coordinates": list(self.latlong.coords),
             "heading": self.get_heading(),
             "datetime": timezone.localtime(self.datetime, timezone=tz).isoformat(),
             "destination": journey.destination,
@@ -903,6 +903,8 @@ class VehicleLocation:
                 json["wheelchair"] = "free"
             else:
                 json["wheelchair"] = "occupied"
+        elif self.wheelchair:
+            json["wheelchair"] = self.wheelchair
 
         return json
 
@@ -912,7 +914,6 @@ class SiriSubscription(models.Model):
         max_length=64,
         blank=True,
         unique=True,
-        help_text="There should be a DataSource with the same name as this",
     )
     source = models.ForeignKey(DataSource, models.DB_CASCADE)
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
@@ -929,4 +930,4 @@ class SiriSubscription(models.Model):
         return f"{self.name.replace(' ', '_')}_status"
 
     def get_absolute_url(self):
-        return reverse("siri_post", args=(self.uuid,))
+        return reverse("siri_get", args=(self.id,))

@@ -1,0 +1,7 @@
+scrape_configs:
+  - job_name: bustimes-web
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 10.131.240.97:9394
+          - 10.131.240.98:9394

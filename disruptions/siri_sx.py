@@ -1,16 +1,26 @@
 import io
 import logging
+import re
 import xml.etree.ElementTree as ET
 import zipfile
+from collections import defaultdict
 from datetime import datetime
 
 import requests
+from django.db import transaction
 from django.db.backends.postgresql.psycopg_any import DateTimeTZRange
 from django.db.models import Q
+from django.utils.dateparse import parse_duration
 
-from busstops.models import DataSource, Operator, Service, StopPoint
+from busstops.models import AdminArea, DataSource, Operator, Service, StopPoint
 
-from .models import Consequence, Link, Situation, ValidityPeriod
+from .models import (
+    Consequence,
+    Link,
+    Situation,
+    ValidityPeriod,
+    delete_old_situations,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +36,29 @@ def get_operators(operator_ref):
         operatorcode__code=operator_ref,
         operatorcode__source__name="National Operator Codes",
     )
+
+
+def match_localities(services, *texts):
+    """If exactly one of the services serves a locality named in the text, return it"""
+    text = " ".join(filter(None, texts))
+    localities = defaultdict(set)
+    for service_id, name in (
+        StopPoint.objects.filter(service__in=services, locality__isnull=False)
+        .values_list("service", "locality__name")
+        .distinct()
+    ):
+        localities[service_id].add(name)
+    matches = [
+        service
+        for service in services
+        if any(
+            re.search(rf"\b{re.escape(name)}\b", text, re.IGNORECASE)
+            for name in localities[service.id]
+        )
+    ]
+    if len(matches) == 1:
+        return matches
+    return []
 
 
 def handle_item(item: ET.Element, source: DataSource, current_situations: dict):
@@ -55,13 +88,22 @@ def handle_item(item: ET.Element, source: DataSource, current_situations: dict):
 
     assert item.findtext("Progress") == "open"
 
-    reason = item.findtext("MiscellaneousReason")
+    reason = (
+        item.findtext("MiscellaneousReason")
+        or item.findtext("EquipmentReason")
+        or item.findtext("EnvironmentReason")
+        or item.findtext("PersonnelReason")
+    )
     if reason:
         situation.reason = reason
 
     situation.participant_ref = item.find("ParticipantRef").text
     situation.summary = item.find("Summary").text
     situation.text = item.find("Description").text
+    if situation.text == situation.summary:
+        situation.text = ""
+    else:
+        situation.text = situation.text.removeprefix(f"{situation.summary}\n\n")
     situation.save()
 
     for i, link_element in enumerate(item.findall("InfoLinks/InfoLink/Uri")):
@@ -99,9 +141,38 @@ def handle_item(item: ET.Element, source: DataSource, current_situations: dict):
             except Consequence.DoesNotExist:
                 pass
 
+        had_places = "<AffectedPlace>" in consequence.data
+
         consequence.text = consequence_element.find("Advice/Details").text
         consequence.data = ET.tostring(consequence_element, encoding="unicode")
+        consequence.severity = consequence_element.findtext("Severity") or ""
+        consequence.vehicle_mode = (
+            consequence_element.findtext("Affects/Networks/AffectedNetwork/VehicleMode")
+            or ""
+        )
+        consequence.direction = (
+            consequence_element.findtext(
+                "Affects/Networks/AffectedNetwork/AffectedLine/Direction/DirectionRef"
+            )
+            or ""
+        )
+        if delay := consequence_element.findtext("Delays/Delay"):
+            consequence.delay = parse_duration(delay)
+        else:
+            consequence.delay = None
         consequence.save()
+
+        area_refs = [
+            place.findtext("PlaceRef")
+            for place in consequence_element.findall("Affects/Places/AffectedPlace")
+            if place.findtext("PlaceCategory") == "AdministrativeArea"
+        ]
+        if area_refs or had_places:
+            consequence.admin_areas.set(
+                AdminArea.objects.filter(
+                    id__in=[int(ref) for ref in area_refs if ref.isdigit()]
+                )
+            )
 
         stops = consequence_element.findall("Affects/StopPoints/AffectedStopPoint")
         stops = [stop.find("StopPointRef").text for stop in stops]
@@ -127,13 +198,45 @@ def handle_item(item: ET.Element, source: DataSource, current_situations: dict):
                 matching_services = services.filter(
                     line_filter, operator__in=get_operators(operator_ref)
                 ).distinct()
-                if len(matching_services) > 1:
-                    matching_services = matching_services.filter(stops_filter)
+                candidates = len(matching_services)
+                if candidates > 1:
+                    narrowed = matching_services.filter(stops_filter) if stops else ()
+                    if not narrowed:
+                        narrowed = match_localities(
+                            matching_services,
+                            situation.summary,
+                            situation.text,
+                            consequence.text,
+                        )
+                    if narrowed:
+                        matching_services = narrowed
+                    else:
+                        logger.warning(
+                            "ambiguous line %s %s",
+                            operator_ref,
+                            line_name,
+                            extra={
+                                "situation_number": situation_number,
+                                "summary": situation.summary,
+                                "candidates": candidates,
+                                "stops": len(stops),
+                            },
+                        )
 
                 if matching_services:
                     consequence.services.add(*matching_services)
                 else:
-                    logger.info(f"{situation_number=} {operator_ref=} {line_name=}")
+                    logger.warning(
+                        "no matching service for %s %s",
+                        operator_ref,
+                        line_name,
+                        extra={
+                            "situation_number": situation_number,
+                            "summary": situation.summary,
+                            "candidates": candidates,
+                            "stops": len(stops),
+                        },
+                    )
 
         for operator in consequence_element.findall(
             "Affects/Operators/AffectedOperator"
@@ -181,8 +284,14 @@ def bods_disruptions():
     }
 
     for element in elements:
-        situations.append(handle_item(element, source, current_situations))
+        situation_number = element.findtext("SituationNumber")
+        try:
+            with transaction.atomic():
+                situations.append(handle_item(element, source, current_situations))
+        except Exception:
+            logger.exception("situation %s", situation_number)
+            # keep showing the previous version
+            if situation := current_situations.get(situation_number):
+                situations.append(situation.id)
 
-    source.situation_set.filter(current=True).exclude(id__in=situations).update(
-        current=False
-    )
+    delete_old_situations(source, situations)

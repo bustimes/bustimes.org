@@ -161,3 +161,6 @@
 # Sprowston
 2900S32517:
     common_name: "Park & Ride"  # for consistency with 2900S32518
+
+2200YEA12104:
+    locality_id: E0053026 # Eastrington not Easington
