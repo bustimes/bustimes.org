@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     container:
-      image: ghcr.io/bustimes/bustimes.org/bustimes-base:3.14
+      image: ghcr.io/bustimes/bustimes.org/bustimes-base:3.15
 
     permissions:
       packages: read  # to use the bustimes-base docker image

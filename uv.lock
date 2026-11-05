@@ -3,8 +3,8 @@ revision = 5
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_python_implementation == 'CPython' and sys_platform == 'linux'",
-    "python_full_version < '3.14' and platform_python_implementation == 'CPython' and sys_platform == 'linux'",
     "python_full_version >= '3.14' and platform_python_implementation == 'CPython' and sys_platform == 'darwin'",
+    "python_full_version < '3.14' and platform_python_implementation == 'CPython' and sys_platform == 'linux'",
     "python_full_version < '3.14' and platform_python_implementation == 'CPython' and sys_platform == 'darwin'",
 ]
 supported-markers = [
@@ -202,7 +202,7 @@ dependencies = [
     { name = "lightningcss-cli" },
     { name = "lxml" },
     { name = "numpy" },
-    { name = "onnxruntime" },
+    { name = "onnxruntime", marker = "python_full_version < '3.15'" },
     { name = "pandas" },
     { name = "polyline" },
     { name = "psycopg", extra = ["c"] },
@@ -277,7 +277,7 @@ requires-dist = [
     { name = "lightningcss-cli", specifier = ">=1.29.2,<2" },
     { name = "lxml", specifier = ">=6.0.0,<7" },
     { name = "numpy", specifier = "~=2.5.0" },
-    { name = "onnxruntime", specifier = ">=1.28.0,<2" },
+    { name = "onnxruntime", marker = "python_full_version < '3.15'", specifier = ">=1.28.0,<2" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "polyline", specifier = ">=2.0.4" },
     { name = "psycopg", extras = ["c"], specifier = ">=3.1.8,<4" },
