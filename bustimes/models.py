@@ -3,7 +3,7 @@ from urllib.parse import parse_qs
 
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
-from django.db.models import OuterRef, Q, Subquery
+from django.db.models import F, OuterRef, Q, Subquery
 from django.db.models.functions import Upper
 from django.urls import reverse
 from django.utils.timezone import localdate
@@ -113,6 +113,10 @@ class Version(models.Model):
 
 
 class RouteQuerySet(models.QuerySet):
+    def with_service_modified_at(self):
+        """for bustimes.utils.get_active_route_ids and get_active_calendar_ids"""
+        return self.annotate(service_modified_at=F("service__modified_at"))
+
     def active_on(self, when, revisions=True):
         routes = self
         if revisions:

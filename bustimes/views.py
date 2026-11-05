@@ -440,7 +440,11 @@ def stop_times_json(request, atco_code):
             "'limit' isn't in the right format (an integer or nothing)"
         )
 
-    routes = Route.objects.filter(service__in=services).select_related("source")
+    routes = (
+        Route.objects.filter(service__in=services)
+        .select_related("source")
+        .with_service_modified_at()
+    )
 
     departures = live.TimetableDepartures(stop, services, None, routes, by_trip)
     time_since_midnight = timedelta(

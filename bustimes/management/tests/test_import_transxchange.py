@@ -257,7 +257,7 @@ class ImportTransXChangeTest(TestCase):
             with self.assertNumQueries(21):
                 res = self.client.get(url)
 
-            with self.assertNumQueries(16):
+            with self.assertNumQueries(13):
                 res_2 = self.client.get(url)
 
         self.assertEqual(res.text, res_2.text)

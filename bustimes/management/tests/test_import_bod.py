@@ -224,23 +224,23 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
             ]
         }
 
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             response = self.client.get("/stops/2900W0321/times.json")
         self.assertEqual(response.json(), expected_json)
 
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             response = self.client.get(
                 "/stops/2900W0321/times.json?when=2020-05-01T09:15:00%2b01:00"
             )
         self.assertEqual(response.json(), expected_json)
 
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             response = self.client.get(
                 "/stops/2900W0321/times.json?when=2020-05-01T09:15:00"
             )
         self.assertEqual(response.json(), expected_json)
 
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(9):
             response = self.client.get("/stops/2900W0321/times.json?limit=10")
         self.assertEqual(1, len(response.json()["times"]))
 
@@ -571,7 +571,7 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
         BankHolidayDate.objects.create(
             bank_holiday=BankHoliday.objects.get(name="ChristmasDay"), date="2020-12-25"
         )
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(18):
             response = self.client.get(
                 "/services/904-huntingdon-peterborough?date=2020-12-25"
             )

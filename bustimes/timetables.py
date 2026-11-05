@@ -15,8 +15,13 @@ from django.utils.timezone import localdate
 from sql_util.utils import Exists
 
 from .formatting import format_timedelta
-from .models import Calendar, Note, Route, StopTime, Trip, chain_split_trips
-from .utils import get_descriptions, is_wrong_way_round
+from .models import Calendar, Note, StopTime, Trip, chain_split_trips
+from .utils import (
+    get_active_calendar_ids,
+    get_active_route_ids,
+    get_descriptions,
+    is_wrong_way_round,
+)
 
 differ = Differ(charjunk=lambda _: True)
 
@@ -68,7 +73,9 @@ class Timetable:
         self.operators = operators
         self.loose_trip_chaining = loose_trip_chaining
 
-        routes = list(routes.order_by("id").select_related("source"))
+        routes = list(
+            routes.order_by("id").select_related("source").with_service_modified_at()
+        )
         # today where the service runs (e.g. Las Vegas), not necessarily in London
         self.today = localdate(
             timezone=next((route.timezone for route in routes if route.timezone), None)
@@ -152,24 +159,19 @@ class Timetable:
         # consider revision numbers:
         if self.date:
             revisions = any(route.revision_number for route in routes)
-            routes_qs = Route.objects.filter(
-                id__in=[route.id for route in routes]
-            ).select_related("source")
-            self.current_routes = routes_qs.active_on(self.date, revisions)
             self.yesterday = self.date - datetime.timedelta(days=1)
-            self.yesterday_routes = routes_qs.active_on(self.yesterday, revisions)
+            current = set(get_active_route_ids(routes, self.date, revisions))
+            yesterday = set(get_active_route_ids(routes, self.yesterday, revisions))
+            self.current_routes = [route for route in routes if route.id in current]
+            self.yesterday_routes = [route for route in routes if route.id in yesterday]
 
         if not self.calendar and self.calendars:
             calendar_ids = [calendar.id for calendar in self.calendars]
-            self.calendar_ids = list(
-                Calendar.objects.active_on(
-                    self.date, calendar_ids, scotland=scotland
-                ).values_list("id", flat=True)
+            self.calendar_ids = get_active_calendar_ids(
+                routes, self.date, scotland, calendar_ids
             )
-            self.yesterday_calendar_ids = list(
-                Calendar.objects.active_on(
-                    self.yesterday, calendar_ids, scotland=scotland
-                ).values_list("id", flat=True)
+            self.yesterday_calendar_ids = get_active_calendar_ids(
+                routes, self.yesterday, scotland, calendar_ids
             )
 
     def correct_directions(self, trips):

@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 from difflib import Differ
 from itertools import pairwise
 
+from django.core.cache import cache
 from django.db.models import (
     Case,
     DateTimeField,
@@ -20,7 +21,7 @@ from django.db.models.functions import Abs, Least
 from django.utils import timezone
 from sql_util.utils import Exists
 
-from .models import Calendar, StopTime, Trip
+from .models import Calendar, Route, StopTime, Trip
 
 differ = Differ(charjunk=lambda _: True)
 
@@ -42,6 +43,58 @@ class log_time_taken:
 
     def __exit__(self, _, __, ___):
         self.logger.info(f"  ⏱️ {datetime.now(UTC) - self.start}")
+
+
+def cached_ids(kind, routes, when, extra, get_ids) -> list[int]:
+    """Cache ids that depend on some routes and a date,
+    until the routes' services are next saved (e.g. reimported), or for an hour"""
+    if not routes:
+        return []
+    key = f"{kind}:{when}:{extra}:" + ",".join(
+        sorted(f"{route.id}:{route.service_modified_at}" for route in routes)
+    )
+    key = f"{kind}:{hashlib.sha1(key.encode(), usedforsecurity=False).hexdigest()}"
+    ids = cache.get(key)
+    if ids is None:
+        ids = get_ids()
+        cache.set(key, ids, 3600)
+    return ids
+
+
+def get_active_route_ids(routes, when, revisions=True) -> list[int]:
+    """ids of the routes that are active on a date
+    (routes must have service_modified_at - see Route.objects.with_service_modified_at)
+    """
+    return cached_ids(
+        "routes",
+        routes,
+        when,
+        revisions,
+        lambda: list(
+            Route.objects.filter(id__in=[route.id for route in routes])
+            .active_on(when, revisions)
+            .values_list("id", flat=True)
+        ),
+    )
+
+
+def get_active_calendar_ids(routes, when, scotland, calendar_ids=None) -> list[int]:
+    """ids of the calendars that are active on a date -
+    either out of `calendar_ids`, or of the routes that are active on the date"""
+
+    def get_ids():
+        calendars = Calendar.objects.active_on(when, calendar_ids, scotland=scotland)
+        if calendar_ids is None:
+            calendars = calendars.for_routes(
+                Route.objects.filter(id__in=[route.id for route in routes]).active_on(
+                    when
+                )
+            )
+        return list(calendars.values_list("id", flat=True))
+
+    return cached_ids(
+        "calendars", routes, when, (scotland, calendar_ids is None), get_ids
+    )
 
 
 def get_stop_times(date: date, time: timedelta | None, stop, routes, trip_ids=None):
@@ -69,17 +122,11 @@ def get_stop_times(date: date, time: timedelta | None, stop, routes, trip_ids=No
             )
         )
     else:
-        routes = list(routes.active_on(date))
-
         scotland = stop.pk[:1] == "6" and ":" not in stop.pk and stop.pk[:4].isdigit()
 
         times = times.filter(
-            trip__route__in=routes,
-            trip__calendar__in=list(
-                Calendar.objects.active_on(date, scotland=scotland)
-                .for_routes(routes)
-                .values_list("id", flat=True)
-            ),
+            trip__route__in=get_active_route_ids(routes, date),
+            trip__calendar__in=get_active_calendar_ids(routes, date, scotland),
         )
 
         if time is not None:

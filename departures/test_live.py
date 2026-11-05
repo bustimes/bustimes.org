@@ -244,7 +244,7 @@ class LiveDeparturesTest(TestCase):
             self.worcester_stop,
             [self.trip.route.service],
             datetime.fromisoformat("2019-02-09T10:00:00Z"),
-            Route.objects.filter(id=self.trip.route_id),
+            Route.objects.filter(id=self.trip.route_id).with_service_modified_at(),
         ).get_departures()
 
         self.assertEqual(departures[0]["vehicle"], vehicle_2)

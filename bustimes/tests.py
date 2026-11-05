@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime, timedelta, timezone
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from busstops.models import DataSource, Service, StopPoint
 from vehicles.models import Livery, Vehicle, VehicleCode, VehicleJourney
@@ -18,6 +18,7 @@ from .models import (
     Version,
 )
 from .timetables import Grouping
+from .utils import get_active_route_ids
 from .views import stop_time_json
 
 
@@ -273,6 +274,30 @@ class BusTimesTest(TestCase):
         Trip.objects.filter(id=trip_2.id).update(calendar=weekdays)
         self.assertEqual(command.merge_split_trips(service.id), "merge")
         self.assertEqual(Trip.objects.get().stoptime_set.count(), 3)
+
+    @override_settings(
+        CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    )
+    def test_get_active_route_ids_cache(self):
+        source = DataSource.objects.create(name="Lynx")
+        service = Service.objects.create(line_name="55")
+        route = Route.objects.create(
+            service=service, source=source, code="1", start_date=date(2022, 2, 1)
+        )
+
+        def get_ids():
+            routes = Route.objects.filter(service=service).with_service_modified_at()
+            return get_active_route_ids(routes, date(2022, 1, 1))
+
+        self.assertEqual(get_ids(), [])  # not started yet
+
+        route.start_date = date(2021, 1, 1)
+        route.save()
+        with self.assertNumQueries(1):  # just the routes - result is cached
+            self.assertEqual(get_ids(), [])
+
+        service.save()  # e.g. reimported
+        self.assertEqual(get_ids(), [route.id])
 
     def test_get_routes(self):
         sources = DataSource.objects.bulk_create(

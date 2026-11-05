@@ -99,9 +99,11 @@ def get_departures(stop, services, when) -> dict:
                         "departures": live_departures,
                     }
 
-    routes = Route.objects.filter(
-        service__in=[s for s in services if not s.timetable_wrong]
-    ).select_related("source")
+    routes = (
+        Route.objects.filter(service__in=[s for s in services if not s.timetable_wrong])
+        .select_related("source")
+        .with_service_modified_at()
+    )
 
     now = None
     for route in routes:
