@@ -424,28 +424,29 @@ def get_vehicle_locations(
     )
 
     # get vehicles from the database IF they have unexpired locations AND weren't in the cache
-    try:
-        vehicles = (
-            Vehicle.objects.select_related("vehicle_type")
-            .annotate(
-                feature_names=features_string_agg,
-                service_line_name=F("latest_journey__trip__route__line_name"),
-                service_slug=F("latest_journey__service__slug"),
-                colour=F("livery__colour"),
-                service_colour=F("latest_journey__service__colour__background"),
-            )
-            .defer("data", "latest_journey_data")
-        ).in_bulk(
-            [
-                vehicle_id
-                for vehicle_id, item in zip(vehicle_ids, vehicle_locations)
-                if item
-                and "vehicle" not in item
-                and f"journey{item['journey_id']}" not in journeys
-            ]
-        )
-    except OperationalError:
-        vehicles = {}
+    uncached_vehicle_ids = [
+        vehicle_id
+        for vehicle_id, item in zip(vehicle_ids, vehicle_locations)
+        if item
+        and "vehicle" not in item
+        and f"journey{item['journey_id']}" not in journeys
+    ]
+    vehicles = {}
+    if uncached_vehicle_ids:
+        try:
+            vehicles = (
+                Vehicle.objects.select_related("vehicle_type")
+                .annotate(
+                    feature_names=features_string_agg,
+                    service_line_name=F("latest_journey__trip__route__line_name"),
+                    service_slug=F("latest_journey__service__slug"),
+                    colour=F("livery__colour"),
+                    service_colour=F("latest_journey__service__colour__background"),
+                )
+                .defer("data", "latest_journey_data")
+            ).in_bulk(uncached_vehicle_ids)
+        except OperationalError:
+            pass
 
     locations = []
     journeys_to_cache_later = {}
