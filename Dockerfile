@@ -10,16 +10,27 @@ COPY .parcelrc tsconfig.json /app/
 RUN npm run lint && npm run build
 
 
-FROM ghcr.io/bustimes/bustimes.org/bustimes-base:3.15
+FROM ghcr.io/bustimes/bustimes.org/bustimes-base:3.15 AS venv
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
 
 WORKDIR /app/
 
-# Install dependencies
 COPY uv.lock pyproject.toml /app/
-RUN uv sync --frozen --compile-bytecode
+RUN uv sync --frozen --no-dev --compile-bytecode
 
+
+FROM python:3.15-slim-trixie
+
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libgdal36 libpq5 && \
+    rm -rf /var/lib/apt /var/lib/dpkg/info/*
+
+WORKDIR /app/
+
+COPY --from=venv /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY --from=0 /app/node_modules/htmx.org/dist /app/node_modules/htmx.org/dist
