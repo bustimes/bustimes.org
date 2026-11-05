@@ -54,7 +54,6 @@ if TEST:
     socket.socket.connect = connect
 
 INSTALLED_APPS = [
-    "daphne",
     "channels",
     "accounts",
     "busstops",
@@ -86,6 +85,9 @@ INSTALLED_APPS = [
     "turnstile",
     "django_http_compression",
 ]
+if DEBUG:
+    # runserver with websockets
+    INSTALLED_APPS.insert(0, "daphne")
 
 
 MIDDLEWARE = [
