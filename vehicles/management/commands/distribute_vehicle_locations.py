@@ -17,6 +17,8 @@ from ...utils import VEHICLE_POSITIONS_CHANNEL, async_redis_client
 
 logger = logging.getLogger(__name__)
 
+EXPIRY = 3 * 24 * 60 * 60  # archive_old_journey_locations moves them to the database
+
 
 class PolylineWrapper:
     def __init__(self):
@@ -109,7 +111,7 @@ class Command(BaseCommand):
             # the key currently holds the old 'list' type, so it needs a
             # full SET (not APPEND) to convert it and store the migrated
             # history; subsequent updates can be appended incrementally
-            migrate_pipe.set(uuid, polyline)
+            migrate_pipe.set(uuid, polyline, ex=EXPIRY)
             migrating = True
 
         if migrating:
@@ -127,6 +129,7 @@ class Command(BaseCommand):
         for uuid, wrapper in polylines.items():
             if wrapper.pending:
                 append_pipe.append(uuid, wrapper.pending)
+                append_pipe.expire(uuid, EXPIRY)
                 wrapper.pending = ""
                 appending = True
 

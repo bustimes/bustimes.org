@@ -207,6 +207,13 @@ class VehicleAdmin(M2MThroughMixin, admin.ModelAdmin):
             duplicate.vehiclejourney_set.update(vehicle=vehicle)
             duplicate.vehiclecode_set.update(vehicle=vehicle)
             duplicate.vehiclerevision_set.update(vehicle=vehicle)
+            models.VehicleLocationHistory.merge(
+                {
+                    (vehicle.id, history.date): history.polylines
+                    for history in duplicate.vehiclelocationhistory_set.all()
+                }
+            )
+            duplicate.vehiclelocationhistory_set.all().delete()
 
             with contextlib.suppress(IntegrityError):
                 models.VehicleCode.objects.create(

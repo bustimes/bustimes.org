@@ -32,6 +32,7 @@ from vehicles.models import (
     Vehicle,
     VehicleJourney,
     VehicleLocation,
+    VehicleLocationHistory,
     VehicleType,
 )
 from vehicles.time_aware_polyline import (
@@ -440,6 +441,9 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
             try:
                 if polyline := redis_client.get(instance.get_redis_key()):
                     polyline = polyline.decode()
+                elif instance.vehicle_id:
+                    polyline = VehicleLocationHistory.get_polyline(instance)
+                if polyline:
                     locations = [
                         {
                             "id": timestamp,

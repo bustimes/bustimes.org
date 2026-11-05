@@ -9,7 +9,7 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib.gis.db import models
-from django.db.models import Q, UniqueConstraint
+from django.db.models import CharField, Func, Q, TextField, UniqueConstraint, Value
 from django.db.models.functions import Upper
 from django.urls import reverse
 from django.utils import timezone
@@ -774,6 +774,59 @@ class VehicleJourney(models.Model):
         return (
             reverse("service_vehicles", args=(slug,)) + "?date=" + self.date.isoformat()
         )
+
+
+class VehicleLocationHistory(models.Model):
+    """journeys' time-aware polylines, moved here from Redis after a couple of days"""
+
+    pk = models.CompositePrimaryKey("vehicle", "date")
+    vehicle = models.ForeignKey(Vehicle, models.DB_CASCADE, db_index=False)
+    date = models.DateField()
+    polylines = models.JSONField()  # {journey id: polyline}
+
+    @classmethod
+    def merge(cls, rows):
+        """rows: {(vehicle id, date): {journey id: polyline}}"""
+        for history in cls.objects.filter(pk__in=list(rows)):
+            rows[history.pk] = history.polylines | rows[history.pk]
+        cls.objects.bulk_create(
+            [
+                cls(vehicle_id=vehicle_id, date=date, polylines=polylines)
+                for (vehicle_id, date), polylines in rows.items()
+            ],
+            update_conflicts=True,
+            unique_fields=["vehicle", "date"],
+            update_fields=["polylines"],
+        )
+
+    @classmethod
+    def get_polyline(cls, journey):
+        return (
+            cls.objects.filter(vehicle=journey.vehicle_id, date=journey.date)
+            .values_list(
+                Func(
+                    "polylines",
+                    Value(str(journey.id)),
+                    function="jsonb_extract_path_text",
+                    output_field=TextField(),
+                ),
+                flat=True,
+            )
+            .first()
+        )
+
+    @classmethod
+    def get_journey_ids(cls, date, vehicle_ids):
+        keys = (
+            cls.objects.filter(date=date, vehicle__in=vehicle_ids)
+            .annotate(
+                key=Func(
+                    "polylines", function="jsonb_object_keys", output_field=CharField()
+                )
+            )
+            .values_list("key", flat=True)
+        )
+        return {int(key) for key in keys}
 
 
 class VehicleLocation:

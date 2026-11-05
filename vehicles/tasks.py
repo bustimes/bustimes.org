@@ -1,6 +1,8 @@
 import functools
 import zipfile
+from collections import defaultdict
 from datetime import datetime, timedelta
+from itertools import batched
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -21,9 +23,12 @@ from .models import (
     Vehicle,
     VehicleCode,
     VehicleJourney,
+    VehicleLocationHistory,
     VehicleRevision,
 )
-from .utils import archive_avl_data
+from .utils import archive_avl_data, redis_client
+
+LOCATION_HISTORY_DAYS = 42
 
 
 @functools.cache
@@ -371,3 +376,37 @@ def compress_avl_archive():
                 )
             archive.write(file_path, file_path.name)
             file_path.unlink()
+
+
+def archive_journey_locations(date):
+    """move a day's journey polylines from Redis to the database
+    (or, if older than LOCATION_HISTORY_DAYS, just delete them)"""
+    if not redis_client:
+        return
+    keep = date >= timezone.localdate() - timedelta(days=LOCATION_HISTORY_DAYS)
+    journeys = VehicleJourney.objects.filter(date=date, vehicle__isnull=False)
+    vehicle_ids = journeys.order_by("vehicle_id").values_list("vehicle_id", flat=True)
+    for chunk in batched(vehicle_ids.distinct(), 100):
+        chunk_journeys = list(
+            journeys.filter(vehicle__in=chunk).values_list("id", "vehicle_id", "uuid")
+        )
+        keys = [uuid.bytes for _, _, uuid in chunk_journeys]
+        if keep:
+            rows = defaultdict(dict)
+            for (journey_id, vehicle_id, _), polyline in zip(
+                chunk_journeys, redis_client.mget(keys)
+            ):
+                if polyline:
+                    rows[vehicle_id, date][str(journey_id)] = polyline.decode()
+            if rows:
+                VehicleLocationHistory.merge(rows)
+        redis_client.unlink(*keys)
+
+
+@db_periodic_task(crontab(minute=30, hour=3))
+def archive_old_journey_locations():
+    today = timezone.localdate()
+    archive_journey_locations(today - timedelta(days=2))
+    VehicleLocationHistory.objects.filter(
+        date__lt=today - timedelta(days=LOCATION_HISTORY_DAYS)
+    ).delete()

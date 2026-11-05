@@ -256,7 +256,7 @@ class VehiclesTests(TestCase):
         self.assertEqual(a.get_previous(), self.vehicle_2)
 
     def test_vehicle_views(self):
-        with self.assertNumQueries(7):
+        with self.assertNumQueries(8):
             response = self.client.get(self.vehicle_1.get_absolute_url() + "?date=poop")
         self.assertContains(response, "Optare Tempo")
         self.assertContains(response, "Trent Barton")
@@ -1036,11 +1036,11 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
             self.client.get("/vehicles")
 
     def test_service_vehicle_history(self):
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(6):
             response = self.client.get(
                 "/services/spixworth-hunworth-happisburgh/vehicles?date=poop"
             )
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             response = self.client.get(
                 "/services/spixworth-hunworth-happisburgh/vehicles?date=2020-10-20"
             )

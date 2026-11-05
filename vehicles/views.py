@@ -68,6 +68,7 @@ from .models import (
     SiriSubscription,
     Vehicle,
     VehicleJourney,
+    VehicleLocationHistory,
     VehicleRevision,
     VehicleRevisionFeature,
     get_text_colour,
@@ -698,6 +699,19 @@ def journeys_list(request, journeys, service=None, vehicle=None) -> dict:
         else:
             for journey, location in zip(journeys, locations):
                 journey.locations = bool(location)
+            archived_vehicle_ids = date <= timezone.localdate() - datetime.timedelta(
+                days=2
+            ) and {
+                journey.vehicle_id
+                for journey in journeys
+                if not journey.locations and journey.vehicle_id
+            }
+            if archived_vehicle_ids:
+                archived = VehicleLocationHistory.get_journey_ids(
+                    date, archived_vehicle_ids
+                )
+                for journey in journeys:
+                    journey.locations = journey.locations or journey.id in archived
 
     # "Track this bus" button
     if vehicle and vehicle.latest_journey_id:

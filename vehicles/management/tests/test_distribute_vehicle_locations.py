@@ -33,6 +33,7 @@ class DistributeVehicleLocationsTest(SimpleTestCase):
         self.assertEqual(
             decode_time_aware_polyline(polyline.decode()), [[1.234, 51.234, 1000]]
         )
+        self.assertEqual(await self.redis.ttl(uuid), 3 * 24 * 60 * 60)
 
     async def test_existing_string(self):
         uuid = str(uuid4())
