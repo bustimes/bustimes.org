@@ -572,6 +572,8 @@ def vehicles_json(request) -> JsonResponse:
         return cachable_400()
 
     response = JsonResponse(locations)
+    if not request.GET:
+        patch_cache_control(response, s_maxage=10)  # Cloudflare
 
     return respond_conditionally(request, response)
 

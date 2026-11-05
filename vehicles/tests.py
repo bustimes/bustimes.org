@@ -1186,6 +1186,10 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
             response = self.client.get("/vehicles.json?id=1,2")
         self.assertEqual(response.json(), [])
         self.assertEqual(response.headers["ETag"], '"d751713988987e9331980363e24189ce"')
+        self.assertNotIn("Cache-Control", response.headers)
+
+        response = self.client.get("/vehicles.json")
+        self.assertEqual(response.headers["Cache-Control"], "s-maxage=10")
 
 
 class CalculateBearingTest(SimpleTestCase):
