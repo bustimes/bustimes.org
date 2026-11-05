@@ -233,7 +233,7 @@ def not_found(request, exception):
         try:
             resolver_match = resolve(request.path[:-1])
             return resolver_match.func(request, **resolver_match.kwargs)
-        except Http404:
+        except (Http404, PermissionDenied):
             pass
 
     # anonymise request (cos response may be cached)
