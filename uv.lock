@@ -3,8 +3,8 @@ revision = 5
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_python_implementation == 'CPython' and sys_platform == 'linux'",
-    "python_full_version >= '3.14' and platform_python_implementation == 'CPython' and sys_platform == 'darwin'",
     "python_full_version < '3.14' and platform_python_implementation == 'CPython' and sys_platform == 'linux'",
+    "python_full_version >= '3.14' and platform_python_implementation == 'CPython' and sys_platform == 'darwin'",
     "python_full_version < '3.14' and platform_python_implementation == 'CPython' and sys_platform == 'darwin'",
 ]
 supported-markers = [
@@ -1154,7 +1154,7 @@ uvloop = [
 
 [[package]]
 name = "gtfs-kit"
-version = "13.0.1"
+version = "14.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "folium" },
@@ -1165,9 +1165,9 @@ dependencies = [
     { name = "rtree" },
     { name = "shapely" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/26/df/d9eb5a90560974c20fbe5542a6484581e3e2e845dbefb615bc4d5d7c8cd3/gtfs_kit-13.0.1.tar.gz", hash = "sha256:9c4a58e6f11971d262dbaec08e4f85f727b6609479d07e39a54f2ca4f84eb65a", size = 1200365, upload-time = "2026-08-30T23:21:12.24Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/aa/2318197b1dabc6e923acfbed88574ad5982348d4820acd24a316d565aae1/gtfs_kit-14.1.0.tar.gz", hash = "sha256:0742f1d61b1878bda04972e543c1eff2365e63d1b3b70b81ca0ca47e75e4eac5", size = 1135637, upload-time = "2026-11-05T02:01:42.757Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/f2/34c73c28819ae5113c2b17cb7b5c84b6310258ec5e91ff4379d2cf1160c0/gtfs_kit-13.0.1-py3-none-any.whl", hash = "sha256:52677f8615b2751cdce2ee2b7e0acb9240ee8d755ef7a024aff62ea0fd884a77", size = 84544, upload-time = "2026-08-30T23:21:07.381Z" },
+    { url = "https://files.pythonhosted.org/packages/12/04/c6f5961ffa68c966a07b6014fad233d6323e8300a807cfd6fd3b9a5f51e0/gtfs_kit-14.1.0-py3-none-any.whl", hash = "sha256:afc015fd00d02b5a72c41cfe9833be4f8e1245b10065d99c12304d7632342e76", size = 84737, upload-time = "2026-11-05T02:01:33.946Z" },
 ]
 
 [[package]]
