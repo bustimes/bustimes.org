@@ -1,3 +1,4 @@
+import struct
 from datetime import date
 from io import StringIO
 from unittest.mock import patch
@@ -42,9 +43,10 @@ class VehicleLocationHistoryTest(TestCase):
         polyline = encode_time_aware_polyline([[1.0, 51.0, 1762164000]])
         redis.set(self.journeys[0].get_redis_key(), polyline)
         redis.set(self.journeys[1].get_redis_key(), polyline)
-        redis.set(self.old_journey.get_redis_key(), polyline)
-        VehicleLocationHistory.objects.create(
-            vehicle=self.vehicle, date="2026-09-20", polylines={}
+        # old 'list' type
+        redis.rpush(
+            self.old_journey.get_redis_key(),
+            struct.pack("I 2f ?h ?h", 1756720800, 1.0, 51.0, True, 90, False, 0),
         )
 
         with patch("vehicles.tasks.redis_client", redis):
@@ -68,11 +70,11 @@ class VehicleLocationHistoryTest(TestCase):
         history.refresh_from_db()
         self.assertEqual(len(history.polylines), 3)
 
-        # backfill - old journey is past retention, so deleted not archived
+        # backfill
         with patch("vehicles.tasks.redis_client", redis):
             call_command("archive_journey_locations", "70", stdout=StringIO())
         self.assertEqual(redis.keys(), [])
-        self.assertEqual(VehicleLocationHistory.objects.count(), 1)
+        self.assertEqual(VehicleLocationHistory.objects.count(), 2)
 
         empty_redis = fakeredis.FakeStrictRedis()
         with (
@@ -90,7 +92,10 @@ class VehicleLocationHistoryTest(TestCase):
             response = self.client.get(
                 f"/api/vehiclejourneys/{self.old_journey.id}/details/"
             )
-            self.assertEqual(response.json()["time_aware_polyline"], "")
+            self.assertEqual(
+                decode_time_aware_polyline(response.json()["time_aware_polyline"]),
+                [[1.0, 51.0, 1756720800]],
+            )
 
             response = self.client.get(
                 f"{self.vehicle.get_absolute_url()}?date={self.date}"
