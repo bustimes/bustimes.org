@@ -1059,7 +1059,7 @@ class Service(models.Model):
         cache_key += [str(r.id) for r in timetable.current_routes]
 
         if timetable.calendar:
-            cache_key += str(timetable.calendar.id)
+            cache_key.append(str(timetable.calendar.id))
         elif timetable.calendars:
             cache_key += [str(calendar_id) for calendar_id in timetable.calendar_ids]
 
