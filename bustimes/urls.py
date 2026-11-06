@@ -26,6 +26,11 @@ urlpatterns = [
         views.ImportTaskDetailView.as_view(),
         name="importtask_detail",
     ),
+    path(
+        "sources/<int:source_id>/updates/<int:pk>/file",
+        views.importtask_file,
+        name="importtask_file",
+    ),
     re_path(
         r"^sources/(?P<source>\d+)/routes/(?P<code>.*)",
         views.route_xml,

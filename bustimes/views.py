@@ -311,6 +311,22 @@ class ImportTaskDetailView(DetailView):
         return context
 
 
+@require_GET
+@login_required
+def importtask_file(request, source_id, pk):
+    task = get_object_or_404(ImportTask, source=source_id, pk=pk)
+    if not task.file:
+        raise Http404
+    open_file = task.file.open("rb")
+    extension = "zip" if zipfile.is_zipfile(open_file) else "xml"
+    open_file.seek(0)
+    return FileResponse(
+        open_file,
+        as_attachment=True,
+        filename=f"{task.source_id}-{task.started_at:%Y-%m-%d}-{task.id}.{extension}",
+    )
+
+
 def open_source_file(source, code):
     """Return the file that `source` was imported from, and the path within it
     (if it's an archive) that `code` refers to

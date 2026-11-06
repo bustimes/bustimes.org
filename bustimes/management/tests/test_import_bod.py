@@ -31,6 +31,7 @@ from ...models import (
     BankHolidayDate,
     CalendarBankHoliday,
     Garage,
+    ImportTask,
     Route,
     RouteLink,
     TimetableDataSource,
@@ -493,10 +494,15 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
                     datetime.datetime.fromisoformat("2020-06-10T12:00:00+01:00"),
                 ),
             ) as download_if_modified:
-                with self.assertNumQueries(130):
+                with self.assertNumQueries(131):
                     call_command("import_bod_timetables", "stagecoach")
                 download_if_modified.assert_called_with(
                     path, DataSource.objects.get(name="Stagecoach East"), ANY
+                )
+                task = ImportTask.objects.get()
+                self.assertEqual(
+                    (task.services, task.routes, task.trips, task.file_size),
+                    (2, 2, 62, path.stat().st_size),
                 )
 
                 route_links = RouteLink.objects.order_by("id")
@@ -513,7 +519,7 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
                 with self.assertNumQueries(1):
                     call_command("import_bod_timetables", "stagecoach", "SCOX")
 
-                with self.assertNumQueries(66):
+                with self.assertNumQueries(67):
                     call_command("import_bod_timetables", "stagecoach", "SCCM")
 
                 route_link.refresh_from_db()
@@ -532,6 +538,15 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
             response = self.client.get(route.get_absolute_url())
             self.assertEqual(200, response.status_code)
             self.assertEqual("", response.filename)
+
+            task = ImportTask.objects.first()
+            self.assertEqual(task.file.name, source.get_archive_path())
+            response = self.client.get(task.get_file_url())
+            self.assertEqual(
+                response.headers["Content-Disposition"],
+                f'attachment; filename="{source.id}-2020-06-10-{task.id}.zip"',
+            )
+            self.assertEqual(b"".join(response.streaming_content), path.read_bytes())
 
             self.client.logout()
 

@@ -93,7 +93,7 @@ def handle_file(command, path, qualify_filename=False):
     # the downloaded file might be plain XML, or a zipped archive - we just don't know yet
     full_path = settings.DATA_DIR / path
 
-    command.start_task()
+    command.start_task(full_path)
 
     try:
         with zipfile.ZipFile(full_path) as archive:
@@ -125,10 +125,10 @@ def handle_file(command, path, qualify_filename=False):
             except (AttributeError, DataError):
                 logger.exception("error handling file")
 
-    command.finish_task()
-
     if not qualify_filename:
-        command.source.save_to_archive(full_path)
+        command.task.file = command.source.save_to_archive(full_path) or ""
+
+    command.finish_task()
 
 
 def get_bus_open_data_paramses(sources, api_key):

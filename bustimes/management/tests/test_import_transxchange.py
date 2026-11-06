@@ -34,6 +34,7 @@ from ...models import (
     DataQualityObservation,
     DodgyRouteLink,
     Garage,
+    ImportTask,
     Note,
     Route,
     RouteLink,
@@ -171,6 +172,35 @@ class ImportTransXChangeTest(TestCase):
     @staticmethod
     def write_file_to_zipfile(open_zipfile, filename, arcname=None):
         open_zipfile.write(FIXTURES_DIR / filename, arcname=arcname or filename)
+
+    @time_machine.travel("3 October 2016")
+    def test_task_counts(self):
+        # like import_passenger: several tasks sharing service_ids and route_ids
+        command = import_transxchange.Command()
+        command.set_up()
+        command.service_ids = set()
+        command.route_ids = set()
+        command.open_data_operators = set()
+        command.incomplete_operators = set()
+        command.set_region("EA.zip")
+        command.source.datetime = timezone.now()
+
+        for filename in ("ea_20-12-_-y08-1.xml", "ea_21-13B-B-y08-1.xml"):
+            command.start_task()
+            with open(FIXTURES_DIR / filename, "rb") as open_file:
+                command.handle_file(open_file, filename)
+            command.finish_task()
+
+        self.assertEqual(
+            [
+                (task.services, task.routes, task.trips)
+                for task in ImportTask.objects.order_by("id")
+            ],
+            [
+                (1, 1, Trip.objects.filter(route__line_name="12").count()),
+                (1, 1, Trip.objects.filter(route__line_name="13B").count()),
+            ],
+        )
 
     @time_machine.travel("3 October 2016")
     def test_east_anglia(self):

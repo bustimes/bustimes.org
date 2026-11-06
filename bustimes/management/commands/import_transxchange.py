@@ -534,6 +534,8 @@ class Command(BaseCommand):
         self.notes = {}
         self.garages = {}
         self.today = localdate()
+        self.task_service_ids = set()
+        self.task_route_ids = set()
 
     @cached_property
     def service_overrides(self):
@@ -757,14 +759,24 @@ class Command(BaseCommand):
 
         return flat_path
 
-    def start_task(self):
+    def start_task(self, path=None):
         self.task = ImportTask.objects.create(
-            source=self.source, started_at=datetime.datetime.now(tz=datetime.UTC)
+            source=self.source,
+            started_at=datetime.datetime.now(tz=datetime.UTC),
+            file_size=path.stat().st_size if path else None,
         )
+        # service_ids and route_ids can span several tasks (import_passenger)
+        self.task_service_ids = set()
+        self.task_route_ids = set()
 
     def finish_task(self):
         self.task.finished_at = datetime.datetime.now(tz=datetime.UTC)
-        self.task.save(update_fields=["finished_at"])
+        self.task.services = len(self.task_service_ids)
+        self.task.routes = len(self.task_route_ids)
+        self.task.trips = Trip.objects.filter(route__in=self.task_route_ids).count()
+        self.task.save(
+            update_fields=["finished_at", "services", "routes", "trips", "file"]
+        )
 
     def handle_archive(self, archive_path: Path, filenames):
         self.service_ids = set()
@@ -774,7 +786,7 @@ class Command(BaseCommand):
 
         self.set_region(basename)
 
-        self.start_task()
+        self.start_task(archive_path)
 
         self.source.datetime = datetime.datetime.fromtimestamp(
             os.path.getmtime(archive_path), datetime.UTC
@@ -815,7 +827,7 @@ class Command(BaseCommand):
 
         self.source.save(update_fields=["datetime"])
 
-        self.source.save_to_archive(archive_path)
+        self.task.file = self.source.save_to_archive(archive_path) or ""
 
         self.finish_task()
 
@@ -1748,6 +1760,7 @@ class Command(BaseCommand):
                 service.operator.add(*operators.values())
 
             self.service_ids.add(service.id)
+            self.task_service_ids.add(service.id)
 
             journey = journeys[0]
 
@@ -1911,6 +1924,7 @@ class Command(BaseCommand):
                         route_defaults, id=existing_route.id
                     )
                     self.route_ids.add(route.id)
+                    self.task_route_ids.add(route.id)
                     # file hasn't changed, so we don't need to re-load journeys
                     continue
 
@@ -1919,6 +1933,7 @@ class Command(BaseCommand):
             )
 
             self.route_ids.add(route.id)
+            self.task_route_ids.add(route.id)
 
             if not skip_journeys:
                 self.handle_journeys(

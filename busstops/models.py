@@ -338,7 +338,7 @@ class DataSource(models.Model):
     def save_to_archive(self, path):
         with open(path, "rb") as open_file:
             try:
-                storages["archive"].save(self.get_archive_path(), open_file)
+                return storages["archive"].save(self.get_archive_path(), open_file)
             except Exception:
                 # archiving is not essential - don't fail the whole import
                 logging.getLogger(__name__).exception("error archiving %s", path)

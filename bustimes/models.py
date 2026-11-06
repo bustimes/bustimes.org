@@ -3,6 +3,7 @@ from urllib.parse import parse_qs
 
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
+from django.core.files.storage import storages
 from django.db.models import F, OuterRef, Q, Subquery
 from django.db.models.functions import Upper
 from django.urls import reverse
@@ -946,12 +947,19 @@ class VehicleType(models.Model):
         return self.code
 
 
+def archive_storage():
+    return storages["archive"]
+
+
 class ImportTask(models.Model):
     source = models.ForeignKey("busstops.DataSource", models.DB_CASCADE)
     started_at = models.DateTimeField()
     finished_at = models.DateTimeField(null=True, blank=True)
-    # routes = models.PositiveSmallIntegerField(null=True, blank=True)
-    # services = models.PositiveSmallIntegerField(null=True, blank=True)
+    services = models.PositiveIntegerField(null=True, blank=True)
+    routes = models.PositiveIntegerField(null=True, blank=True)
+    trips = models.PositiveIntegerField(null=True, blank=True)
+    file_size = models.PositiveBigIntegerField(null=True, blank=True)
+    file = models.FileField(storage=archive_storage, max_length=255, blank=True)
 
     def get_absolute_url(self):
         return reverse(
@@ -961,6 +969,9 @@ class ImportTask(models.Model):
                 self.id,
             ),
         )
+
+    def get_file_url(self):
+        return reverse("importtask_file", args=(self.source_id, self.id))
 
     def duration(self):
         if self.started_at and self.finished_at:

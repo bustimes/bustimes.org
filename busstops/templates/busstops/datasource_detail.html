@@ -51,6 +51,10 @@
     <thead>
         <th scope="col" class="shortish">started at</th>
         <th scope="col" class="shortish">time taken</th>
+        <th scope="col" class="shortish">file size</th>
+        <th scope="col" class="short">services</th>
+        <th scope="col" class="short">routes</th>
+        <th scope="col" class="short">trips</th>
         <th scope="col" class="shortish">data quality observations</th>
     </thead>
     <tbody>
@@ -58,6 +62,10 @@
         <tr>
             <td>{{ task.started_at }}</td>
             <td>{{ task.duration }}</td>
+            <td>{% if task.file %}<a href="{{ task.get_file_url }}">{{ task.file_size|filesizeformat }}</a>{% elif task.file_size %}{{ task.file_size|filesizeformat }}{% endif %}</td>
+            <td>{{ task.services|default_if_none:"" }}</td>
+            <td>{{ task.routes|default_if_none:"" }}</td>
+            <td>{{ task.trips|default_if_none:"" }}</td>
             <td><a href="{{ task.get_absolute_url }}">{{ task.observations }}</a></td>
         </tr>
     {% endfor %}
