@@ -490,14 +490,6 @@ def stops_mvt(request, z, x, y):
     return HttpResponse(mvt_data, content_type="application/x-protobuf")
 
 
-def stats(request):
-    return JsonResponse(cache.get("vehicle-tracking-stats", []))
-
-
-def timetable_source_stats(request):
-    return JsonResponse(cache.get("timetable-source-stats", []))
-
-
 @cache_control(max_age=3600)
 def stops_json(request):
     """JSON endpoint accessed by the JavaScript map,

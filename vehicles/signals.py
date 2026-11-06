@@ -1,8 +1,10 @@
+import sentry_sdk
 from django.core.cache import cache
-from django.db.models.signals import post_save
+from django.db import transaction
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from .models import Livery, Vehicle
+from .models import Livery, Vehicle, VehicleRevision
 
 
 @receiver(post_save, sender=Livery)
@@ -14,3 +16,16 @@ def liveries_cache_update(sender, instance, **kwargs):
 def vehicle_cache_update(sender, instance, created, **kwargs):
     if not created and instance.latest_journey_id:
         cache.delete(f"journey{instance.latest_journey_id}")
+
+
+def pending_vehicle_edits_gauge():
+    sentry_sdk.metrics.gauge(
+        "pending_vehicle_edits",
+        VehicleRevision.objects.filter(pending=True, disapproved=False).count(),
+    )
+
+
+@receiver(post_save, sender=VehicleRevision)
+@receiver(post_delete, sender=VehicleRevision)
+def vehicle_revision_changed(sender, instance, **kwargs):
+    transaction.on_commit(pending_vehicle_edits_gauge)

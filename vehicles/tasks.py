@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from itertools import batched
 
+import sentry_sdk
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.conf import settings
@@ -24,7 +25,6 @@ from .models import (
     VehicleCode,
     VehicleJourney,
     VehicleLocationHistory,
-    VehicleRevision,
 )
 from .utils import archive_avl_data, redis_client
 
@@ -273,75 +273,16 @@ def log_vehicle_journey(
 
 @db_periodic_task(crontab(minute="*/5"))
 def stats():
-    """
-    count the number of current vehicle journeys
-    (in total, with services, and with trips)
-    and pending vehicle revisions
-    for the /status graphs
-    """
-
-    now = timezone.now()
-    half_hour_ago = now - timedelta(minutes=30)
     journeys = VehicleJourney.objects.filter(
-        latest_vehicle__isnull=False, datetime__gte=half_hour_ago
+        latest_vehicle__isnull=False,
+        datetime__gte=timezone.now() - timedelta(minutes=30),
+    ).aggregate(
+        vehicle_journeys=Count("id"),
+        service_vehicle_journeys=Count("id", filter=Q(service__isnull=False)),
+        trip_vehicle_journeys=Count("id", filter=Q(trip__isnull=False)),
     )
-
-    stats = {
-        "datetime": now,
-        "pending_vehicle_edits": VehicleRevision.objects.filter(
-            ~Q(disapproved=True), pending=True
-        ).count(),
-        "vehicle_journeys": journeys.count(),
-        "service_vehicle_journeys": journeys.filter(service__isnull=False).count(),
-        "trip_vehicle_journeys": journeys.filter(trip__isnull=False).count(),
-    }
-
-    history = cache.get("vehicle-tracking-stats", [])
-
-    history = history[-3000:] + [stats]
-
-    cache.set("vehicle-tracking-stats", history, None)
-
-
-@db_periodic_task(crontab(minute=4, hour=10))
-def timetable_source_stats():
-    """
-    update the other /status graph
-    """
-
-    now = timezone.now()
-
-    sources = (
-        DataSource.objects.annotate(
-            count=Count(
-                "route__service",
-                filter=Q(route__service__current=True),
-                distinct=True,
-            ),
-        )
-        .filter(count__gt=0)
-        .order_by("name")
-    )
-
-    stats = {"datetime": now, "sources": {}}
-    for source in sources:
-        name = source.name
-        if "_" in name:
-            name = source.name.split("_")[0]
-        elif name.startswith("Stagecoach"):
-            name = "Stagecoach"
-
-        if name in stats["sources"]:
-            stats["sources"][name] += source.count
-        else:
-            stats["sources"][name] = source.count
-
-    history = cache.get("timetable-source-stats", [])
-    history = history[-3000:]
-
-    history.append(stats)
-
-    cache.set("timetable-source-stats", history, None)
+    for key, value in journeys.items():
+        sentry_sdk.metrics.gauge(key, value)
 
 
 @db_periodic_task(crontab(minute=10, hour=1))

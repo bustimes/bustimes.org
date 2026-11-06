@@ -36,8 +36,6 @@ urlpatterns = [
     path("503", TemplateView.as_view(template_name="503.html")),
     path("data", views.data_sources),
     path("status", views.status),
-    path("timetable-source-stats.json", views.timetable_source_stats),
-    path("stats.json", views.stats),
     path(
         "ads.txt",
         cache_control(max_age=1800)(
