@@ -266,7 +266,11 @@ class Command(ImportLiveVehiclesCommand):
         if vehicle_identity not in self.duplicate_vehicles:
             monitored_vehicle_journey = item["MonitoredVehicleJourney"]
             if line_ref := monitored_vehicle_journey.get("LineRef"):
-                return f"{monitored_vehicle_journey['OperatorRef']}:{line_ref}"
+                operator_ref = monitored_vehicle_journey["OperatorRef"]
+                # Borders/Perrymans Buses vehicles are in the feed twice with different operator codes
+                if operator_ref == "PERY":
+                    operator_ref = "BORD"
+                return f"{operator_ref}:{line_ref}"
         return vehicle_identity
 
     def handle_items(self, items, identities):

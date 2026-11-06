@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict, namedtuple
 from datetime import datetime, timedelta
-from time import sleep
+from time import monotonic, sleep
 
 import requests
 import sentry_sdk
@@ -96,6 +96,9 @@ def same_journey(journey, last_journey, now):
     )
 
 
+VEHICLE_CACHE_SECONDS = 300
+
+
 class ImportLiveVehiclesCommand(BaseCommand):
     url = ""
     vehicles = Vehicle.objects.select_related("latest_journey__trip")
@@ -120,6 +123,8 @@ class ImportLiveVehiclesCommand(BaseCommand):
         self.identifiers = {}
         self.journeys_ids = {}
         self.journeys_ids_ids = {}
+        self.vehicle_cache = {}  # identity: (vehicle, monotonic() when fetched)
+        self.vehicle_cache_pruned_at = 0
         self.duplicate_vehicles = set()  # vehicles on 'two journeys at once'
         self.recent_positions = {}  # vehicle id or identity: hashes of last few coordinates
         self.last_locations = {}  # vehicle id: last location (as in Redis)
@@ -171,7 +176,6 @@ class ImportLiveVehiclesCommand(BaseCommand):
         vehicle: Vehicle | None = None,
         latest: dict | None = None,
         keep_journey=False,
-        concurrent=False,
         identity=None,
     ):
         if dt := self.get_datetime(item):
@@ -327,14 +331,10 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     journey.datetime = location.datetime
                 key = (vehicle.id, journey.datetime)
                 if key in self.journeys_to_create:
-                    # ! unusually, the same journey is twice in the feed
+                    # ! unusually, the same journey in the feed twice
                     journey = self.journeys_to_create[key]
                 elif latest_journey and (
-                    existing := vehicle.vehiclejourney_set.filter(
-                        date__gte=timezone.localdate(journey.datetime)
-                        - timedelta(days=1),
-                        datetime=journey.datetime,
-                    ).first()
+                    existing := self.get_existing_journey(vehicle, journey)
                 ):
                     # this journey already exists - e.g. the vehicle is on
                     # 'two journeys at once', or alternating between two in
@@ -366,12 +366,14 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 journey.service.save(update_fields=["tracking"])
 
             if not (
-                concurrent
-                and latest_journey
+                latest_journey
+                and journey.id  # a new journey can always become the latest_journey
                 and journey.datetime < latest_journey.datetime
+                # unless latest_journey is implausibly far in the future
+                and latest_journey.datetime - location.datetime < timedelta(hours=1)
             ):
-                # (a vehicle on 'two journeys at once' -
-                # the older journey shouldn't become the latest_journey)
+                # a vehicle on 'two journeys at once', or alternating between two -
+                # the older journey shouldn't become the latest_journey
                 vehicle.latest_journey = journey
                 if type(item) is dict:
                     vehicle.latest_journey_data = item
@@ -396,6 +398,29 @@ class ImportLiveVehiclesCommand(BaseCommand):
         self.to_save.append((location, vehicle))
 
         return location, vehicle
+
+    @staticmethod
+    def get_existing_journey(vehicle, journey):
+        condition = Q(datetime=journey.datetime)
+        if journey.code:
+            # (Ticketer) the first item of a journey has no OriginAimedDepartureTime,
+            # so that journey's datetime is when it was first seen
+            condition |= Q(
+                code=journey.code,
+                route_name=journey.route_name,
+                datetime__range=(
+                    journey.datetime - timedelta(minutes=15),
+                    journey.datetime + timedelta(minutes=15),
+                ),
+            )
+        candidates = vehicle.vehiclejourney_set.filter(
+            condition,
+            date__gte=timezone.localdate(journey.datetime) - timedelta(days=1),
+        )[:2]
+        for existing in candidates:
+            if existing.datetime == journey.datetime:
+                return existing
+        return candidates[0] if candidates else None
 
     @staticmethod
     def same_as_latest(redis_json, latest):
@@ -578,34 +603,87 @@ class ImportLiveVehiclesCommand(BaseCommand):
             self.url = self.source.url
         return self
 
+    @staticmethod
+    def get_latest_locations(vehicle_ids) -> dict:
+        if not vehicle_ids:
+            return {}
+        vehicle_ids = list(vehicle_ids)
+        return {
+            vehicle_id: decode(item)
+            for vehicle_id, item in zip(
+                vehicle_ids,
+                redis_client.mget(
+                    [f"vehicle{vehicle_id}" for vehicle_id in vehicle_ids]
+                ),
+            )
+            if item
+        }
+
     def handle_items(self, items, identities):
         if not items:
             return
 
-        with sentry_sdk.start_span(name="get vehicle codes"):
-            vehicle_codes = (
-                VehicleCode.objects.filter(
-                    code__in=identities, scheme=self.vehicle_code_scheme
-                )
-                .select_related("vehicle__latest_journey__trip")
-                .defer("vehicle__latest_journey_data", "vehicle__data")
-            )
+        now = monotonic()
+        if now - self.vehicle_cache_pruned_at > VEHICLE_CACHE_SECONDS:
+            self.vehicle_cache = {
+                identity: cached
+                for identity, cached in self.vehicle_cache.items()
+                if now - cached[1] < VEHICLE_CACHE_SECONDS
+            }
+            self.vehicle_cache_pruned_at = now
 
-            vehicles_by_identity = {code.code: code.vehicle for code in vehicle_codes}
+        journey_identities = [self.get_journey_identity(item) for item in items]
 
-        vehicle_locations = redis_client.mget(
-            [f"vehicle{vc.vehicle_id}" for vc in vehicle_codes]
+        # still on the same journey - no need to re-fetch the vehicle
+        vehicles_by_identity = {}
+        to_fetch = []
+        for vehicle_identity, journey_identity in zip(identities, journey_identities):
+            cached = self.vehicle_cache.get(vehicle_identity)
+            if (
+                cached
+                and now - cached[1] < VEHICLE_CACHE_SECONDS
+                and vehicle_identity not in self.duplicate_vehicles
+                and self.journeys_ids_ids.get(vehicle_identity)
+                == (journey_identity, cached[0].latest_journey_id)
+            ):
+                vehicles_by_identity[vehicle_identity] = cached[0]
+            else:
+                to_fetch.append(vehicle_identity)
+
+        vehicle_locations = self.get_latest_locations(
+            {vehicle.id for vehicle in vehicles_by_identity.values()}
         )
-        vehicle_locations = {
-            vehicle_code.vehicle_id: decode(item)
-            for vehicle_code, item in zip(vehicle_codes, vehicle_locations)
-            if item
-        }
+        # no location - deleted or merged (see signals.py), or just expired;
+        # or another worker/identity wrote a different journey
+        for vehicle_identity, vehicle in list(vehicles_by_identity.items()):
+            latest = vehicle_locations.get(vehicle.id)
+            if not latest or latest.get("journey_id") != vehicle.latest_journey_id:
+                del vehicles_by_identity[vehicle_identity]
+                to_fetch.append(vehicle_identity)
+
+        if to_fetch:
+            with sentry_sdk.start_span(name="get vehicle codes"):
+                vehicle_codes = (
+                    VehicleCode.objects.filter(
+                        code__in=to_fetch, scheme=self.vehicle_code_scheme
+                    )
+                    .select_related("vehicle__latest_journey__trip")
+                    .defer("vehicle__latest_journey_data", "vehicle__data")
+                )
+                fetched_ids = set()
+                for code in vehicle_codes:
+                    vehicles_by_identity[code.code] = code.vehicle
+                    self.vehicle_cache[code.code] = (code.vehicle, now)
+                    fetched_ids.add(code.vehicle_id)
+            vehicle_locations |= self.get_latest_locations(
+                fetched_ids - vehicle_locations.keys()
+            )
 
         i = 1
         handled = {}
-        for item, vehicle_identity in zip(items, identities):
-            journey_identity = self.get_journey_identity(item)
+        for item, vehicle_identity, journey_identity in zip(
+            items, identities, journey_identities
+        ):
             concurrent = vehicle_identity in self.duplicate_vehicles
 
             if vehicle_identity in vehicles_by_identity:
@@ -620,6 +698,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
                         vehicle=vehicle,
                     )
                     vehicles_by_identity[vehicle_identity] = vehicle
+                    self.vehicle_cache[vehicle_identity] = (vehicle, now)
 
             keep_journey = False
             if not concurrent and vehicle_identity in self.journeys_ids_ids:
@@ -637,7 +716,6 @@ class ImportLiveVehiclesCommand(BaseCommand):
                     vehicle=vehicle,
                     latest=vehicle_locations.get(vehicle.id, False),
                     keep_journey=keep_journey,
-                    concurrent=concurrent,
                     identity=vehicle_identity,
                 )
 

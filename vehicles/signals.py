@@ -4,6 +4,7 @@ from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
+from . import utils
 from .models import Livery, Vehicle, VehicleRevision
 
 
@@ -29,3 +30,15 @@ def pending_vehicle_edits_gauge():
 @receiver(post_delete, sender=VehicleRevision)
 def vehicle_revision_changed(sender, instance, **kwargs):
     transaction.on_commit(pending_vehicle_edits_gauge)
+
+
+def delete_latest_location(vehicle_id):
+    # so importers stop using a cached Vehicle (see ImportLiveVehiclesCommand.handle_items)
+    if utils.redis_client:
+        utils.redis_client.delete(f"vehicle{vehicle_id}")
+
+
+@receiver(post_delete, sender=Vehicle)
+def vehicle_deleted(sender, instance, **kwargs):
+    vehicle_id = instance.id  # (set to None after deletion)
+    transaction.on_commit(lambda: delete_latest_location(vehicle_id))

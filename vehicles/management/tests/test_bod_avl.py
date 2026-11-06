@@ -10,7 +10,9 @@ import fakeredis
 import time_machine
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from requests.exceptions import HTTPError
 from vcr import use_cassette
 
@@ -27,6 +29,7 @@ from busstops.models import (
 )
 from bustimes.models import Calendar, Garage, Route, Trip
 
+from ... import signals
 from ...models import Livery, Vehicle, VehicleCode, VehicleJourney
 from ...utils import get_statuses
 from ..commands import distribute_vehicle_locations, import_bod_avl
@@ -399,12 +402,12 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             self.assertEqual(11, wait)
 
             items[0]["RecordedAtTime"] = "2020-10-30T05:09:00+00:00"
-            with self.assertNumQueries(1):
+            with self.assertNumQueries(0):  # vehicle cached
                 command.update()
 
             items[0]["RecordedAtTime"] = "2020-10-30T05:10:00+00:00"
             items[0]["OriginAimedDepartureTime"] = "2020-10-30T09:00:00+00:00"
-            with self.assertNumQueries(1):
+            with self.assertNumQueries(0):  # vehicle cached
                 wait = command.update()
 
         distribute(channel_layer, async_redis_client)
@@ -799,8 +802,13 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         # on 'two journeys at once' - keep both in one worker
         fetcher.duplicate_vehicles = {identity}
         self.assertEqual(fetcher.get_shard_key(item, identity), identity)
-        # no line
         fetcher.duplicate_vehicles = set()
+        pery_item = {
+            "MonitoredVehicleJourney": item["MonitoredVehicleJourney"]
+            | {"OperatorRef": "PERY"}
+        }
+        self.assertEqual(fetcher.get_shard_key(pery_item, "PERY:x"), "BORD:146")
+        # no line
         del item["MonitoredVehicleJourney"]["LineRef"]
         self.assertEqual(fetcher.get_shard_key(item, identity), identity)
 
@@ -2162,7 +2170,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             command.handle_items(changed, ci)
 
         with patch_redis_client():
-            for i in range(6):
+            for i in range(7):  # ending on the older journey
                 when = f"2026-10-27T00:3{i}:00+00:00"
                 if i % 2:
                     items = [
@@ -2190,6 +2198,172 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             sorted(vehicle.vehiclejourney_set.values_list("route_name", flat=True)),
             ["mln", "sky"],
         )
+        # doesn't flip back to the older journey
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.latest_journey.route_name, "mln")
+
+    def test_new_earlier_journey_becomes_latest(self):
+        # driver signed onto the next trip by mistake, then back onto the current one
+        command = import_bod_avl.Command()
+        command.source = self.source
+        vehicle = Vehicle.objects.create(code="4351", reg="YX67UXV")
+
+        def cycle(when, latitude, journey_ref, departure):
+            item = {
+                "RecordedAtTime": when,
+                "MonitoredVehicleJourney": {
+                    "LineRef": "85",
+                    "OperatorRef": "AKSS",
+                    "FramedVehicleJourneyRef": {
+                        "DataFrameRef": "2026-11-06",
+                        "DatedVehicleJourneyRef": journey_ref,
+                    },
+                    "OriginAimedDepartureTime": departure,
+                    "VehicleLocation": {"Longitude": "0.52", "Latitude": latitude},
+                    "VehicleRef": "4351",
+                },
+            }
+            command.source.datetime = datetime.fromisoformat(when)
+            (changed, changed_journey, ci, cj, _) = command.get_changed_items([item])
+            command.handle_items(changed_journey, cj)
+            command.handle_items(changed, ci)
+
+        with patch_redis_client():
+            cycle("2026-11-06T09:09:00+00:00", "51.27", "1044", "2026-11-06T09:30:00Z")
+            cycle("2026-11-06T09:10:00+00:00", "51.28", "1021", "2026-11-06T09:07:00Z")
+
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.vehiclejourney_set.count(), 2)
+        self.assertEqual(vehicle.latest_journey.code, "1021")
+
+    def test_two_buses_ticketer_first_item(self):
+        # (akss-4351) two buses reporting as the same vehicle - so latest_journey is
+        # often the other bus's journey - and the first item of a journey has no
+        # OriginAimedDepartureTime
+        command = import_bod_avl.Command()
+        command.source = self.source
+        vehicle = Vehicle.objects.create(code="4351", reg="YX67UXV")
+
+        def item(when, latitude, journey_ref, departure=None):
+            item = {
+                "RecordedAtTime": when,
+                "MonitoredVehicleJourney": {
+                    "LineRef": "85",
+                    "OperatorRef": "AKSS",
+                    "FramedVehicleJourneyRef": {
+                        "DataFrameRef": "2026-11-06",
+                        "DatedVehicleJourneyRef": journey_ref,
+                    },
+                    "VehicleLocation": {"Longitude": "0.54", "Latitude": latitude},
+                    "VehicleRef": "4351",
+                },
+            }
+            if departure:
+                item["MonitoredVehicleJourney"]["OriginAimedDepartureTime"] = departure
+            return item
+
+        def cycle(when, items):
+            command.source.datetime = datetime.fromisoformat(when)
+            (changed, changed_journey, ci, cj, _) = command.get_changed_items(items)
+            command.handle_items(changed_journey, cj)
+            command.handle_items(changed, ci)
+
+        with patch_redis_client():
+            cycle(
+                "2026-11-06T09:09:06+00:00",
+                [
+                    item("2026-11-06T09:09:00Z", "51.26", "1016", "2026-11-06T09:10Z"),
+                    item("2026-11-06T09:09:06Z", "51.25", "1021"),
+                ],
+            )
+            cycle(
+                "2026-11-06T09:09:35+00:00",
+                [
+                    item("2026-11-06T09:09:30Z", "51.262", "1016", "2026-11-06T09:10Z"),
+                    item("2026-11-06T09:09:35Z", "51.252", "1021", "2026-11-06T09:07Z"),
+                ],
+            )
+
+        self.assertEqual(
+            sorted(vehicle.vehiclejourney_set.values_list("code", "datetime")),
+            [
+                ("1016", datetime(2026, 11, 6, 9, 10, tzinfo=UTC)),
+                ("1021", datetime(2026, 11, 6, 9, 7, tzinfo=UTC)),
+            ],
+        )
+
+    def test_vehicle_cache(self):
+        command = import_bod_avl.Command()
+        command.source = self.source
+        vehicle = Vehicle.objects.create(code="0116_-_YX67_UXV", reg="YX67UXV")
+
+        def cycle(when, latitude, journey_ref="112407"):
+            item = {
+                "RecordedAtTime": when,
+                "MonitoredVehicleJourney": {
+                    "LineRef": "mln",
+                    "OperatorRef": "BRTB",
+                    "FramedVehicleJourneyRef": {
+                        "DataFrameRef": "2026-10-26",
+                        "DatedVehicleJourneyRef": journey_ref,
+                    },
+                    "OriginAimedDepartureTime": "2026-10-27T00:07:00+00:00",
+                    "VehicleLocation": {"Longitude": "-1.2535", "Latitude": latitude},
+                    "VehicleRef": "0116_-_YX67_UXV",
+                },
+            }
+            command.source.datetime = datetime.fromisoformat(when)
+            (changed, changed_journey, ci, cj, _) = command.get_changed_items([item])
+            with CaptureQueriesContext(connection) as queries:
+                command.handle_items(changed_journey, cj)
+                command.handle_items(changed, ci)
+            return any("vehicles_vehiclecode" in q["sql"] for q in queries)
+
+        with patch_redis_client() as redis_client:
+            self.assertTrue(cycle("2026-10-27T00:30:00+00:00", "52.91"))
+            # same journey - cached
+            self.assertFalse(cycle("2026-10-27T00:31:00+00:00", "52.92"))
+            # different journey
+            self.assertTrue(cycle("2026-10-27T00:32:00+00:00", "52.93", "112408"))
+            self.assertFalse(cycle("2026-10-27T00:33:00+00:00", "52.94", "112408"))
+            # no location (e.g. vehicle merged - see signals.py)
+            redis_client.delete(f"vehicle{vehicle.id}")
+            self.assertTrue(cycle("2026-10-27T00:33:30+00:00", "52.945", "112408"))
+            # another worker wrote a different journey
+            key = f"vehicle{vehicle.id}"
+            redis_client.set(
+                key, json.dumps(json.loads(redis_client.get(key)) | {"journey_id": 1})
+            )
+            self.assertTrue(cycle("2026-10-27T00:33:40+00:00", "52.946", "112408"))
+            self.assertFalse(cycle("2026-10-27T00:33:50+00:00", "52.947", "112408"))
+            # expired
+            with mock.patch(
+                "vehicles.management.import_live_vehicles.monotonic",
+                return_value=command.vehicle_cache_pruned_at + 301,
+            ):
+                self.assertTrue(cycle("2026-10-27T00:34:00+00:00", "52.95", "112408"))
+
+        self.assertEqual(vehicle.vehiclejourney_set.count(), 1)
+
+    def test_delete_clears_latest_location(self):
+        vehicle = Vehicle.objects.create(code="YX67UXV")
+        other = Vehicle.objects.create(code="YX67UXW")
+        with patch_redis_client() as redis_client:
+            redis_client.set(f"vehicle{vehicle.id}", "{}")
+            redis_client.set(f"vehicle{other.id}", "{}")
+
+            vehicle_id = vehicle.id
+            with (
+                mock.patch(
+                    "vehicles.signals.delete_latest_location",
+                    wraps=signals.delete_latest_location,
+                ) as delete_latest_location,
+                self.captureOnCommitCallbacks(execute=True),
+            ):
+                vehicle.delete()
+            delete_latest_location.assert_called_once_with(vehicle_id)
+            self.assertIsNone(redis_client.get(f"vehicle{vehicle_id}"))
+            self.assertIsNotNone(redis_client.get(f"vehicle{other.id}"))
 
     def test_vehicle_in_two_places_at_once(self):
         # The same vehicle (a globally-unique registration) is reported by two

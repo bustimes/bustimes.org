@@ -54,7 +54,7 @@ class StagecoachTest(TestCase):
             # make it think 2 vehicles have moved
             del command.identifiers["SCCM:CA:19617"]
             del command.identifiers["SCOX:SOX:50275"]
-            with self.assertNumQueries(1):
+            with self.assertNumQueries(0):  # vehicles cached
                 command.update()
 
         self.assertEqual(
