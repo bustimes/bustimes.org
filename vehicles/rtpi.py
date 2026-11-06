@@ -7,8 +7,8 @@ from collections import Counter, OrderedDict
 from itertools import pairwise
 
 import numpy as np
-import sentry_sdk
 import shapely
+from django.db.models import Prefetch, prefetch_related_objects
 
 from bustimes.models import RouteLink, StopTime, Trip
 from bustimes.utils import contiguous_stoptimes_only
@@ -161,6 +161,14 @@ stop_times_cache_stats = Counter()
 UNKNOWN = object()
 
 
+def _stop_times():
+    return (
+        StopTime.objects.filter(stop__latlong__isnull=False)
+        .select_related("stop")
+        .only("trip_id", "arrival", "departure", "pick_up", "stop__latlong")
+    )
+
+
 def _fetch_stop_times(trip_id, date, modified_at=None):
     trip = (
         Trip.objects.select_related("calendar", "route__service")
@@ -169,13 +177,7 @@ def _fetch_stop_times(trip_id, date, modified_at=None):
     )
     trips = trip.get_parts(date)
 
-    stop_times = (
-        StopTime.objects.filter(trip__in=trips)
-        .filter(stop__latlong__isnull=False)
-        .select_related("stop")
-        .only("trip_id", "arrival", "departure", "pick_up", "stop__latlong")
-        .order_by("trip__start", "id")
-    )
+    stop_times = _stop_times().filter(trip__in=trips).order_by("trip__start", "id")
 
     if len(trips) > 1:
         stop_times = contiguous_stoptimes_only(stop_times, trip.id)
@@ -197,7 +199,7 @@ def get_stop_times(trip_id, date, modified_at=None):
     entry = _stop_times_cache.get(trip_id)
     if (
         entry
-        and entry[0][1] == date
+        and entry[0][1] in (None, date)
         and (modified_at is UNKNOWN or entry[0][0] == modified_at)
     ):
         _stop_times_cache.move_to_end(trip_id)
@@ -210,19 +212,50 @@ def get_stop_times(trip_id, date, modified_at=None):
 
     if modified_at is UNKNOWN:
         modified_at = None
-    version = (modified_at, date)
+    _cache_stop_times(trip, modified_at, date, stop_times, pairs)
 
+    return trip, stop_times, pairs
+
+
+def _cache_stop_times(trip, modified_at, date, stop_times, pairs):
     if stop_times:
+        service = trip.route and trip.route.service
+        if not (service and service.trip_chaining in ("split", "any")):
+            date = None  # only split trips' stop times depend on the date
+        version = (modified_at, date)
         stop_field = StopTime._meta.get_field("stop")
         for stop_time in stop_times:
             # save a bit of memory
             stop_field.delete_cached_value(stop_time)
-        _stop_times_cache[trip_id] = (version, trip, stop_times, pairs)
-        _stop_times_cache.move_to_end(trip_id)
+        _stop_times_cache[trip.id] = (version, trip, stop_times, pairs)
+        _stop_times_cache.move_to_end(trip.id)
         if len(_stop_times_cache) > STOP_TIMES_CACHE_MAXSIZE:
             _stop_times_cache.popitem(last=False)
 
-    return trip, stop_times, pairs
+
+def prefetch_stop_times(trips):
+    """trips with route__service, not split into parts (GTFS)"""
+    uncached = [
+        trip
+        for trip in trips
+        if not (
+            (entry := _stop_times_cache.get(trip.id))
+            and entry[0] == (trip.route.service.modified_at, None)
+        )
+    ]
+
+    prefetch_related_objects(
+        uncached, Prefetch("stoptime_set", _stop_times().order_by("id"))
+    )
+
+    for trip in uncached:
+        modified_at = trip.route.service.modified_at
+        stop_times = list(trip.stoptime_set.all())
+        route_links = get_route_links(
+            trip.route.service_id, pair_keys(stop_times), modified_at
+        )
+        pairs = Pairs(stop_times, route_links)
+        _cache_stop_times(trip, modified_at, None, stop_times, pairs)
 
 
 class Progress:
@@ -300,73 +333,68 @@ def get_progress(
     if not stop_times:
         return
 
-    with sentry_sdk.start_span(name="nearby pairs"):
-        nearby_pairs = pairs.nearby(*item["coordinates"])
-        if not nearby_pairs:
-            return
+    nearby_pairs = pairs.nearby(*item["coordinates"])
+    if not nearby_pairs:
+        return
 
-        # the data source says which stops the vehicle is between -
-        # prefer pairs matching both, then the next stop, then the previous stop
-        if stops := item.get("stops"):
-            prev_stop, next_stop = stops
+    # the data source says which stops the vehicle is between -
+    # prefer pairs matching both, then the next stop, then the previous stop
+    if stops := item.get("stops"):
+        prev_stop, next_stop = stops
 
-            def score(pair):
-                a, b = pairs.pairs[pair[0]]
-                return (a.stop_id == prev_stop) + 2 * (b.stop_id == next_stop)
+        def score(pair):
+            a, b = pairs.pairs[pair[0]]
+            return (a.stop_id == prev_stop) + 2 * (b.stop_id == next_stop)
 
-            if best := max(map(score, nearby_pairs)):
-                nearby_pairs = [pair for pair in nearby_pairs if score(pair) == best]
+        if best := max(map(score, nearby_pairs)):
+            nearby_pairs = [pair for pair in nearby_pairs if score(pair) == best]
 
-    with sentry_sdk.start_span(name="closest pairs"):
-        closest = nearby_pairs[0]
-        next_closest = nearby_pairs[1] if len(nearby_pairs) > 1 else None
+    closest = nearby_pairs[0]
+    next_closest = nearby_pairs[1] if len(nearby_pairs) > 1 else None
 
-        if next_closest and item["heading"] is not None:
-            vehicle_heading = int(item["heading"])
+    if next_closest and item["heading"] is not None:
+        vehicle_heading = int(item["heading"])
 
-            route_bearing = get_route_bearing(closest[1], closest[2])
+        route_bearing = get_route_bearing(closest[1], closest[2])
+
+        difference = (vehicle_heading - route_bearing + 180) % 360 - 180
+
+        if not (abs(difference) < 90) and next_closest[3] < 100:
+            # bus seems to be heading the wrong way - does the bus go both ways on this road?
+            # try the next closest pair of stops:
+            route_bearing = get_route_bearing(next_closest[1], next_closest[2])
 
             difference = (vehicle_heading - route_bearing + 180) % 360 - 180
+            if abs(difference) < 90:
+                closest = next_closest
 
-            if not (abs(difference) < 90) and next_closest[3] < 100:
-                # bus seems to be heading the wrong way - does the bus go both ways on this road?
-                # try the next closest pair of stops:
-                route_bearing = get_route_bearing(next_closest[1], next_closest[2])
+    prev_stop_time, next_stop_time = pairs.pairs[closest[0]]
+    progress = Progress(
+        stop_times, prev_stop_time, next_stop_time, closest[2], closest[3]
+    )
+    progress.delay = get_delay(progress, date, when, tzinfo)
 
-                difference = (vehicle_heading - route_bearing + 180) % 360 - 180
-                if abs(difference) < 90:
-                    closest = next_closest
-
-    with sentry_sdk.start_span(name="delay"):
-        prev_stop_time, next_stop_time = pairs.pairs[closest[0]]
-        progress = Progress(
-            stop_times, prev_stop_time, next_stop_time, closest[2], closest[3]
-        )
-        progress.delay = get_delay(progress, date, when, tzinfo)
-
-        # if closest and next_closest involve the same stop
-        # and are about as close as each other
-        # (e.g. it's a circular route, or out and back along the same road),
-        # choose the one with the smaller delay
-        if next_closest and next_closest[3] - closest[3] < 50:
-            alt_prev, alt_next = pairs.pairs[next_closest[0]]
-            if (
-                prev_stop_time.stop_id == alt_next.stop_id
-                or next_stop_time.stop_id == alt_prev.stop_id
-            ):
-                alt = Progress(
-                    stop_times, alt_prev, alt_next, next_closest[2], next_closest[3]
-                )
-                alt.delay = get_delay(alt, date, when, tzinfo)
-                if progress.delay is None or (
-                    alt.delay is not None and abs(alt.delay) < abs(progress.delay)
-                ):
-                    progress = alt
-
+    # if closest and next_closest involve the same stop
+    # and are about as close as each other
+    # (e.g. it's a circular route, or out and back along the same road),
+    # choose the one with the smaller delay
+    if next_closest and next_closest[3] - closest[3] < 50:
+        alt_prev, alt_next = pairs.pairs[next_closest[0]]
         if (
-            progress.delay is not None and abs(progress.delay) > 43200
-        ):  # more than 12 hours
-            logger.warning("%s delay is %s", item, progress.delay)
+            prev_stop_time.stop_id == alt_next.stop_id
+            or next_stop_time.stop_id == alt_prev.stop_id
+        ):
+            alt = Progress(
+                stop_times, alt_prev, alt_next, next_closest[2], next_closest[3]
+            )
+            alt.delay = get_delay(alt, date, when, tzinfo)
+            if progress.delay is None or (
+                alt.delay is not None and abs(alt.delay) < abs(progress.delay)
+            ):
+                progress = alt
+
+    if progress.delay is not None and abs(progress.delay) > 43200:  # more than 12 hours
+        logger.warning("%s delay is %s", item, progress.delay)
 
     return progress
 

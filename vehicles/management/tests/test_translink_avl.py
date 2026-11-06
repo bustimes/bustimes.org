@@ -79,7 +79,7 @@ class TranslinkAVLTest(TestCase):
 
             cassette.rewind()
 
-            with self.assertNumQueries(5), self.assertRaises(StopLoop):
+            with self.assertNumQueries(4), self.assertRaises(StopLoop):
                 call_command("import_translink_avl", "--immediate")
 
         self.assertEqual(VehicleJourney.objects.count(), 8)

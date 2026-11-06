@@ -10,6 +10,7 @@ from google.transit import gtfs_realtime_pb2
 from busstops.models import DataSource, Service
 from bustimes.models import Calendar, Trip
 
+from ... import rtpi
 from ...models import Vehicle, VehicleJourney, VehicleLocation
 from ..import_live_vehicles import ImportLiveVehiclesCommand
 
@@ -103,6 +104,9 @@ class Command(ImportLiveVehiclesCommand):
             route__service__current=True,
         ).select_related(*self.trip_select_related)
         self.trips = {getattr(trip, self.trip_id_field): trip for trip in trips}
+
+        if self.eager_progress:
+            rtpi.prefetch_stop_times(self.trips.values())
 
         return (
             changed_items,

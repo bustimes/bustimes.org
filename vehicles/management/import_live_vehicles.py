@@ -45,6 +45,22 @@ Status = namedtuple(
     defaults=(None,),
 )
 
+JOURNEY_UPDATE_FIELDS = (
+    "code",
+    "service_id",
+    "trip_id",
+    "datetime",
+    "date",
+    "route_name",
+    "destination",
+    "direction",
+    "source_id",
+)
+
+
+def journey_values(journey):
+    return tuple(getattr(journey, field) for field in JOURNEY_UPDATE_FIELDS)
+
 
 def same_journey(journey, last_journey, now):
     if journey.datetime == last_journey.datetime:
@@ -99,6 +115,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
         self.eager_progress = True
         self.journeys_to_create = {}
         self.journeys_to_update = []
+        self.journey_snapshots = {}  # journey id: journey_values() as loaded
         self.vehicles_to_update = []
         self.identifiers = {}
         self.journeys_ids = {}
@@ -232,6 +249,10 @@ class ImportLiveVehiclesCommand(BaseCommand):
         if keep_journey:
             journey = latest_journey
         else:
+            if latest_journey and latest_journey.id:
+                self.journey_snapshots.setdefault(
+                    latest_journey.id, journey_values(latest_journey)
+                )
             journey = self.get_journey(item, vehicle)
 
             if journey and journey.trip and journey.trip.garage_id != vehicle.garage_id:
@@ -391,20 +412,14 @@ class ImportLiveVehiclesCommand(BaseCommand):
         if not self.to_save:
             return
 
-        update_fields = (
-            "code",
-            "service",
-            "trip",
-            "datetime",
-            "date",
-            "route_name",
-            "destination",
-            "direction",
-            "source",
-        )
-
-        VehicleJourney.objects.bulk_update(self.journeys_to_update, update_fields)
+        journeys_to_update = [
+            journey
+            for journey in self.journeys_to_update
+            if self.journey_snapshots.get(journey.id) != journey_values(journey)
+        ]
+        VehicleJourney.objects.bulk_update(journeys_to_update, JOURNEY_UPDATE_FIELDS)
         self.journeys_to_update = []
+        self.journey_snapshots = {}
 
         VehicleJourney.objects.bulk_create(self.journeys_to_create.values())
         self.journeys_to_create = {}

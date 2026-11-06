@@ -466,6 +466,34 @@ class ScheduleAdherenceTest(TestCase):
             rtpi.get_stop_times(trip_id, date)
         self.assertTrue(queries)
 
+    def test_prefetch_stop_times(self):
+        date = datetime.date.fromisoformat(str(self.journey.date))
+        rtpi._stop_times_cache.pop(self.journey.trip_id, None)
+        rtpi._route_links_cache.pop(self.service.id, None)
+
+        trip = Trip.objects.select_related("route__service").get(
+            id=self.journey.trip_id
+        )
+        with self.assertNumQueries(2):  # stop times, route links
+            rtpi.prefetch_stop_times([trip])
+
+        with self.assertNumQueries(0):
+            rtpi.prefetch_stop_times([trip])
+            _, stop_times, pairs = rtpi.get_stop_times(
+                trip.id, date, self.service.modified_at
+            )
+            # no trip chaining - same stop times whatever the date
+            rtpi.get_stop_times(
+                trip.id, date - datetime.timedelta(days=1), self.service.modified_at
+            )
+
+        _, expected, _ = rtpi.get_stop_times(trip.id, date)
+        self.assertEqual(
+            [stop_time.id for stop_time in stop_times],
+            [stop_time.id for stop_time in expected],
+        )
+        self.assertEqual(len(pairs.pairs), 15)
+
     @time_machine.travel("2023-08-31T09:50:07Z")
     def test_save_computes_progress_and_delay(self):
         vehicle = Vehicle.objects.create(code="T1")

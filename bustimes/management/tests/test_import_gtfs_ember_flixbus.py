@@ -359,9 +359,9 @@ class FlixbusTest(TestCase):
             ),
             vcr.use_cassette(FIXTURES_DIR / "ember_gtfsr.yml"),
         ):
-            with self.assertNumQueries(81):
+            with self.assertNumQueries(74):
                 command.update()
-            with self.assertNumQueries(32):
+            with self.assertNumQueries(27):
                 command.update()
 
             journey = service.vehiclejourney_set.first()
