@@ -30,6 +30,7 @@ from ...models import (
     BankHoliday,
     BankHolidayDate,
     CalendarBankHoliday,
+    DataQualityObservation,
     Garage,
     ImportTask,
     Route,
@@ -37,6 +38,7 @@ from ...models import (
     TimetableDataSource,
     VehicleType,
 )
+from ..commands import import_bod_timetables
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -114,6 +116,10 @@ class ImportBusOpenDataTest(TestCase):
             api_key = "0123456789abc19abc190123456789abc19abc19"
 
             call_command("import_bod_timetables", api_key)
+            self.assertEqual(
+                ImportTask.objects.get().comment,
+                "Revised timetable due to COVID-19 outbreak",
+            )
 
             with self.assertNumQueries(1):
                 # no matching operator
@@ -124,6 +130,28 @@ class ImportBusOpenDataTest(TestCase):
                 call_command("import_bod_timetables", api_key)
 
             route = Route.objects.get()
+            self.assertFalse(DataQualityObservation.objects.exists())
+
+            command = import_bod_timetables.get_command()
+            command.source = route.source
+            command.start_task()
+            command.task_route_ids = {route.id}
+            import_bod_timetables.check_lines(command, ["54|Lynx", "6", "7x"])
+            self.assertEqual(
+                DataQualityObservation.objects.get(task=command.task).comment, "6, 7x"
+            )
+
+            command.start_task()
+            command.task_route_ids = {route.id}
+            import_bod_timetables.check_lines(command, ["6"])
+            self.assertEqual(
+                list(
+                    command.task.dataqualityobservation_set.values_list(
+                        "category", "comment"
+                    )
+                ),
+                [("missing lines", "6"), ("unlisted lines", "54")],
+            )
 
             self.client.force_login(self.user)
             response = self.client.get(route.get_absolute_url())

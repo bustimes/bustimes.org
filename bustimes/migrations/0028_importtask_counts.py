@@ -13,6 +13,11 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='importtask',
+            name='comment',
+            field=models.CharField(blank=True),
+        ),
+        migrations.AddField(
+            model_name='importtask',
             name='file',
             field=models.FileField(blank=True, max_length=255, storage=bustimes.models.archive_storage, upload_to=''),
         ),

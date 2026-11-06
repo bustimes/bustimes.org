@@ -759,11 +759,12 @@ class Command(BaseCommand):
 
         return flat_path
 
-    def start_task(self, path=None):
+    def start_task(self, path=None, comment=""):
         self.task = ImportTask.objects.create(
             source=self.source,
             started_at=datetime.datetime.now(tz=datetime.UTC),
             file_size=path.stat().st_size if path else None,
+            comment=comment,
         )
         # service_ids and route_ids can span several tasks (import_passenger)
         self.task_service_ids = set()

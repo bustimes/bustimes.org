@@ -16,7 +16,13 @@ from django.db.models import Exists, OuterRef, Q
 from busstops.models import DataSource, Service
 
 from ...download_utils import download, download_if_modified
-from ...models import Route, TimetableDataSource, Trip, is_noc
+from ...models import (
+    DataQualityObservation,
+    Route,
+    TimetableDataSource,
+    Trip,
+    is_noc,
+)
 from ...utils import get_sha1, log_time_taken
 from .import_transxchange import Command as TransXChangeCommand
 from .import_transxchange import delete_unused_trips
@@ -89,11 +95,11 @@ def get_command():
     return command
 
 
-def handle_file(command, path, qualify_filename=False):
+def handle_file(command, path, qualify_filename=False, comment=""):
     # the downloaded file might be plain XML, or a zipped archive - we just don't know yet
     full_path = settings.DATA_DIR / path
 
-    command.start_task(full_path)
+    command.start_task(full_path, comment)
 
     try:
         with zipfile.ZipFile(full_path) as archive:
@@ -129,6 +135,28 @@ def handle_file(command, path, qualify_filename=False):
         command.task.file = command.source.save_to_archive(full_path) or ""
 
     command.finish_task()
+
+
+def check_lines(command, lines):
+    """BODS lists lines whose files were rejected by its quality checks"""
+    imported = set(
+        Route.objects.filter(id__in=command.task_route_ids).values_list(
+            "line_name", flat=True
+        )
+    )
+    # normalised the same way as in import_transxchange
+    lines = [line.split("|", 1)[0].strip().replace("_", " ") for line in lines]
+    observations = {
+        "missing lines": [line for line in lines if line not in imported],
+        "unlisted lines": sorted(imported.difference(lines)),
+    }
+    DataQualityObservation.objects.bulk_create(
+        DataQualityObservation(
+            task=command.task, file_name="", category=category, comment=", ".join(names)
+        )
+        for category, names in observations.items()
+        if names
+    )
 
 
 def get_bus_open_data_paramses(sources, api_key):
@@ -261,7 +289,8 @@ def bus_open_data(api_key, specific_operator):
                 with log_time_taken(logger):
                     download(path, url=command.source.url, session=session)
 
-                    handle_file(command, path)
+                    handle_file(command, path, comment=dataset["comment"])
+                    check_lines(command, dataset["lines"])
 
                     command.mark_old_services_as_not_current()
 

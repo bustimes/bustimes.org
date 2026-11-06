@@ -56,6 +56,7 @@
         <th scope="col" class="short">routes</th>
         <th scope="col" class="short">trips</th>
         <th scope="col" class="shortish">data quality observations</th>
+        <th scope="col">comment</th>
     </thead>
     <tbody>
     {% for task in updates %}
@@ -67,6 +68,7 @@
             <td>{{ task.routes|default_if_none:"" }}</td>
             <td>{{ task.trips|default_if_none:"" }}</td>
             <td><a href="{{ task.get_absolute_url }}">{{ task.observations }}</a></td>
+            <td>{{ task.comment }}</td>
         </tr>
     {% endfor %}
     </tbody>

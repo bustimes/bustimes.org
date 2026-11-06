@@ -960,6 +960,7 @@ class ImportTask(models.Model):
     trips = models.PositiveIntegerField(null=True, blank=True)
     file_size = models.PositiveBigIntegerField(null=True, blank=True)
     file = models.FileField(storage=archive_storage, max_length=255, blank=True)
+    comment = models.CharField(blank=True)
 
     def get_absolute_url(self):
         return reverse(
