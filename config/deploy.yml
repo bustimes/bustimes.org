@@ -69,6 +69,62 @@ accessories:
     options:
       user: "0:0"
 
+  loki:
+    image: grafana/loki:3.7.9
+    host: 10.131.240.96
+    port: 10.131.240.96:3100:3100
+    files:
+      - config/loki.yaml:/etc/loki/config.yaml
+    directories:
+      - loki-data:/loki
+    cmd: -config.file=/etc/loki/config.yaml
+    options:
+      user: "0:0"
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    host: 10.131.240.96
+    port: 127.0.0.1:3000:3000
+    env:
+      secret:
+        - GF_SECURITY_ADMIN_PASSWORD
+    files:
+      - config/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - config/grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - config/grafana/dashboards/bustimes.json:/etc/grafana/provisioning/dashboards/files/bustimes.json
+    directories:
+      - grafana-data:/var/lib/grafana
+    options:
+      user: "0:0"
+
+  logs:
+    image: grafana/alloy:v1.21.0
+    roles:
+      - web
+    files:
+      - config/alloy-web.alloy:/etc/alloy/config.alloy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    directories:
+      - alloy-data:/var/lib/alloy/data
+    options:
+      user: "0:0"
+      # so constants.hostname is the droplet's name
+      uts: host
+
+  importer_logs:
+    image: grafana/alloy:v1.21.0
+    host: 10.131.113.91
+    files:
+      - config/alloy-importer.alloy:/etc/alloy/config.alloy
+    volumes:
+      - /var/log/supervisor:/hostfs/var/log/supervisor:ro
+    directories:
+      - alloy-data:/var/lib/alloy/data
+    options:
+      user: "0:0"
+      uts: host
+
   tileserver:
     image: maptiler/tileserver-gl-light
     host: 10.131.240.96

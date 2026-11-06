@@ -1,0 +1,53 @@
+// ships every container's stdout/stderr on a web host to loki
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "containers" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "service"
+  }
+
+  // kamal containers are named <service>-<role>-<version>, so prefer their labels
+  rule {
+    source_labels = ["__meta_docker_container_label_service"]
+    regex         = "(.+)"
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_role"]
+    target_label  = "role"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_version"]
+    target_label  = "version"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.containers.rules
+  forward_to    = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://10.131.240.96:3100/loki/api/v1/push"
+  }
+  external_labels = {
+    host = constants.hostname,
+  }
+}

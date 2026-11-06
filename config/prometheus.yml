@@ -5,3 +5,7 @@ scrape_configs:
       - targets:
           - 10.131.240.97:9394
           - 10.131.240.98:9394
+  - job_name: loki
+    static_configs:
+      - targets:
+          - bustimes-loki:3100

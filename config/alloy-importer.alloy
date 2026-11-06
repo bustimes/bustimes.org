@@ -1,0 +1,52 @@
+// ships supervisord program logs (config/supervisor.conf) to loki
+
+local.file_match "supervisor" {
+  path_targets = [{"__path__" = "/hostfs/var/log/supervisor/*.log"}]
+}
+
+discovery.relabel "supervisor" {
+  targets = local.file_match.supervisor.targets
+
+  rule {
+    source_labels = ["__path__"]
+    regex         = ".*/(.+)-(stdout|stderr)---supervisor-.*\\.log"
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__path__"]
+    regex         = ".*/(.+)-(stdout|stderr)---supervisor-.*\\.log"
+    replacement   = "$2"
+    target_label  = "stream"
+  }
+
+  rule {
+    source_labels = ["__path__"]
+    regex         = ".*/supervisord\\.log"
+    replacement   = "supervisord"
+    target_label  = "service"
+  }
+}
+
+loki.source.file "supervisor" {
+  targets    = discovery.relabel.supervisor.output
+  forward_to = [loki.process.supervisor.receiver]
+}
+
+// the file names change every time supervisord restarts
+loki.process "supervisor" {
+  stage.label_drop {
+    values = ["filename"]
+  }
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://10.131.240.96:3100/loki/api/v1/push"
+  }
+  external_labels = {
+    host = constants.hostname,
+    job  = "supervisor",
+  }
+}
