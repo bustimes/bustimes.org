@@ -1000,9 +1000,9 @@ class Command(ImportLiveVehiclesCommand):
 
     @staticmethod
     def get_vehicle_identity(item):
-        monitored_vehicle_journey = item["MonitoredVehicleJourney"]
-        operator_ref = monitored_vehicle_journey["OperatorRef"]
-        vehicle_ref = monitored_vehicle_journey["VehicleRef"]
+        mvj = item["MonitoredVehicleJourney"]
+        operator_ref = mvj["OperatorRef"]
+        vehicle_ref = mvj["VehicleRef"]
 
         try:
             vehicle_unique_id = item["Extensions"]["VehicleJourney"]["VehicleUniqueId"]
@@ -1015,18 +1015,18 @@ class Command(ImportLiveVehiclesCommand):
 
     @staticmethod
     def get_journey_identity(item):
-        monitored_vehicle_journey = item["MonitoredVehicleJourney"]
-        line_ref = monitored_vehicle_journey.get("LineRef")
-        line_name = monitored_vehicle_journey.get("PublishedLineName")
+        mvj = item["MonitoredVehicleJourney"]
+        line_ref = mvj.get("LineRef")
+        line_name = mvj.get("PublishedLineName")
 
         try:
-            journey_ref = monitored_vehicle_journey["FramedVehicleJourneyRef"]
-        except (KeyError, ValueError):
-            journey_ref = monitored_vehicle_journey.get("VehicleJourneyRef")
+            journey_ref = mvj["FramedVehicleJourneyRef"]["DatedVehicleJourneyRef"]
+        except (KeyError, TypeError):
+            journey_ref = mvj.get("VehicleJourneyRef")
 
-        departure = monitored_vehicle_journey.get("OriginAimedDepartureTime")
-        direction = monitored_vehicle_journey.get("DirectionRef")
-        destination = monitored_vehicle_journey.get("DestinationName")
+        departure = mvj.get("OriginAimedDepartureTime")
+        direction = mvj.get("DirectionRef")
+        destination = mvj.get("DestinationName")
 
         return f"{line_ref} {line_name} {journey_ref} {departure} {direction} {destination}"
 
