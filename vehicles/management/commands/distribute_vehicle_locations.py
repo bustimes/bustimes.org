@@ -7,10 +7,8 @@ from django.core.management.base import BaseCommand
 from redis.exceptions import ConnectionError
 from tqdm import tqdm
 
-from ...models import VehicleLocation
 from ...time_aware_polyline import (
     decode_time_aware_polyline,
-    encode_time_aware_polyline,
     extend_time_aware_polyline,
 )
 from ...utils import VEHICLE_POSITIONS_CHANNEL, async_redis_client
@@ -63,62 +61,13 @@ class Command(BaseCommand):
     async def handle_items(self, items):
         polylines = {uuid: self.get_polyline(uuid) for (uuid, _, _, _) in items}
 
-        pipeline = async_redis_client.pipeline()
-
-        unknowns = [
-            (uuid, polyline)
-            for uuid, polyline in polylines.items()
-            if not polyline.polyline
-        ]
-
-        for uuid, _ in unknowns:
-            pipeline.type(uuid)
-
-        types = await pipeline.execute()
-
-        list_uuids = []
-        string_uuids = []
-
-        list_pipe = async_redis_client.pipeline()
-
-        for pair, type in zip(unknowns, types):
-            if type == b"list":
-                list_uuids.append(pair)
-                list_pipe.lrange(pair[0], 0, -1)
-            elif type == b"string":
-                string_uuids.append(pair[0])
-
-        lists = await list_pipe.execute()
-        strings = await async_redis_client.mget(string_uuids)
-
-        migrate_pipe = async_redis_client.pipeline()
-        migrating = False
-
-        for (uuid, wrapper), raw_locations in zip(list_uuids, lists):
-            if not raw_locations:
-                continue
-            decoded = sorted(
-                (VehicleLocation.decode_appendage(loc) for loc in raw_locations),
-                key=lambda loc: loc["id"],
-            )
-            polyline = encode_time_aware_polyline(
-                [
-                    [loc["coordinates"][0], loc["coordinates"][1], loc["id"]]
-                    for loc in decoded
-                ]
-            )
-            wrapper.set_polyline(polyline)
-            # the key currently holds the old 'list' type, so it needs a
-            # full SET (not APPEND) to convert it and store the migrated
-            # history; subsequent updates can be appended incrementally
-            migrate_pipe.set(uuid, polyline, ex=EXPIRY)
-            migrating = True
-
-        if migrating:
-            await migrate_pipe.execute()
-
-        for uuid, string in zip(string_uuids, strings):
-            polylines[uuid].set_polyline(string)
+        if unknowns := [
+            uuid for uuid, polyline in polylines.items() if not polyline.polyline
+        ]:
+            strings = await async_redis_client.mget(unknowns)
+            for uuid, string in zip(unknowns, strings):
+                if string:
+                    polylines[uuid].set_polyline(string)
 
         for uuid, time, x, y in items:
             polylines[uuid].extend(x, y, time)

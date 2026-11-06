@@ -1,4 +1,3 @@
-import struct
 from unittest import mock
 from uuid import uuid4
 
@@ -42,22 +41,6 @@ class DistributeVehicleLocationsTest(SimpleTestCase):
 
         await self.command.handle_items([(uuid, 1010, 1.001, 51.001)])
 
-        polyline = (await self.redis.get(uuid)).decode()
-        self.assertEqual(
-            decode_time_aware_polyline(polyline),
-            [[1.0, 51.0, 1000], [1.001, 51.001, 1010]],
-        )
-
-    async def test_migrate_old_list(self):
-        uuid = str(uuid4())
-        # old struct-packed appendage format, as decoded by VehicleLocation.decode_appendage
-        entry = struct.pack("I 2f ?h ?h", 1000, 1.0, 51.0, True, 90, False, 0)
-        await self.redis.rpush(uuid, entry)
-
-        await self.command.handle_items([(uuid, 1010, 1.001, 51.001)])
-
-        # the list key should have been replaced by a migrated, then extended, string
-        self.assertEqual(await self.redis.type(uuid), b"string")
         polyline = (await self.redis.get(uuid)).decode()
         self.assertEqual(
             decode_time_aware_polyline(polyline),

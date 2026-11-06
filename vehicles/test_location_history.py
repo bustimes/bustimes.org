@@ -1,4 +1,3 @@
-import struct
 from datetime import date
 from io import StringIO
 from unittest.mock import patch
@@ -43,10 +42,9 @@ class VehicleLocationHistoryTest(TestCase):
         polyline = encode_time_aware_polyline([[1.0, 51.0, 1762164000]])
         redis.set(self.journeys[0].get_redis_key(), polyline)
         redis.set(self.journeys[1].get_redis_key(), polyline)
-        # old 'list' type
-        redis.rpush(
+        redis.set(
             self.old_journey.get_redis_key(),
-            struct.pack("I 2f ?h ?h", 1756720800, 1.0, 51.0, True, 90, False, 0),
+            encode_time_aware_polyline([[1.0, 51.0, 1756720800]]),
         )
 
         with patch("vehicles.tasks.redis_client", redis):

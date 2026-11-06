@@ -1,6 +1,5 @@
 import datetime
 import re
-import struct
 import subprocess
 import uuid
 from collections import Counter
@@ -883,37 +882,6 @@ class VehicleLocation:
                 return round(float(self.heading))
             return None
         return round(self.heading)
-
-    def get_appendage(self):
-        delay = self.delay
-        if delay is not None:
-            delay = round(delay.total_seconds() / 60)
-
-        heading = self.get_heading()
-
-        return self.journey.get_redis_key(), struct.pack(
-            "I 2f ?h ?h",
-            round(self.datetime.timestamp()),
-            self.latlong.x,
-            self.latlong.y,
-            heading is not None,
-            heading or 0,
-            delay is not None,
-            delay or 0,
-        )
-
-    @staticmethod
-    def decode_appendage(location, tz=None):
-        location = struct.unpack("I 2f ?h ?h", location)
-        return {
-            "id": location[0],
-            "coordinates": location[1:3],
-            "delta": (location[5] or None) and location[6],
-            "direction": (location[3] or None) and location[4],
-            "datetime": datetime.datetime.fromtimestamp(
-                location[0], tz or timezone.get_current_timezone()
-            ),
-        }
 
     def get_redis_json(self, tz=None):
         journey = self.journey

@@ -12,7 +12,6 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from haversine import Unit, haversine_vector
-from redis.exceptions import ResponseError
 from rest_framework import pagination, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
@@ -31,7 +30,6 @@ from vehicles.models import (
     Livery,
     Vehicle,
     VehicleJourney,
-    VehicleLocation,
     VehicleLocationHistory,
     VehicleType,
 )
@@ -437,43 +435,33 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
 
         locations = []
         if redis_client:
-            polyline = None
-            try:
-                if polyline := redis_client.get(instance.get_redis_key()):
-                    polyline = polyline.decode()
-                elif instance.vehicle_id:
-                    polyline = VehicleLocationHistory.get_polyline(instance)
-                if polyline:
-                    locations = [
-                        {
-                            "id": timestamp,
-                            "coordinates": [x, y],
-                            "datetime": datetime.fromtimestamp(
-                                timestamp, tzinfo or timezone.get_current_timezone()
-                            ),
-                        }
-                        for x, y, timestamp in decode_time_aware_polyline(polyline)
-                    ]
-                    for i, location in enumerate(locations):
-                        previous = (
-                            locations[i - 1]["coordinates"]
-                            if i > 0
-                            else location["coordinates"]
-                        )
-                        following = (
-                            locations[i + 1]["coordinates"]
-                            if i + 1 < len(locations)
-                            else location["coordinates"]
-                        )
-                        location["direction"] = calculate_bearing(previous, following)
-            except ResponseError:
-                # old 'list' type
-                raw_locations = redis_client.lrange(instance.get_redis_key(), 0, -1)
+            if polyline := redis_client.get(instance.get_redis_key()):
+                polyline = polyline.decode()
+            elif instance.vehicle_id:
+                polyline = VehicleLocationHistory.get_polyline(instance)
+            if polyline:
                 locations = [
-                    VehicleLocation.decode_appendage(loc, tzinfo)
-                    for loc in raw_locations
+                    {
+                        "id": timestamp,
+                        "coordinates": [x, y],
+                        "datetime": datetime.fromtimestamp(
+                            timestamp, tzinfo or timezone.get_current_timezone()
+                        ),
+                    }
+                    for x, y, timestamp in decode_time_aware_polyline(polyline)
                 ]
-                locations.sort(key=lambda loc: loc["datetime"])
+                for i, location in enumerate(locations):
+                    previous = (
+                        locations[i - 1]["coordinates"]
+                        if i > 0
+                        else location["coordinates"]
+                    )
+                    following = (
+                        locations[i + 1]["coordinates"]
+                        if i + 1 < len(locations)
+                        else location["coordinates"]
+                    )
+                    location["direction"] = calculate_bearing(previous, following)
 
             filtered = []
             stationary = False
@@ -497,19 +485,7 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
                 filtered.append(location)
             locations = filtered
 
-            if not polyline:
-                polyline = encode_time_aware_polyline(
-                    [
-                        [
-                            loc["coordinates"][0],
-                            loc["coordinates"][1],
-                            int(loc["datetime"].timestamp()),
-                        ]
-                        for loc in locations
-                    ]
-                )
-
-            extra_data["time_aware_polyline"] = polyline
+            extra_data["time_aware_polyline"] = polyline or ""
 
         if instance.service_id:
             extra_data["service"] = {

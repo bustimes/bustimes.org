@@ -23,11 +23,9 @@ from .models import (
     Vehicle,
     VehicleCode,
     VehicleJourney,
-    VehicleLocation,
     VehicleLocationHistory,
     VehicleRevision,
 )
-from .time_aware_polyline import encode_time_aware_polyline
 from .utils import archive_avl_data, redis_client
 
 
@@ -389,32 +387,11 @@ def archive_journey_locations(date):
             journeys.filter(vehicle__in=chunk).values_list("id", "vehicle_id", "uuid")
         )
         keys = [uuid.bytes for _, _, uuid in chunk_journeys]
-        polylines = [
-            polyline and polyline.decode() for polyline in redis_client.mget(keys)
-        ]
-
-        # old 'list' type
-        missing = [i for i, polyline in enumerate(polylines) if polyline is None]
-        pipeline = redis_client.pipeline(transaction=False)
-        for i in missing:
-            pipeline.lrange(keys[i], 0, -1)
-        for i, raw_locations in zip(missing, pipeline.execute()):
-            if raw_locations:
-                locations = sorted(
-                    map(VehicleLocation.decode_appendage, raw_locations),
-                    key=lambda location: location["id"],
-                )
-                polylines[i] = encode_time_aware_polyline(
-                    [
-                        [*location["coordinates"], location["id"]]
-                        for location in locations
-                    ]
-                )
-
+        polylines = redis_client.mget(keys)
         rows = defaultdict(dict)
         for (journey_id, vehicle_id, _), polyline in zip(chunk_journeys, polylines):
             if polyline:
-                rows[vehicle_id, date][str(journey_id)] = polyline
+                rows[vehicle_id, date][str(journey_id)] = polyline.decode()
         if rows:
             VehicleLocationHistory.merge(rows)
         redis_client.unlink(*keys)

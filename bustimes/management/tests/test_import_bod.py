@@ -6,7 +6,6 @@ from unittest.mock import ANY, patch
 
 import fakeredis
 import time_machine
-from django.contrib.gis.geos import Point
 from django.core.files.storage import storages
 from django.core.management import call_command
 from django.test import TestCase, override_settings
@@ -24,7 +23,8 @@ from busstops.models import (
     StopArea,
     StopPoint,
 )
-from vehicles.models import VehicleJourney, VehicleLocation
+from vehicles.models import VehicleJourney
+from vehicles.time_aware_polyline import encode_time_aware_polyline
 
 from ...models import (
     BankHoliday,
@@ -345,13 +345,13 @@ Lynx/Bus Open Data Service (BODS)</a>, <time datetime="2020-04-01">1 April 2020<
             self.assertEqual(json["time_aware_polyline"], "")
 
             # journey locations but no stop locations
-            location = VehicleLocation(Point(0.23, 52.729))
-            location.journey = journey
-            location.datetime = datetime.datetime.fromisoformat(
-                "2019-05-29T13:03:34+01:00"
+            timestamp = datetime.datetime.fromisoformat("2019-05-29T13:03:34+01:00")
+            fake_redis.set(
+                journey.get_redis_key(),
+                encode_time_aware_polyline(
+                    [[0.23, 52.729, round(timestamp.timestamp())]]
+                ),
             )
-
-            fake_redis.rpush(*location.get_appendage())
 
             response = self.client.get(
                 f"/api/vehiclejourneys/{journey.id}/details.json"
