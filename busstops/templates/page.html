@@ -40,6 +40,7 @@ var tz = window.Intl && Intl.DateTimeFormat().resolvedOptions().timeZone,
     var pbjs=window.pbjs=window.pbjs||{};
     pbjs.que=pbjs.que||[];
     pbjs.que.push(function(){
+        pbjs.setConfig({eventHistoryTTL:600});
         pbjs.onEvent("bidWon",function(b){
             gtag("event","prebid_won",{ad_unit:b.adUnitCode,bidder:b.bidder,cpm:b.cpm,advertiser:(b.meta&&b.meta.advertiserDomains||[])[0],media_type:b.mediaType,size:b.size,deal:b.dealId});
         });
