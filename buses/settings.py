@@ -146,6 +146,10 @@ DATABASES["default"]["OPTIONS"] = {
     "application_name": os.environ.get("APPLICATION_NAME") or " ".join(sys.argv)[-63:],
     "connect_timeout": 9,
 }
+if statement_timeout := os.environ.get("STATEMENT_TIMEOUT"):
+    DATABASES["default"]["OPTIONS"]["options"] = (
+        f"-c statement_timeout={statement_timeout}"
+    )
 
 DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
 DATABASES["default"]["TEST"] = {"SERIALIZE": False}

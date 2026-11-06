@@ -22,6 +22,7 @@ servers:
         GRANIAN_WORKERS: 12
         GRANIAN_BLOCKING_THREADS: 2
         GRANIAN_BACKPRESSURE: 32
+        STATEMENT_TIMEOUT: 29s
         EMAIL_HOST: email-smtp.eu-west-1.amazonaws.com
         ALLOWED_HOSTS: bustimes.org
       secret:
