@@ -972,6 +972,8 @@ export default function BigMap(
       // slippy mode
       if (mapRef.current) {
         // onMoveEnd isn't attached in other modes, so boundsRef may be stale
+        // (and the map may not have noticed the sidebar going yet)
+        mapRef.current.resize();
         boundsRef.current = mapRef.current.getBounds();
       }
       document.title = "Map \u2013 bustimes.org";
