@@ -1148,7 +1148,7 @@ class Command(ImportLiveVehiclesCommand):
             if self.last_modified:
                 since = (timezone.now() - self.last_modified).total_seconds()
                 wait = (10.5 - since) % 10
-                if wait > 5:
+                if wait > 5 and since > 10:
                     wait = 0
                 logger.info(
                     f"last-modified={self.last_modified:%H:%M:%S}	"

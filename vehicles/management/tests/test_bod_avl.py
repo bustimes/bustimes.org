@@ -199,6 +199,26 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         with mock.patch.object(command, "get_items", return_value=None):
             self.assertEqual(command.update(), 10)
 
+    @time_machine.travel("2020-05-01T00:00:03+00:00", tick=False)
+    def test_wait(self):
+        command = import_bod_avl.Command()
+        command.source = self.source
+        command.source.datetime = datetime(2020, 5, 1, tzinfo=UTC)
+
+        with (
+            patch_redis_client(),
+            mock.patch.object(
+                command, "get_changed_items", return_value=([], [], [], [], 1)
+            ),
+        ):
+            # finished early - wait for the next archive
+            command.last_modified = datetime(2020, 5, 1, tzinfo=UTC)
+            self.assertEqual(command.update(), 7.5)
+
+            # finished late - a newer archive is already out
+            command.last_modified = datetime(2020, 4, 30, 23, 59, 51, tzinfo=UTC)
+            self.assertEqual(command.update(), 0)
+
     @time_machine.travel("2020-05-01", tick=False)
     def test_new_bod_avl_a(self):
         command = import_bod_avl.Command()
