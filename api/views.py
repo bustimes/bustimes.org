@@ -17,7 +17,7 @@ from rest_framework import pagination, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
-from sql_util.utils import Exists
+from sql_util.utils import Exists, SubqueryAggregate
 
 from busstops.models import Locality, Operator, Service, StopPoint
 from bustimes.models import StopTime, Trip
@@ -120,11 +120,11 @@ class StopViewSet(viewsets.ReadOnlyModelViewSet):
         StopPoint.objects.order_by("atco_code")
         .select_related("locality")
         .annotate(
-            line_names=ArrayAgg(
+            line_names=SubqueryAggregate(
                 "stopusage__line_name",
-                filter=Q(stopusage__service__current=True),
+                filter=Q(service__current=True),
+                aggregate=ArrayAgg,
                 distinct=True,
-                default=None,
             )
         )
     )
