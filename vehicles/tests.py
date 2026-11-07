@@ -1189,7 +1189,10 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
         self.assertNotIn("Cache-Control", response.headers)
 
         response = self.client.get("/vehicles.json")
-        self.assertEqual(response.headers["Cache-Control"], "s-maxage=10")
+        self.assertEqual(
+            response.headers["Cache-Control"],
+            "s-maxage=10, stale-while-revalidate=10, stale-if-error=60",
+        )
 
 
 class CalculateBearingTest(SimpleTestCase):

@@ -48,6 +48,7 @@ from sql_util.utils import Exists, SubqueryMax, SubqueryMin
 
 from accounts.models import User
 from buses.utils import format_json
+from busstops.middleware import cdn_cache_control
 from busstops.models import (
     SERVICE_ORDER_REGEX,
     Operator,
@@ -87,6 +88,12 @@ def get_redirect_view(*args, **kwargs):
 
 
 @require_safe
+@cdn_cache_control(
+    max_age=600,
+    stale_while_revalidate=3600,
+    stale_if_error=86400,
+    vary=("CF-IPCountry",),
+)
 def map(request):
     if request.headers.get("cf_ipcountry") == "IE":
         coords = (53.45, -7.5)
@@ -135,7 +142,7 @@ def vehicles(request):
     )
 
 
-@cache_control(max_age=3600)
+@cache_control(max_age=3600, stale_while_revalidate=3600, stale_if_error=86400)
 def liveries_css(request, version=0):
     styles = []
     liveries = Livery.objects.filter(published=True).order_by("left_css")
@@ -575,7 +582,9 @@ def vehicles_json(request) -> JsonResponse:
 
     response = JsonResponse(locations)
     if not request.GET:
-        patch_cache_control(response, s_maxage=10)  # Cloudflare
+        patch_cache_control(
+            response, s_maxage=10, stale_while_revalidate=10, stale_if_error=60
+        )  # Cloudflare
 
     return respond_conditionally(request, response)
 

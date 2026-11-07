@@ -97,6 +97,7 @@ MIDDLEWARE = [
     "django.middleware.csp.ContentSecurityPolicyMiddleware",
     "django_http_compression.middleware.HttpCompressionMiddleware",
     "busstops.middleware.WhiteNoiseWithFallbackMiddleware",
+    "busstops.middleware.AnonymousCdnCacheMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "modern_csrf.middleware.ModernCsrfViewMiddleware",

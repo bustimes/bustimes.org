@@ -54,6 +54,7 @@ from vehicles.utils import get_statuses, redis_client
 from vosa.models import Registration
 
 from . import forms
+from .middleware import cdn_cache_control
 from .models import (
     AdminArea,
     DataSource,
@@ -170,6 +171,12 @@ def flibco_affiliate_link(
     return flixbus_affiliate_link(awinmid=53945, ued=ued, **kwargs)
 
 
+@cdn_cache_control(
+    max_age=600,
+    stale_while_revalidate=3600,
+    stale_if_error=86400,
+    vary=("CF-IPCountry",),
+)
 def index(request):
     def stats():
         return {
@@ -413,7 +420,7 @@ def status(request):
     )
 
 
-@cache_control(max_age=3600)
+@cache_control(max_age=3600, stale_while_revalidate=3600, stale_if_error=86400)
 def stops_mvt(request, z, x, y):
     """Mapbox Vector Tile endpoint for bus stops, replacing stops_json eventually."""
     if z < 10:
@@ -490,7 +497,7 @@ def stops_mvt(request, z, x, y):
     return HttpResponse(mvt_data, content_type="application/x-protobuf")
 
 
-@cache_control(max_age=3600)
+@cache_control(max_age=3600, stale_while_revalidate=3600, stale_if_error=86400)
 def stops_json(request):
     """JSON endpoint accessed by the JavaScript map,
     listing the active StopPoints within a rectangle,

@@ -629,7 +629,9 @@ class TripDetailView(DetailView):
 
         if "max_age" in context:
             response["CDN-Cache-Control"] = (
-                f"public, max-age={context['max_age']}, stale-if-error={context['max_age']}"
+                f"public, max-age={context['max_age']}, "
+                f"stale-while-revalidate={context['max_age']}, "
+                f"stale-if-error={context['max_age']}"
             )
 
         return response
