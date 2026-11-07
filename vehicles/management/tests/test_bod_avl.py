@@ -4,6 +4,7 @@ import json
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
+from time import monotonic
 from unittest import mock
 
 import fakeredis
@@ -2339,7 +2340,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             # expired
             with mock.patch(
                 "vehicles.management.import_live_vehicles.monotonic",
-                return_value=command.vehicle_cache_pruned_at + 301,
+                return_value=monotonic() + 301,
             ):
                 self.assertTrue(cycle("2026-10-27T00:34:00+00:00", "52.95", "112408"))
 

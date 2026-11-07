@@ -625,6 +625,7 @@ class ImportLiveVehiclesCommand(BaseCommand):
 
         now = monotonic()
         if now - self.vehicle_cache_pruned_at > VEHICLE_CACHE_SECONDS:
+            # prune
             self.vehicle_cache = {
                 identity: cached
                 for identity, cached in self.vehicle_cache.items()
