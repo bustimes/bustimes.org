@@ -106,3 +106,30 @@ class MiddlewareTest(TestCase):
         request = RequestFactory().get("/")
         response = AnonymousCdnCacheMiddleware(lambda r: HttpResponse())(request)
         self.assertNotIn("CDN-Cache-Control", response.headers)
+
+    def test_cdn_cache_control_safety_net(self):
+        """a view that sets its own public CDN-Cache-Control header, and touches
+        the session, is overruled for requests with a session cookie"""
+        from django.contrib.sessions.middleware import SessionMiddleware
+        from django.http import HttpResponse
+        from django.test import RequestFactory
+
+        from .middleware import AnonymousCdnCacheMiddleware
+
+        def view(request):
+            request.session.get("_auth_user_id")  # like rendering {{ user }}
+            response = HttpResponse("user 1")
+            response["CDN-Cache-Control"] = "public, max-age=3600"
+            response["Cache-Control"] = "public, max-age=60"
+            return response
+
+        middleware = AnonymousCdnCacheMiddleware(SessionMiddleware(view))
+
+        response = middleware(RequestFactory().get("/"))
+        self.assertEqual(response.headers["CDN-Cache-Control"], "public, max-age=3600")
+
+        request = RequestFactory().get("/", headers={"Cookie": "sessionid=abc"})
+        response = middleware(request)
+        self.assertEqual(response.headers["CDN-Cache-Control"], "private, no-store")
+        self.assertNotIn("public", response.headers["Cache-Control"])
+        self.assertIn("private", response.headers["Cache-Control"])

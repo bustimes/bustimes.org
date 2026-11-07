@@ -31,6 +31,7 @@ from rest_framework.renderers import JSONRenderer
 from api.serializers import TripSerializer
 from api.views import TripViewSet
 from buses.utils import format_json, format_xml
+from busstops.middleware import cdn_cache_header
 from busstops.models import (
     DataSource,
     Locality,
@@ -628,10 +629,11 @@ class TripDetailView(DetailView):
         response = super().render_to_response(context)
 
         if "max_age" in context:
-            response["CDN-Cache-Control"] = (
-                f"public, max-age={context['max_age']}, "
-                f"stale-while-revalidate={context['max_age']}, "
-                f"stale-if-error={context['max_age']}"
+            # (only for anonymous users - see AnonymousCdnCacheMiddleware)
+            response.cdn_cache_control = cdn_cache_header(
+                context["max_age"],
+                stale_while_revalidate=context["max_age"],
+                stale_if_error=context["max_age"],
             )
 
         return response

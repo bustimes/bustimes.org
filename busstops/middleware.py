@@ -7,6 +7,7 @@ from django.contrib.messages.storage.cookie import CookieStorage
 from django.http import HttpResponse
 from django.utils.cache import (
     add_never_cache_headers,
+    has_vary_header,
     patch_cache_control,
     patch_vary_headers,
 )
@@ -61,6 +62,17 @@ def pin_db_middleware(get_response):
     return middleware
 
 
+def cdn_cache_header(
+    max_age: int, stale_while_revalidate: int = 0, stale_if_error: int = 0
+) -> str:
+    directives = [f"public, max-age={max_age}"]
+    if stale_while_revalidate:
+        directives.append(f"stale-while-revalidate={stale_while_revalidate}")
+    if stale_if_error:
+        directives.append(f"stale-if-error={stale_if_error}")
+    return ", ".join(directives)
+
+
 def cdn_cache_control(
     max_age: int,
     stale_while_revalidate: int = 0,
@@ -72,13 +84,11 @@ def cdn_cache_control(
     session/messages/CSRF middleware have had their say.
 
     `vary` is for request headers the response depends on, e.g. CF-IPCountry
+
+    (A class-based view can set `response.cdn_cache_control = cdn_cache_header(...)`
+    itself instead.)
     """
-    directives = [f"public, max-age={max_age}"]
-    if stale_while_revalidate:
-        directives.append(f"stale-while-revalidate={stale_while_revalidate}")
-    if stale_if_error:
-        directives.append(f"stale-if-error={stale_if_error}")
-    header = ", ".join(directives)
+    header = cdn_cache_header(max_age, stale_while_revalidate, stale_if_error)
 
     def decorator(view_func):
         @wraps(view_func)
@@ -98,12 +108,17 @@ def cdn_cache_control(
 PERSONAL_COOKIES = (settings.SESSION_COOKIE_NAME, CookieStorage.cookie_name)
 
 
+def is_personal(request, response) -> bool:
+    """might the response be specific to this user?"""
+    return bool(response.cookies) or any(
+        name in request.COOKIES for name in PERSONAL_COOKIES
+    )
+
+
 def is_anonymous_cacheable(request, response) -> bool:
     if request.method not in ("GET", "HEAD") or response.status_code != HTTPStatus.OK:
         return False
-    if any(name in request.COOKIES for name in PERSONAL_COOKIES):
-        return False
-    if response.cookies:  # about to set a cookie (session, messages, csrftoken...)
+    if is_personal(request, response):
         return False
     if "private" in response.get("Cache-Control", ""):
         return False
@@ -111,15 +126,27 @@ def is_anonymous_cacheable(request, response) -> bool:
     return not (user and user.is_authenticated)
 
 
+def make_private(response):
+    response["CDN-Cache-Control"] = "private, no-store"
+    # (patch_cache_control removes "public" when adding "private")
+    patch_cache_control(response, private=True)
+
+
 class AnonymousCdnCacheMiddleware:
     """Must come before (i.e. wrap) SessionMiddleware, MessageMiddleware and the
     CSRF middleware, so that it sees any cookies they set on the response.
 
-    Only responses from views decorated with @cdn_cache_control are affected.
-    Anything personal is marked private/no-store, so it can never end up in
-    Cloudflare's cache - but stopping a logged-in user from being *served* a
-    cached anonymous page needs a Cloudflare cache rule bypassing the cache when
-    the sessionid cookie is present (or for Cloudflare to honour Vary: Cookie)
+    Responses from views that opted in (@cdn_cache_control) get a public
+    CDN-Cache-Control header, but only for anonymous users.
+
+    As a safety net, *any* response that touched the session (so has
+    "Vary: Cookie"), to a request with a session cookie, is marked private,
+    even if the view set its own public Cache-Control or CDN-Cache-Control.
+
+    This stops personal pages ever getting into Cloudflare's cache - but stopping
+    a logged-in user from being *served* a cached anonymous page needs a
+    Cloudflare cache rule bypassing the cache when the sessionid cookie is
+    present (or for Cloudflare to honour Vary: Cookie)
     """
 
     def __init__(self, get_response):
@@ -129,14 +156,13 @@ class AnonymousCdnCacheMiddleware:
         response = self.get_response(request)
 
         header = getattr(response, "cdn_cache_control", None)
-        if header is None:
-            return response
-
-        if is_anonymous_cacheable(request, response):
-            response["CDN-Cache-Control"] = header
-        else:
-            response["CDN-Cache-Control"] = "private, no-store"
-            # (patch_cache_control removes "public" when adding "private")
-            patch_cache_control(response, private=True, no_store=True)
+        if header is not None:
+            if is_anonymous_cacheable(request, response):
+                response["CDN-Cache-Control"] = header
+            else:
+                make_private(response)
+                patch_cache_control(response, no_store=True)
+        elif has_vary_header(response, "Cookie") and is_personal(request, response):
+            make_private(response)
 
         return response
