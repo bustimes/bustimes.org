@@ -1,18 +1,24 @@
 import re
 from http import HTTPStatus
 
+from django.core.cache import cache
+from django.db import connection
 from django.http import HttpResponse
 from django.utils.cache import add_never_cache_headers
 from whitenoise.middleware import WhiteNoiseMiddleware
 
 
 class HealthCheckMiddleware:
+    # middleware, not a view, to bypass ALLOWED_HOSTS check
+
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         if request.path == "/up":
-            # bypass ALLOWED_HOSTS check
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+            cache.get("up")
             return HttpResponse("up!")
 
         return self.get_response(request)
