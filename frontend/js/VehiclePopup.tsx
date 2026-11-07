@@ -1,17 +1,22 @@
-import React, { type ReactNode } from "react";
+import React, { type ComponentProps, type ReactNode } from "react";
 import { Popup, type PopupEvent } from "react-map-gl/maplibre";
 import TimeAgo from "react-timeago";
 import { Link } from "wouter";
 import type { Vehicle } from "./VehicleMarker";
 import { now } from "./clockSkew";
+import { formatMinutes, isNegligible } from "./fractionalTime";
 
-function getTimeDelta(seconds: number) {
-  const minutes = Math.round(seconds / 60);
-  if (minutes === 1) {
-    return "1 minute";
+// "2 ¾ minutes ago" between 1 minute and 1 hour, otherwise the default
+type Formatter = NonNullable<ComponentProps<typeof TimeAgo>["formatter"]>;
+
+export const timeAgoFormatter: Formatter = (...args) => {
+  const [, unit, suffix, epochMilliseconds, nextFormatter] = args;
+  if (unit === "minute") {
+    const seconds = (now() - epochMilliseconds) / 1000;
+    return `${formatMinutes(seconds)} ${suffix}`;
   }
-  return `${minutes} minutes`;
-}
+  return nextFormatter(...args);
+};
 
 export function Delay({
   item,
@@ -25,7 +30,7 @@ export function Delay({
     let delayString: string;
     const abs = Math.abs(delay);
 
-    if (abs < 45) {
+    if (isNegligible(abs)) {
       delayString = "On time";
     } else {
       if (delay < 0) {
@@ -33,7 +38,7 @@ export function Delay({
       } else {
         delayString = "late";
       }
-      delayString = `${getTimeDelta(abs)} ${delayString}`;
+      delayString = `${formatMinutes(abs)} ${delayString}`;
     }
     return <div>{delayString}</div>;
   }
@@ -140,7 +145,13 @@ export default function VehiclePopup({
       )}
       <Delay item={item} />
       <div>
-        <TimeAgo date={item.datetime} now={now} key={item.datetime} />
+        <TimeAgo
+          date={item.datetime}
+          now={now}
+          key={item.datetime}
+          formatter={timeAgoFormatter}
+          maxPeriod={15}
+        />
       </div>
     </Popup>
   );

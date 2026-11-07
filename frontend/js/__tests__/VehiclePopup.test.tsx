@@ -18,6 +18,9 @@ it("shows delay", async () => {
   rerender(<Delay item={{ delay: -20 }} />);
   expect(container).toMatchSnapshot();
 
+  rerender(<Delay item={{ delay: 5 }} />);
+  expect(container).toMatchSnapshot();
+
   rerender(<Delay item={{}} />);
   expect(container).toMatchSnapshot();
 });

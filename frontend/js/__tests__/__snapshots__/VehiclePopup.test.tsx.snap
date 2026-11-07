@@ -3,7 +3,7 @@
 exports[`shows delay 1`] = `
 <div>
   <div>
-    4 minutes late
+    3 ½ minutes late
   </div>
 </div>
 `;
@@ -11,7 +11,7 @@ exports[`shows delay 1`] = `
 exports[`shows delay 2`] = `
 <div>
   <div>
-    4 minutes early
+    3 ¾ minutes early
   </div>
 </div>
 `;
@@ -19,7 +19,7 @@ exports[`shows delay 2`] = `
 exports[`shows delay 3`] = `
 <div>
   <div>
-    On time
+    ¼ minute late
   </div>
 </div>
 `;
@@ -27,9 +27,17 @@ exports[`shows delay 3`] = `
 exports[`shows delay 4`] = `
 <div>
   <div>
+    ¼ minute early
+  </div>
+</div>
+`;
+
+exports[`shows delay 5`] = `
+<div>
+  <div>
     On time
   </div>
 </div>
 `;
 
-exports[`shows delay 5`] = `<div />`;
+exports[`shows delay 6`] = `<div />`;
