@@ -7,6 +7,7 @@ from django.test import TestCase, override_settings
 from busstops.models import DataSource, Service, StopPoint
 from vehicles.models import Livery, Vehicle, VehicleCode, VehicleJourney
 
+from .formatting import format_timedelta
 from .management.commands import import_transxchange
 from .models import (
     Calendar,
@@ -196,6 +197,21 @@ class BusTimesTest(TestCase):
         time.departure = None
         self.assertEqual(
             time.departure_or_arrival(), timedelta(hours=10, minutes=30, seconds=2)
+        )
+
+    def test_format_timedelta_fractional(self):
+        def fmt(**kwargs):
+            return format_timedelta(timedelta(**kwargs), True, fractional=True)
+
+        self.assertEqual(fmt(hours=10, minutes=47), "10:47")
+        self.assertEqual(fmt(hours=10, minutes=47, seconds=14), "10:47")
+        self.assertEqual(fmt(hours=10, minutes=47, seconds=15), "10:47¼")
+        self.assertEqual(fmt(hours=10, minutes=47, seconds=30), "10:47½")
+        self.assertEqual(fmt(hours=10, minutes=47, seconds=59), "10:47¾")
+        self.assertEqual(fmt(hours=25, minutes=1, seconds=45), "01:01¾⁺¹")
+        # not fractional - truncated
+        self.assertEqual(
+            format_timedelta(timedelta(hours=10, minutes=47, seconds=59)), "10:47"
         )
 
     def test_stop_time_json_trip_without_route(self):

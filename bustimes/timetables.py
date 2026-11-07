@@ -932,7 +932,12 @@ class Grouping:
             else:
                 row = existing_row
 
-            cell = Cell(stoptime, stoptime.arrival, stoptime.departure)
+            cell = Cell(
+                stoptime,
+                stoptime.arrival,
+                stoptime.departure,
+                fractional=self.parent.detailed,
+            )
             if first:
                 cell.first = True
                 trip.top = row
@@ -1136,9 +1141,10 @@ class Stop:
 
 
 class Cell:
-    def __init__(self, stoptime, arrival, departure):
+    def __init__(self, stoptime, arrival, departure, fractional=False):
         self.first = False
         self.last = False
+        self.fractional = fractional  # show seconds as ¼, ½, ¾ of a minute
         self.stoptime = stoptime
         self.arrival = arrival
         self.departure = departure
@@ -1152,10 +1158,15 @@ class Cell:
         return self.stoptime.departure_or_arrival()
 
     def __repr__(self):
-        return format_timedelta(self.arrival, plus_one=True) or ""
+        return (
+            format_timedelta(self.arrival, plus_one=True, fractional=self.fractional)
+            or ""
+        )
 
     def departure_time(self):
-        return format_timedelta(self.departure, plus_one=True)
+        return format_timedelta(
+            self.departure, plus_one=True, fractional=self.fractional
+        )
 
     def set_down_only(self):
         if self.stoptime.set_down and not self.stoptime.pick_up:
