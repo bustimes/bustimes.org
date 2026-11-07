@@ -271,9 +271,7 @@ export default function BusTimesMap(
           touchPitch={false}
           pitchWithRotate={false}
           dragRotate={false}
-          minZoom={4}
           maxZoom={18}
-          projection="globe"
           mapStyle={mapStyleURL}
           RTLTextPlugin={""}
           attributionControl={false}
