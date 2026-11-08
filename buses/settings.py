@@ -108,6 +108,9 @@ MIDDLEWARE = [
 # For same-origin requests, the full referrer is useful (e.g. for the contact form)
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
+# allow popups for ads and ImgBB widget
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
+
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_CF_VISITOR", '{"scheme":"https"}')
 SECURE_HSTS_SECONDS = 31536000
