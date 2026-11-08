@@ -88,9 +88,12 @@ function getBoundsQueryString(bounds: LngLatBounds): string {
 }
 
 function containsBounds(
-  a: LngLatBounds | null,
+  a: LngLatBounds | "all" | null,
   b: LngLatBounds,
 ): boolean | undefined {
+  if (a === "all") {
+    return true;
+  }
   return a?.contains(b.getNorthWest()) && a.contains(b.getSouthEast());
 }
 
@@ -98,8 +101,9 @@ function shouldShowStops(zoom?: number) {
   return zoom && zoom >= 14;
 }
 
-function shouldShowVehicles(zoom?: number) {
-  return zoom && zoom >= 6;
+// zoomed out, load every vehicle (one request, cached by Cloudflare)
+function shouldLoadAllVehicles(zoom?: number) {
+  return zoom !== undefined && zoom < 6;
 }
 
 export enum MapMode {
@@ -762,7 +766,7 @@ export default function BigMap(
 
   // slippy map stuff
   const boundsRef = React.useRef<LngLatBounds | null>(null);
-  const vehiclesHighWaterMark = React.useRef<LngLatBounds | null>(null);
+  const vehiclesHighWaterMark = React.useRef<LngLatBounds | "all" | null>(null);
   const vehiclesTimeout = React.useRef<number | null>(null);
   const vehiclesAbortController = React.useRef<AbortController | null>(null);
   const vehiclesLength = React.useRef<number>(0);
@@ -784,11 +788,14 @@ export default function BigMap(
         vehiclesAbortController.current = null;
       }
 
-      let _bounds: LngLatBounds;
+      let _bounds: LngLatBounds | "all" | null = null;
       let url: string | undefined;
       switch (props.mode) {
         case MapMode.Slippy:
-          if (boundsRef.current) {
+          if (shouldLoadAllVehicles(mapRef.current?.getZoom())) {
+            _bounds = "all";
+            url = "";
+          } else if (boundsRef.current) {
             _bounds = boundsRef.current;
             url = getBoundsQueryString(_bounds);
           }
@@ -817,7 +824,7 @@ export default function BigMap(
           }
           break;
       }
-      if (!url) {
+      if (url === undefined) {
         return;
       }
 
@@ -1007,17 +1014,16 @@ export default function BigMap(
         setLoadingBuses(false);
       }
 
-      if (shouldShowVehicles(_zoom)) {
-        if (
-          !containsBounds(vehiclesHighWaterMark.current, boundsRef.current) ||
-          vehiclesLength.current >= 1000
-        ) {
-          setLoadingBuses(true);
-          vehiclesTimeout.current = window.setTimeout(loadVehicles, 200);
-        } else {
-          // we've zoomed in, so already have all the vehicles in this bounding box
-          vehiclesTimeout.current = window.setTimeout(loadVehicles, 12000);
-        }
+      if (
+        !containsBounds(vehiclesHighWaterMark.current, boundsRef.current) ||
+        // too many to show as proper markers, so get fewer
+        (vehiclesLength.current >= 1000 && !shouldLoadAllVehicles(_zoom))
+      ) {
+        setLoadingBuses(true);
+        vehiclesTimeout.current = window.setTimeout(loadVehicles, 200);
+      } else {
+        // we've zoomed in, so already have all the vehicles in this bounding box
+        vehiclesTimeout.current = window.setTimeout(loadVehicles, 12000);
       }
       updateLocalStorage(_zoom, evt.target.getCenter());
     },
@@ -1122,10 +1128,8 @@ export default function BigMap(
           boundsRef.current = map.getBounds();
           setZoom(_zoom);
 
-          if (shouldShowVehicles(_zoom)) {
-            setLoadingBuses(true);
-            loadVehicles();
-          }
+          setLoadingBuses(true);
+          loadVehicles();
         }
       }
     },
@@ -1192,7 +1196,6 @@ export default function BigMap(
   }, []);
 
   const showStops = shouldShowStops(zoom);
-  const showBuses = props.mode !== MapMode.Slippy || shouldShowVehicles(zoom);
 
   const breadcrumb =
     props.operatorSlug && operator ? (
@@ -1341,7 +1344,7 @@ export default function BigMap(
             <Locations locations={journeyLocations} />
           ) : null}
 
-          {vehicles && showBuses ? (
+          {vehicles ? (
             <Vehicles
               vehicles={vehicles}
               tripId={props.tripId}
@@ -1357,8 +1360,7 @@ export default function BigMap(
               {props.mode === MapMode.Slippy && !showStops
                 ? "Zoom in to see stops"
                 : null}
-              {!showBuses ? <div>Zoom in to see buses</div> : null}
-              {showBuses && loadingBuses ? <div>Loading…</div> : null}
+              {loadingBuses ? <div>Loading…</div> : null}
             </div>
           ) : null}
 
