@@ -139,6 +139,7 @@ builder:
   arch: amd64
   cache:
     type: registry
+    options: mode=max
 
 registry:
   server: localhost:5000
