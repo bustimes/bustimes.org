@@ -17,6 +17,7 @@ if (process.env.NODE_ENV === "production") {
       "Invalid state transition request!",
       "this._resizeCallback is not a function",
       "Analytics would be confused",
+      "Blocked a restricted frame",
       // GPU/browser
       "WebGL2 is required to display this map",
       "Could not compile fragment shader",
