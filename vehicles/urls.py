@@ -55,7 +55,6 @@ urlpatterns = [
     path("rules", TemplateView.as_view(template_name="rules.html")),
     path("map", views.map, name="map"),
     path("maps", views.get_redirect_view("map", permanent=True)),
-    path("firehose", TemplateView.as_view(template_name="firehose_map.html")),
     path("siri/<uuid:uuid>", views.siri_post),
     path("siri/<int:id>", views.siri_get, name="siri_get"),
     path("overland/<uuid:uuid>", views.overland),

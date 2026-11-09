@@ -56,12 +56,6 @@
         "frontend/js/app.tsx"
       ],
       "distDir": "busstops/static/dist"
-    },
-    "firehose-map": {
-      "source": [
-        "frontend/js/firehose-map.ts"
-      ],
-      "distDir": "busstops/static/dist"
     }
   },
   "scripts": {
