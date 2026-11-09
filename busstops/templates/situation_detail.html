@@ -24,8 +24,8 @@
                 {% for call in aj.call_set.all %}
                     <tr>
                         <td><a href="/stops/{{ call.stop_time.stop_id }}?date={{ call.arrival_time.date.isoformat }}&amp;time={{ call.arrival_time|time:"H:i" }}">{{ call.stop_time.stop_id }}</a></td>
-                        <td>{{ call.arrival_time|time:"H:i" }}</td>
-                        <td>{{ call.departure_time|time:"H:i" }}</td>
+                        <td>{{ call.arrival_time|time }}</td>
+                        <td>{{ call.departure_time|time }}</td>
                         <td>{{ call.condition }}</td></tr>
                 {% endfor %}
             </tbody>

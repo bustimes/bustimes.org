@@ -146,5 +146,5 @@ class ImportOperatorsTest(TestCase):
         self.assertContains(
             response,
             """<th scope="row">National Operator Codes</th>
-            <td>4 Jun 2024, 3:18 p.m.</td>""",
+            <td>4 Jun 2024 15:18</td>""",
         )

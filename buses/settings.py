@@ -342,6 +342,7 @@ TIME_ZONE = "Europe/London"
 USE_TZ = True
 USE_I18N = False
 LANGUAGE_CODE = "en-gb"
+FORMAT_MODULE_PATH = "buses.formats"
 
 
 def traces_sampler(context):

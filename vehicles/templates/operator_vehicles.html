@@ -111,7 +111,7 @@ ticket machines, a byproduct of the live bus tracking.</p>
                 </td>
                 <td class="last-seen">
                     {% if vehicle.last_seen.today %}
-                        {{ vehicle.last_seen.when|time:"H:i" }}
+                        {{ vehicle.last_seen.when|time }}
                     {% elif vehicle.last_seen.when.year == today.year %}
                         {{ vehicle.last_seen.when|date:"j M" }}
                     {% else %}
