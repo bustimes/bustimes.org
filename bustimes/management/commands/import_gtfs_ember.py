@@ -113,6 +113,12 @@ class Command(BaseCommand):
             )
             if len(registrations) == 1:
                 route.registration = registrations[0]
+                registration_number = route.registration.registration_number
+                service.service_code = registration_number.replace("/", ":")
+            else:
+                service.service_code = f"UZ{operator.noc:0>7}:{route.line_name}"
+
+            route.line_id = f"{operator.noc}:{service.service_code}:{route.line_name}"
 
             service.save()
             service.operator.add(operator)

@@ -125,6 +125,8 @@ class Command(BaseCommand):
             service.source = source
             service.region_id = "GB"
             service.mode = MODES[row.route_type]
+            service.service_code = f"UZ{operator.noc:0>7}:{line_name}"
+            route.line_id = f"{operator.noc}:{service.service_code}:{line_name}"
 
             service.save()
             service.operator.add(operator)

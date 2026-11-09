@@ -150,6 +150,11 @@ class FlixbusTest(TestCase):
         self.assertEqual(2, Service.objects.count())
         self.assertEqual(8, RouteLink.objects.count())
 
+        self.service.refresh_from_db()
+        self.assertEqual(self.service.service_code, "UZ000FLIX:UK004")
+        route = Route.objects.get(code="UK004")
+        self.assertEqual(route.line_id, "FLIX:UZ000FLIX:UK004:UK004")
+
         self.assertContains(response, "London - Northampton - Nottingham")
         self.assertContains(response, "London - Cambridge")
 
@@ -332,8 +337,14 @@ class FlixbusTest(TestCase):
             call_command("import_gtfs_ember")
 
         response = self.client.get("/operators/ember")
+        service = response.context["services"][0]
 
-        service = Service.objects.get(line_name="E1")
+        self.assertEqual(service.line_name, "E1")
+        self.assertEqual(service.service_code, "UZ000EMBR:E1")
+
+        route = service.route_set.get()
+        self.assertEqual(route.line_id, "EMBR:UZ000EMBR:E1:E1")
+        self.assertEqual(route.line_name, "E1")
 
         response = self.client.get(service.get_absolute_url())
         self.assertContains(response, "6200206520")
