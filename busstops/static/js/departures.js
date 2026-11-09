@@ -16,7 +16,8 @@
     var basePath = '/' + pathMatch[1] + '/' + pathMatch[2];
 
     var search = window.location.search,
-        now;
+        now,
+        latestRequest = 0;
 
     function updateDepartures(event) {
         var newSearch;
@@ -38,7 +39,12 @@
 
         departures.classList.add('loading');
 
+        var request = ++latestRequest;
+
         fetch(basePath + '/departures' + newSearch).then(function(response) {
+            if (request !== latestRequest) {
+                return;
+            }
             if (response.ok) {
                 response.text().then(function(text) {
                     function update() {

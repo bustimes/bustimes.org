@@ -4,11 +4,27 @@
     browser: true
 */
 /*global
-    reqwest, SERVICE_ID
+    SERVICE_ID
 */
 
 (function() {
     var timetableWrapper = document.getElementById('timetable');
+
+    var latestRequest = 0;
+
+    function getHTML(url, callback) {
+        var request = ++latestRequest;
+        fetch(url).then(function(response) {
+            if (request !== latestRequest) {
+                return;
+            }
+            if (response.ok) {
+                response.text().then(callback);
+            } else {
+                timetableWrapper.className = '';
+            }
+        });
+    }
 
     function doStuff() {
         if (document.querySelectorAll && document.referrer.indexOf('/stops/') > -1) {
@@ -28,7 +44,7 @@
         }
         if (timetableForm) {
             timetableForm.onchange = function() {
-                if (typeof URLSearchParams === "undefined" || typeof FormData === "undefined") { // old browser
+                if (!window.fetch || typeof URLSearchParams === "undefined" || typeof FormData === "undefined") { // old browser
                     timetableForm.submit();
                     return;
                 }
@@ -37,7 +53,7 @@
 
                 var formData = new FormData(timetableForm);
                 var newSearch = '?' + new URLSearchParams(formData).toString();
-                reqwest('/services/' + SERVICE_ID + '/timetable' + newSearch, function(response) {
+                getHTML('/services/' + SERVICE_ID + '/timetable' + newSearch, function(response) {
                     function update() {
                         timetableWrapper.className = '';
                         timetableWrapper.innerHTML = response;
@@ -71,7 +87,7 @@
                 url += search;
             }
             timetableWrapper.className = 'loading';
-            reqwest(url, function(response) {
+            getHTML(url, function(response) {
                 function update() {
                     timetableWrapper.className = '';
                     timetableWrapper.innerHTML = response;

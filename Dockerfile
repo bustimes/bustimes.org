@@ -37,7 +37,6 @@ COPY --from=venv /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY --from=0 /app/node_modules/htmx.org/dist /app/node_modules/htmx.org/dist
-COPY --from=0 /app/node_modules/reqwest/reqwest.min.js /app/node_modules/reqwest/
 COPY --from=0 /app/busstops/static /app/busstops/static
 COPY . /app/
 

@@ -38,7 +38,6 @@
     "react-dom": "^19.1.1",
     "react-map-gl": "^8.1.0",
     "react-timeago": "^8.3.0",
-    "reqwest": "^2.0.5",
     "wouter": "^3.1.0"
   },
   "alias": {
