@@ -45,11 +45,13 @@
 
 <p>{{ object.datetime }}</p>
 
+{% if updates %}
+
 <h2>updates</h2>
 
 <table>
-    <thead>
-        <th scope="col" class="shortish">started at</th>
+    <thead class="diagonal">
+        <th scope="col" class="shortish">date</th>
         <th scope="col" class="shortish">time taken</th>
         <th scope="col" class="shortish">file size</th>
         <th scope="col" class="short">services</th>
@@ -61,18 +63,28 @@
     <tbody>
     {% for task in updates %}
         <tr>
-            <td>{{ task.started_at }}</td>
+            <td>{{ task.started_at|date }}</td>
             <td>{{ task.duration|default:"in progress" }}</td>
-            <td>{% if task.file %}<a href="{{ task.get_file_url }}">{{ task.file_size|filesizeformat }}</a>{% elif task.file_size %}{{ task.file_size|filesizeformat }}{% endif %}</td>
+            <td class="link">
+                {% if task.file %}
+                    <a href="{{ task.get_file_url }}">{{ task.file_size|filesizeformat }}</a>
+                {% elif task.file_size %}{{ task.file_size|filesizeformat }}{% endif %}
+            </td>
             <td>{{ task.services|default_if_none:"" }}</td>
             <td>{{ task.routes|default_if_none:"" }}</td>
             <td>{{ task.trips|default_if_none:"" }}</td>
-            <td><a href="{{ task.get_absolute_url }}">{{ task.observations }}</a></td>
+            <td class="link">
+                {% if task.observations %}
+                    <a href="{{ task.get_absolute_url }}">{{ task.observations }}</a>
+                {% endif %}
+            </td>
             <td>{{ task.comment }}</td>
         </tr>
     {% endfor %}
     </tbody>
 </table>
+
+{% endif %}
 
 <h2>routes</h2>
 
@@ -81,18 +93,18 @@
         <th scope="col" class="shortish">service code</th>
         <th scope="col" class="short">line name</th>
         {% if routes.0.version %}<th scope="col" class="shortish">version</th>{% endif %}
-        <th scope="col" class="short">revision №</th>
+        {% if is_txc %}<th scope="col" class="short">revision №</th>{% endif %}
         <th scope="col" class="shortish">start</th>
         <th scope="col" class="shortish">end</th>
         <th scope="col" class="shortish">modified at</th>
-        <th scope="col">file</th>
+        {% if is_txc %}<th scope="col">file</th>{% endif %}
         <th scope="col" class="short">trips</th>
     </thead>
     <tbody>
     {% for route in routes %}
         <tr>
             <td>{% ifchanged route.service_code %}{{ route.service_code }}{% endifchanged %}</td>
-            <td>
+            <td class="link">
                 {% ifchanged route.line_name %}
                     {% if route.service_id %}
                         <a href="{{ route.service.get_absolute_url }}/debug">{{ route.line_name }}</a>
@@ -104,11 +116,11 @@
             {% if routes.0.version %}
                 <td>{{ route.version.start_date }}</td>
             {% endif %}
-            <td>{{ route.revision_number }}</td>
+            {% if is_txc %}<td>{{ route.revision_number }}</td>{% endif %}
             <td>{{ route.start_date|date }}</td>
             <td>{{ route.end_date|date }}</td>
             <td>{{ route.modified_at|date }}</td>
-            <td class="link"><a href="{{ route.get_absolute_url }}">{{ route.code }}</a></td>
+            {% if is_txc %}<td class="link"><a href="{{ route.get_absolute_url }}">{{ route.code }}</a></td>{% endif %}
             <td class="link"><a href="{% url 'admin:bustimes_trip_changelist' %}?route__exact={{ route.id }}">{{ route.trips }}</a></td>
         </tr>
     {% endfor %}

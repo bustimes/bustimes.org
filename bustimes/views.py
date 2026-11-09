@@ -291,6 +291,9 @@ class SourceDetailView(DetailView):
         if not context["routes"]:
             raise Http404
 
+        if all(".xml" in route.code for route in context["routes"]):
+            context["is_txc"] = True
+
         context["breadcrumb"] = [Crumb("Sources", "/sources")]
 
         return context
