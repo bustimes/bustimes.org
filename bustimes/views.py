@@ -45,6 +45,7 @@ from vehicles.forms import DateForm, TripUpdatesFeedForm
 from vehicles.models import Vehicle, VehicleJourney
 
 from . import snap as snap_utils
+from . import tasks
 from .formatting import format_timedelta
 from .forms import (
     RouteLinkFormSet,
@@ -857,9 +858,22 @@ def upload_gtfs(request):
     context = {"form": form}
 
     if request.method == "POST" and form.is_valid():
-        from .gtfs_utils import handle_gtfs_upload
+        source, _ = DataSource.objects.get_or_create(
+            name=form.cleaned_data["source_name"]
+        )
+        source.datetime = timezone.now()
+        source.save(update_fields=["datetime"])
 
-        source = handle_gtfs_upload(**form.cleaned_data)
+        file = form.cleaned_data["file"]
+        task = ImportTask(
+            source=source,
+            started_at=source.datetime,
+            file_size=file.size,
+            file=storages["archive"].save(source.get_archive_path(), file),
+        )
+        task.save()
+
+        tasks.handle_gtfs_upload(task.id, form.cleaned_data["note"])
 
         return redirect(source)
 

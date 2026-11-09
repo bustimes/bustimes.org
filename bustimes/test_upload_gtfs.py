@@ -8,7 +8,7 @@ from django.test import TestCase
 from accounts.models import User
 from busstops.models import DataSource, Operator, Service
 
-from .models import Note, Route, RouteLink, StopTime, Trip
+from .models import ImportTask, Note, Route, RouteLink, StopTime, Trip
 
 GTFS_FILES = {
     "agency.txt": """agency_id,agency_name,agency_url,agency_timezone
@@ -93,7 +93,12 @@ class UploadGTFSTest(TestCase):
             "/upload", {"source_name": "TDTT", "file": make_zip()}
         )
         source = DataSource.objects.get(name="TDTT")
+        task = ImportTask.objects.get()
         self.assertRedirects(response, source.get_absolute_url())
+        self.assertEqual(task.source, source)
+        self.assertEqual(task.file.name, source.get_archive_path())
+        self.assertIsNotNone(task.finished_at)
+        self.assertEqual((task.services, task.routes, task.trips), (3, 3, 3))
 
         operator = Operator.objects.get(noc="NABO")
         self.assertEqual(operator.name, "Town & District Transport Trust")
@@ -124,7 +129,9 @@ class UploadGTFSTest(TestCase):
         response = self.client.post(
             "/upload", {"source_name": "TDTT", "file": make_zip()}
         )
+        first_task, task = ImportTask.objects.order_by("id")
         self.assertRedirects(response, source.get_absolute_url())
+        self.assertNotEqual(task.file.name, first_task.file.name)
         self.assertEqual(Service.objects.count(), 3)
         self.assertEqual(Route.objects.count(), 3)
         self.assertEqual(set(Trip.objects.values_list("id", flat=True)), trip_ids)

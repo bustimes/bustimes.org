@@ -62,7 +62,7 @@
     {% for task in updates %}
         <tr>
             <td>{{ task.started_at }}</td>
-            <td>{{ task.duration }}</td>
+            <td>{{ task.duration|default:"in progress" }}</td>
             <td>{% if task.file %}<a href="{{ task.get_file_url }}">{{ task.file_size|filesizeformat }}</a>{% elif task.file_size %}{{ task.file_size|filesizeformat }}{% endif %}</td>
             <td>{{ task.services|default_if_none:"" }}</td>
             <td>{{ task.routes|default_if_none:"" }}</td>

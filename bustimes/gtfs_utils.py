@@ -11,10 +11,11 @@ import shapely.ops as so
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import connection, transaction
 from django.db.models import Min, OuterRef, Subquery
+from django.utils import timezone
 from django.utils.dateparse import parse_duration
 from shapely.errors import EmptyPartError
 
-from busstops.models import DataSource, Operator, Service, StopPoint
+from busstops.models import Operator, Service, StopPoint
 
 from .models import (
     Calendar,
@@ -502,21 +503,20 @@ def finish_gtfs_import(
     set_route_start_dates(source)
 
 
-def handle_gtfs_upload(source_name, file, note=None):
-    source, _ = DataSource.objects.get_or_create(name=source_name)
+def handle_gtfs_upload(import_task, note=None):
+    source = import_task.source
+    file = import_task.file
 
-    with (
-        tempfile.NamedTemporaryFile(suffix=".zip") as temp_file,
-        transaction.atomic(),
-    ):
-        if note:
-            note = Note.objects.get_or_create(code="", text=note)[0]
-
+    with tempfile.NamedTemporaryFile(suffix=".zip") as temp_file:
         for chunk in file.chunks():
             temp_file.write(chunk)
         temp_file.flush()
 
         feed = gtfs_kit.read_feed(temp_file.name, dist_units="km")
+
+    with transaction.atomic():
+        if note:
+            note = Note.objects.get_or_create(code="", text=note)[0]
 
         calendars = get_calendars(feed, source)
         operators = get_operators(feed)
@@ -668,7 +668,11 @@ def handle_gtfs_upload(source_name, file, note=None):
 
         set_route_start_dates(source)
 
-    return source
+    import_task.finished_at = timezone.now()
+    import_task.services = len(services)
+    import_task.routes = len(routes)
+    import_task.trips = len(kept_trip_ids)
+    import_task.save(update_fields=["finished_at", "services", "routes", "trips"])
 
 
 def do_geometries_and_route_links(
