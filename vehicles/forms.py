@@ -52,7 +52,7 @@ class EditVehicleForm(forms.Form):
     )
     spare_ticket_machine = forms.BooleanField(
         required=False,
-        help_text="i.e. the ticket machine code is something like SPARE",
+        help_text="The ticket machine code is something like SPARE",
     )
     withdrawn = forms.BooleanField(
         label="Remove from list",
