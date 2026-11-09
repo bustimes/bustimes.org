@@ -1,6 +1,7 @@
 import re
 from http import HTTPStatus
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
 from django.http import HttpResponse
@@ -21,7 +22,13 @@ class HealthCheckMiddleware:
             cache.get("up")
             return HttpResponse("up!")
 
-        return self.get_response(request)
+        response = self.get_response(request)
+        response.headers.setdefault("Permissions-Policy", settings.PERMISSIONS_POLICY)
+        if settings.REPORTING_ENDPOINTS:
+            response.headers.setdefault(
+                "Reporting-Endpoints", settings.REPORTING_ENDPOINTS
+            )
+        return response
 
 
 class WhiteNoiseWithFallbackMiddleware(WhiteNoiseMiddleware):

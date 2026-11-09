@@ -4,8 +4,10 @@ import logging
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import dj_database_url
+from django.utils.csp import CSP
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
@@ -120,7 +122,20 @@ SECURE_REDIRECT_EXEMPT = [r"^version$"]
 
 SECURE_CSP = {
     "upgrade-insecure-requests": not DEBUG,
+    "object-src": [CSP.NONE],
+    "base-uri": [CSP.NONE],
 }
+
+REPORTING_ENDPOINTS = None
+if SENTRY_DSN := os.environ.get("SENTRY_DSN"):
+    dsn = urlsplit(SENTRY_DSN)
+    REPORTING_ENDPOINTS = f'csp="{dsn.scheme}://{dsn.hostname}/api{dsn.path}/security/?sentry_key={dsn.username}"'
+    SECURE_CSP["report-to"] = "csp"
+
+PERMISSIONS_POLICY = (
+    "geolocation=(self), camera=(), microphone=(), midi=(), clipboard-read=(), "
+    "usb=(), serial=(), hid=(), bluetooth=(), payment=(), browsing-topics=(), unload=()"
+)
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_URLS_REGEX = r"(^\/(api\/|(vehicles|stops)\.json)|.*\/journeys\/.*)"
