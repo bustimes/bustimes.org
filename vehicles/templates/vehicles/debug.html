@@ -22,7 +22,7 @@
     <p>Service: {{ result.journey.service }}
     <p>Trip: {{ result.journey.trip }}
     <table>
-        <thead><th scope="col">SQL</th><th scope="col">Time</th></thead>
+        <thead><tr><th scope="col">SQL</th><th scope="col">Time</th></tr></thead>
         <tbody>
         {% for query in result.queries %}
             <tr><td><code>{{ query.sql }}</code></td><td>{{ query.time }}</td></tr>
