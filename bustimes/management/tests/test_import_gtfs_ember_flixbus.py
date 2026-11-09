@@ -271,7 +271,7 @@ class FlixbusTest(TestCase):
             self.assertEqual(
                 [str(journey) for journey in journeys],
                 [
-                    "1 Apr 24 15:00 004 3210_285_40 ",
+                    "1 Apr 24 15:00 004 3210_285_40 inbound",
                     "1 Apr 24 10:45 004 UK004-3-1045042024-NOT#LVC-00  to London Victoria Coach Station",
                     "1 Apr 24 15:00 004 UK004-7-1500042024-NOT#LVC-00  to London Victoria Coach Station",
                     "1 Apr 24 11:00 004 UK004-6-1100042024-LVC#NOT-00  to Nottingham",

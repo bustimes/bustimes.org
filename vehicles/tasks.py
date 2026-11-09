@@ -247,6 +247,12 @@ def log_vehicle_journey(
             line_name=f"UK{route_name}", operator=operator_ref, current=True
         ).first()
 
+    match data.get("DirectionRef", "").lower():
+        case "i" | "inbound":
+            journey.direction = "inbound"
+        case "o" | "outbound":
+            journey.direction = "outbound"
+
     if existing:  # FlixBus journey with no vehicle id yet
         journey.id = existing.id
         journey.uuid = existing.uuid
