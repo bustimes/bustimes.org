@@ -11,7 +11,7 @@ class ContactForm(forms.Form):
     referrer = forms.CharField(
         label="Referrer", required=False, widget=forms.HiddenInput
     )
-    turnstile = TurnstileField(label="Confirm that you’re a human (not a robot)")
+    turnstile = TurnstileField(label="Check you’re not a robot")
 
     def __init__(self, *args, **kwargs):
         self.request = kwargs.pop("request", None)

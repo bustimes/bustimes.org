@@ -11,7 +11,7 @@
 <h1>upload GTFS</h1>
 
 <form action="{{ request.path }}" method="POST" enctype="multipart/form-data">
-    {{ form.as_p }}
+    {{ form }}
     <p><label><input type="checkbox" required> I know what I’m doing</label></p>
     <input type="submit" value="Upload">
 </form>

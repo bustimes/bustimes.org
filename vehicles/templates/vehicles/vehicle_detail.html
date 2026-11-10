@@ -239,7 +239,7 @@
 <details name="advanced"{% if form.is_bound %} open{% endif %}>
     <summary>Add photo</summary>
     <form action="{{ request.path }}" method="POST" enctype="multipart/form-data">
-        {{ form.as_p }}
+        {{ form }}
         <input type="submit">
     </form>
 </details>

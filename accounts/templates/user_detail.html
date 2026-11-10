@@ -36,14 +36,14 @@
                 {{ object.email }}
             </p>
 
-            {{ form.as_p }}
+            {{ form }}
             <input type="submit" value="Save changes">
         </form>
 
         <h2>Delete your account?</h2>
 
         <form method="POST" autocomplete="off">
-            {{ delete_form.as_p }}
+            {{ delete_form }}
             <input type="submit" value="☠️ Delete my account!">
         </form>
     {% endif %}

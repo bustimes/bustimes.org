@@ -33,18 +33,16 @@
 
     <h1>Edit vehicle details</h1>
 
-    <p>
-        Ticket machine code:<br>
-        {% if vehicle_unique_id and vehicle_unique_id != vehicle.code %}
-            <code>{{ vehicle_unique_id }}</code> /
-        {% endif %}
-        <code>{{ vehicle.code }}</code>
-    </p>
-
     <form action="{{ vehicle.get_edit_url }}" method="POST">
-        <div class="edit-vehicle">
-            {{ form.as_p }}
+        <div>
+            Ticket machine code:<br>
+            {% if vehicle_unique_id and vehicle_unique_id != vehicle.code %}
+                <code>{{ vehicle_unique_id }}</code> /
+            {% endif %}
+            <code>{{ vehicle.code }}</code>
         </div>
+
+        {{ form }}
 
         <script async src="https://imgbb.com/upload.js" data-auto-insert="viewer-links" data-button-template='<div class="%cClass"><button type="button" %x class="%bClass"><span class="%iClass">%iconSvg</span><span class="%tClass">%text</span></button></div>'></script>
 
