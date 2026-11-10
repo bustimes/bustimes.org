@@ -1195,6 +1195,11 @@ class ServiceOverride(models.Model):
     def __str__(self):
         return f"{self.field} {self.value}"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        setattr(self.service, self.field, self.value)
+        self.service.save(update_fields=[self.field])
+
 
 class ServiceLink(models.Model):
     from_service = models.ForeignKey(Service, models.CASCADE, "link_from")

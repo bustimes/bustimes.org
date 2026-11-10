@@ -18,7 +18,9 @@ from .models import (
     Calendar,
     CalendarBankHoliday,
     CalendarDate,
+    DataQualityObservation,
     Garage,
+    ImportTask,
     Note,
     Route,
     RouteLink,
@@ -208,6 +210,50 @@ class GarageAdmin(GISModelAdmin):
                 operators=StringAgg("vehicle__operator", Value(", "), distinct=True)
             )
         return queryset
+
+
+@admin.register(ImportTask)
+class ImportTaskAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "source",
+        "started_at",
+        "duration",
+        "services",
+        "routes",
+        "trips",
+        "file_size",
+        "observations",
+        "comment",
+    )
+    list_select_related = ("source",)
+    raw_id_fields = ("source",)
+    date_hierarchy = "started_at"
+    show_full_result_count = False
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if "changelist" in request.resolver_match.view_name:
+            queryset = queryset.annotate(
+                observations=SubqueryCount("dataqualityobservation")
+            )
+        return queryset
+
+    @admin.display(ordering="observations")
+    def observations(self, obj):
+        url = reverse("admin:bustimes_dataqualityobservation_changelist")
+        return format_html(
+            '<a href="{}?task__id__exact={}">{}</a>', url, obj.id, obj.observations
+        )
+
+
+@admin.register(DataQualityObservation)
+class DataQualityObservationAdmin(admin.ModelAdmin):
+    list_display = ("id", "task_id", "file_name", "category", "comment")
+    list_filter = ("category",)
+    raw_id_fields = ("task",)
+    search_fields = ("file_name", "comment")
+    show_full_result_count = False
 
 
 class BankHolidayDateInline(admin.StackedInline):

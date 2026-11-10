@@ -209,6 +209,11 @@ class ServiceCodeInline(admin.TabularInline):
     model = models.ServiceCode
 
 
+class ServiceOverrideInline(admin.TabularInline):
+    model = models.ServiceOverride
+    extra = 0
+
+
 class RouteInline(admin.TabularInline):
     model = Route
     show_change_link = True
@@ -345,6 +350,7 @@ class ServiceAdmin(M2MThroughMixin, GISModelAdmin):
     raw_id_fields = ("operator", "stops", "colour", "source")
     inlines = (
         ServiceCodeInline,
+        ServiceOverrideInline,
         RouteInline,
         FromServiceLinkInline,
         ToServiceLinkInline,
@@ -571,6 +577,15 @@ class ServiceCodeAdmin(admin.ModelAdmin):
         "service__stops__admin_area",
     )
     search_fields = ("code", "service__line_name", "service__description")
+    autocomplete_fields = ("service",)
+
+
+@admin.register(models.ServiceOverride)
+class ServiceOverrideAdmin(admin.ModelAdmin):
+    list_display = ("id", "service", "field", "value")
+    list_filter = ("field",)
+    list_select_related = ("service",)
+    search_fields = ("value", "service__line_name", "service__description")
     autocomplete_fields = ("service",)
 
 
