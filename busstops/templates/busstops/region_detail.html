@@ -4,6 +4,10 @@
 
 <h1>{{ region }}</h1>
 
+<div class="ad-wrapper">
+    <div id="AFM_inContentTop_ad"></div>
+</div>
+
 {% if areas and region.id != 'GB' and region.id != 'NI' %}
     <h2>Areas in {{ region.the }}</h2>
 
@@ -22,10 +26,6 @@
 {% endif %}
 
 {% if operators %}
-
-    <div class="ad-wrapper">
-        <div id="AFM_inContentTop_ad"></div>
-    </div>
 
     <h2>Operators in {{ region.the }}</h2>
 

@@ -4,6 +4,10 @@
 
 <h1>{{ locality.get_qualified_name }}</h1>
 
+<div class="ad-wrapper">
+    <div id="AFM_inContentTop_ad"></div>
+</div>
+
 {% if localities %}
     <h2>Places in {{ locality }}</h2>
 
@@ -23,10 +27,6 @@
         {% include 'stops.html' with stops=stops class=' long' %}
     </section>
 {% endif %}
-
-<div class="ad-wrapper">
-    <div id="AFM_inContentTop_ad"></div>
-</div>
 
 {% if services %}
     <h2>{% include 'modes.html' with modes=modes noun='services' %}</h2>
