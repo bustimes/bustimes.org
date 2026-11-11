@@ -435,6 +435,9 @@ if not TEST:  # pragma: nocover
             "handlers": ["console"],
             "level": "INFO",
         },
+        "loggers": {
+            "huey": {"propagate": False},
+        },
     }
 
 TFL = {  # London
