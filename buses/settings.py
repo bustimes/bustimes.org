@@ -1,6 +1,5 @@
 """These settings rely on various environment variables being set"""
 
-import logging
 import os
 import sys
 from pathlib import Path
@@ -394,11 +393,7 @@ if not TEST:  # pragma: nocover
         import sentry_sdk
         from sentry_sdk.integrations.django import DjangoIntegration
         from sentry_sdk.integrations.huey import HueyIntegration
-        from sentry_sdk.integrations.logging import (
-            LoggingIntegration,
-            ignore_logger,
-            ignore_logger_for_sentry_logs,
-        )
+        from sentry_sdk.integrations.logging import ignore_logger
         from sentry_sdk.integrations.redis import RedisIntegration
 
         sentry_sdk.init(
@@ -407,9 +402,7 @@ if not TEST:  # pragma: nocover
                 DjangoIntegration(signals_spans=False),
                 RedisIntegration(),
                 HueyIntegration(),
-                LoggingIntegration(sentry_logs_level=logging.WARNING),
             ],
-            enable_logs=True,
             ignore_errors=[KeyboardInterrupt, RuntimeError],
             release=os.environ.get("COMMIT_HASH")
             or os.environ.get("KAMAL_CONTAINER_NAME"),
@@ -419,8 +412,6 @@ if not TEST:  # pragma: nocover
             _experiments={"max_spans": 10000},
             send_default_pii=False,
         )
-        ignore_logger_for_sentry_logs("django.request")
-        ignore_logger_for_sentry_logs("django.security.DisallowedHost")
         ignore_logger("django.security.DisallowedHost")
 
     LOGGING = {
