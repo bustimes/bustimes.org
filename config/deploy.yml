@@ -39,6 +39,27 @@ servers:
         - AWS_SECRET_ACCESS_KEY
         - FLICKR_API_KEY
         - STADIA_MAPS_API_KEY
+  stream:
+    hosts:
+      - 10.131.240.97
+      - 10.131.240.98
+    cmd: granian --host 0.0.0.0 --interface asginl buses.asgi:application
+    options:
+      ulimit: nofile=65536:65536
+    env:
+      clear:
+        ALLOWED_HOSTS: bustimes.org
+      secret:
+        - SECRET_KEY
+        - REDIS_URL
+        - SENTRY_DSN
+    proxy:
+      host: bustimes.org
+      path_prefix: /stream
+      strip_path_prefix: false
+      app_port: 8000
+      buffering:
+        responses: false
 
 accessories:
   # re-exposes the web containers' granian metrics on port 9394 for prometheus

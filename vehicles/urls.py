@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, re_path
 from django.views.generic.base import TemplateView
 
 from . import views
@@ -26,6 +26,10 @@ urlpatterns = [
     ),
     path("vehicles", views.vehicles),
     path("vehicles.json", views.vehicles_json),
+    re_path(
+        r"^stream/(?P<kind>service|operator|vehicle)s/(?P<ids>[A-Za-z0-9]+(?:,[A-Za-z0-9]+)*)$",
+        views.vehicles_stream,
+    ),
     path("vehicles/debug", views.debug),
     path("vehicles/history", views.vehicle_edits),
     path("vehicles/edits", views.vehicle_edits),

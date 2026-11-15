@@ -14,6 +14,7 @@ let hasCss = false;
 declare global {
   interface Window {
     LIVERIES_CSS_URL: string;
+    STREAM?: boolean;
     SERVICES?: {
       id: number;
       line_names: string[];
@@ -137,28 +138,75 @@ export default function ServiceMap({ serviceId, buttonText }: ServiceMapProps) {
 
   React.useEffect(() => {
     let timeout: number;
+    let events: EventSource | undefined;
+    let streaming = false;
+    let loading = false;
+    let current: Vehicle[] = [];
+
+    const serviceIds = Array.from(selectedServices).join(",");
 
     const loadVehicles = () => {
       if ((document.hidden && !first.current) || !selectedServices.size) {
         return;
       }
 
-      const url = `/vehicles.json?service=${Array.from(selectedServices).join(",")}`;
-      fetch(url).then(
+      loading = true;
+      fetch(`/vehicles.json?service=${serviceIds}`).then(
         (response) => {
           recordSkew(response);
           response.json().then((items) => {
+            loading = false;
+            current = items;
             setVehicles(items);
             clearTimeout(timeout);
-            if (isOpen && items.length && !document.hidden) {
-              timeout = window.setTimeout(loadVehicles, 10000); // 10 seconds
+            if (isOpen && !document.hidden && (items.length || streaming)) {
+              // when the event stream is working, poll only to remove expired vehicles
+              timeout = window.setTimeout(
+                loadVehicles,
+                streaming ? 60000 : 10000,
+              );
             }
           });
         },
         () => {
-          // never mind
+          loading = false;
         },
       );
+    };
+
+    const connect = () => {
+      events = new EventSource(`/stream/services/${serviceIds}`);
+      events.onopen = () => {
+        streaming = true;
+      };
+      events.onerror = () => {
+        // (the browser will try to reconnect)
+        if (streaming) {
+          streaming = false;
+          loadVehicles();
+        }
+      };
+      events.onmessage = (event) => {
+        const items: Vehicle[] = JSON.parse(event.data);
+        const updates = new Map(items.map((item) => [item.id, item]));
+        current = current.map((vehicle) => {
+          const item = updates.get(vehicle.id);
+          if (!item) {
+            return vehicle;
+          }
+          updates.delete(vehicle.id);
+          // keep the extra stuff (livery etc) that vehicles.json adds
+          return {
+            ...vehicle,
+            ...item,
+            service: vehicle.service && { ...vehicle.service, ...item.service },
+          };
+        });
+        setVehicles(current);
+        if (updates.size && !loading) {
+          loadVehicles(); // a new vehicle
+        }
+      };
     };
 
     if (isOpen || first.current) {
@@ -169,18 +217,27 @@ export default function ServiceMap({ serviceId, buttonText }: ServiceMapProps) {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         clearTimeout(timeout);
+        events?.close();
+        streaming = false;
       } else {
         loadVehicles();
+        if (window.STREAM) {
+          connect();
+        }
       }
     };
 
     if (isOpen) {
+      if (window.STREAM && selectedServices.size) {
+        connect();
+      }
       window.addEventListener("visibilitychange", handleVisibilityChange);
     }
 
     return () => {
       window.removeEventListener("visibilitychange", handleVisibilityChange);
       clearTimeout(timeout);
+      events?.close();
     };
   }, [isOpen, selectedServices]);
 

@@ -39,12 +39,11 @@ def get_statuses(key) -> list:
 
 
 # channel that import_live_vehicles sends batches of updated vehicle locations to,
-# for the distribute_vehicle_locations worker to fan out to websocket groups
+# for the distribute_vehicle_locations worker to extend journeys' polylines
 VEHICLE_POSITIONS_CHANNEL = "vehicle_positions"
 
-# Redis sorted set of vehicle_id -> number of websocket clients currently watching it,
-# updated by VehicleLocationConsumer.connect/disconnect
-VEHICLE_WATCHERS_KEY = "vehicle_watchers"
+# the Redis pub/sub channel name prefix that channels_redis's RedisPubSubChannelLayer uses for groups
+CHANNEL_GROUP_PREFIX = "asgi__group__"
 
 
 def filename_from_content_disposition(response) -> str:

@@ -163,6 +163,9 @@
         SERVICE_ID = {{ object.id }};
         EXTENT = [{{ object.geometry.extent|join(",") }}];
         LIVERIES_CSS_URL  = "/liveries.{{ liveries_css_version() }}.css";
+    {% if request.user.is_superuser %}
+        STREAM = true;
+    {% endif %}
     {% if related %}
         SERVICES = [
             {"id": {{ object.id }}, "line_names": {{ object.line_names|tojson }}},
