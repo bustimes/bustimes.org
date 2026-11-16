@@ -5,10 +5,11 @@ algorithm works and tune its settings.
 Usage:
 
     ./manage.py compare_route_links [service_id ...] [--operator NOC] [--limit 10]
-        [--osm overpass.json] [--no-line-relations] [--csv results.csv]
+        [--postgis | --osm overpass.json] [--no-line-relations] [--csv results.csv]
 
-Without --osm, OSM data for each service is downloaded from the Overpass API (and
-cached in DATA_DIR/osm).
+With --postgis, OSM data comes from tables loaded by osm2pgsql (see
+bustimes/osm_postgis.py). That's best for more than a few services. Otherwise, OSM
+data for each service is downloaded from the Overpass API (and cached in DATA_DIR/osm).
 """
 
 import csv
@@ -27,6 +28,7 @@ from django.urls import reverse
 from busstops.models import Service, StopPoint
 
 from ...models import RouteLink, StopTime
+from ...osm_postgis import load_osm
 from ...osm_routing import Graph, compare, overpass_query
 
 MARGIN = 0.01  # degrees around the stops' bounding box
@@ -41,6 +43,11 @@ class Command(BaseCommand):
         parser.add_argument("--limit", type=int, default=10)
         parser.add_argument(
             "--osm", help="an Overpass API JSON file covering all the services"
+        )
+        parser.add_argument(
+            "--postgis",
+            action="store_true",
+            help="get OSM data from the database (see bustimes/osm_postgis.py)",
         )
         parser.add_argument(
             "--overpass-url", default="https://overpass-api.de/api/interpreter"
@@ -142,7 +149,21 @@ class Command(BaseCommand):
             return []
 
         graph = self.graph
-        if graph is None:
+        if graph is None and self.options["postgis"]:
+            graph = self.get_graph(
+                load_osm(
+                    [
+                        [
+                            stops[stop].latlong.coords
+                            for stop in pattern
+                            if stop in stops
+                        ]
+                        for pattern in patterns
+                    ],
+                    MARGIN * 2,
+                )
+            )
+        elif graph is None:
             longitudes = [stop.latlong.x for stop in stops.values()]
             latitudes = [stop.latlong.y for stop in stops.values()]
             graph = self.get_graph(

@@ -11,6 +11,7 @@ from django.test import TestCase
 from busstops.models import DataSource, Service, StopPoint
 
 from ...models import Route, RouteLink, StopTime, Trip
+from ...test_osm_postgis import load_test_data
 from ...test_osm_routing import lon_lat, make_osm
 
 
@@ -96,3 +97,12 @@ class CompareRouteLinksTest(TestCase):
         rows = {(row["from_stop"], row["to_stop"]): row for row in rows}
         self.assertLess(float(rows["a", "b"]["hausdorff"]), 1)
         self.assertGreater(float(rows["b", "c"]["hausdorff"]), 250)
+
+    def test_postgis(self):
+        load_test_data(make_osm())
+
+        stdout = StringIO()
+        call_command(
+            "compare_route_links", str(self.service.id), "--postgis", stdout=stdout
+        )
+        self.assertIn("2 links, 1/2 within 25 m", stdout.getvalue())
