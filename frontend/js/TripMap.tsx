@@ -113,7 +113,15 @@ export const Route = React.memo(function Route({
     paint: {
       "line-color": darkMode ? "#ddd" : "#666",
       "line-width": 3,
-      // "line-dasharray": [1, 2],
+    },
+  };
+
+  const lineStyle: LayerProps = {
+    type: "line",
+    paint: {
+      "line-color": darkMode ? "#eee" : "#666",
+      "line-width": 3,
+      "line-dasharray": [1, 1],
     },
   };
 
@@ -133,6 +141,41 @@ export const Route = React.memo(function Route({
     }),
     [times],
   );
+
+  // straight lines between stops where there's no track
+  const lines = React.useMemo(() => {
+    const lines: [number, number][][] = [];
+    let prevTime: TripTime | undefined;
+    let prevLocation: [number, number] | undefined;
+    let line: [number, number][] | undefined;
+
+    for (const time of times) {
+      if (time.call_condition === "notStopping") {
+        continue;
+      }
+      if (!time.track && prevTime && prevLocation && time.stop.location) {
+        if (prevTime.track || !line) {
+          line = [prevLocation, time.stop.location];
+          lines.push(line);
+        } else {
+          line.push(time.stop.location);
+        }
+      }
+      prevTime = time;
+      if (time.stop.location) {
+        prevLocation = time.stop.location;
+      }
+    }
+
+    return {
+      type: "FeatureCollection" as const,
+      features: lines.map((coordinates) => ({
+        type: "Feature" as const,
+        geometry: { type: "LineString" as const, coordinates },
+        properties: null,
+      })),
+    };
+  }, [times]);
 
   const stops = React.useMemo(
     () => ({
@@ -165,6 +208,10 @@ export const Route = React.memo(function Route({
     <React.Fragment>
       <Source type="geojson" data={lineStrings}>
         <Layer {...routeStyle} />
+      </Source>
+
+      <Source type="geojson" data={lines}>
+        <Layer {...lineStyle} />
       </Source>
 
       <Source type="geojson" id={sourceId} promoteId="url" data={stops}>
