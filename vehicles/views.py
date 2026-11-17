@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import datetime
 import logging
@@ -7,6 +8,7 @@ from itertools import groupby, pairwise
 from urllib.parse import unquote
 
 import xmltodict
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.models import Permission
@@ -25,7 +27,12 @@ from django.db import (
 from django.db.models import Case, F, OuterRef, Q, Value, When
 from django.db.models.aggregates import StringAgg
 from django.db.models.functions import Coalesce, Now
-from django.http import Http404, HttpResponse, HttpResponseBadRequest
+from django.http import (
+    Http404,
+    HttpResponse,
+    HttpResponseBadRequest,
+    StreamingHttpResponse,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -41,7 +48,7 @@ from django.views.decorators.http import require_GET, require_POST, require_safe
 from django.views.generic.detail import DetailView
 from django_msgspec.http import JsonResponse
 from haversine import haversine
-from msgspec.json import decode
+from msgspec.json import decode, encode
 from redis.exceptions import ConnectionError
 from requests import RequestException
 from sql_util.utils import Exists, SubqueryMax, SubqueryMin
@@ -513,6 +520,40 @@ def cachable_400():
     response = HttpResponseBadRequest()
     patch_cache_control(response, max_age=3600)
     return response
+
+
+@require_safe
+async def vehicles_stream(request, kind, ids):
+    """Server-sent events of vehicles' new positions, published by import_live_vehicles"""
+    layer = get_channel_layer()
+    groups = [f"{kind}{id}" for id in ids.split(",")[:20]]
+
+    async def stream():
+        channel = await layer.new_channel()
+        # (cancelling receive() unsubscribes the channel, so keep one going across keepalives)
+        receive = asyncio.ensure_future(layer.receive(channel))
+        try:
+            for group in groups:
+                await layer.group_add(group, channel)
+            yield ": \n\n"
+            while True:
+                done, _ = await asyncio.wait((receive,), timeout=30)
+                if done:
+                    items = receive.result()["items"]
+                    receive = asyncio.ensure_future(layer.receive(channel))
+                    yield f"data: {encode(items).decode()}\n\n"
+                else:
+                    yield ": \n\n"  # keepalive
+        finally:
+            receive.cancel()
+            for group in groups:
+                await layer.group_discard(group, channel)
+
+    return StreamingHttpResponse(
+        stream(),
+        content_type="text/event-stream",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @require_safe

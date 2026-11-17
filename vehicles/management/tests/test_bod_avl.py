@@ -61,6 +61,10 @@ class CapturingChannelLayer:
     async def send(self, channel, message):
         self.sent.append(message)
 
+    @staticmethod
+    def serialize(message):
+        return json.dumps(message).encode()
+
 
 def distribute(channel_layer, async_redis_client):
     command = distribute_vehicle_locations.Command()
@@ -685,6 +689,59 @@ class BusOpenDataVehicleLocationsTest(TestCase):
                     }
                 ],
             )
+
+    def test_websocket_groups(self):
+        command = import_bod_avl.Command()
+        command.source = self.source
+        server = fakeredis.FakeServer()
+
+        def item(time, latitude):
+            return {
+                "RecordedAtTime": time,
+                "ItemIdentifier": time,
+                "MonitoredVehicleJourney": {
+                    "LineRef": "146",
+                    "DirectionRef": "inbound",
+                    "PublishedLineName": "146",
+                    "OperatorRef": "BDRB",
+                    "VehicleLocation": {"Longitude": "1.6", "Latitude": latitude},
+                    "VehicleJourneyRef": "146_20201128_12_58",
+                    "VehicleRef": "BB62_BUS",
+                },
+            }
+
+        with (
+            patch_redis_client(fakeredis.FakeStrictRedis(server=server, version=7)),
+            mock.patch(
+                "vehicles.management.import_live_vehicles.get_channel_layer",
+                return_value=CapturingChannelLayer(),
+            ),
+        ):
+            command.handle_item(item("2020-11-28T12:58:25+00:00", "52.3"))
+            command.save()
+
+            journey = VehicleJourney.objects.get()
+            pubsub = fakeredis.FakeStrictRedis(server=server, version=7).pubsub()
+            pubsub.subscribe(
+                f"asgi__group__vehicle{journey.vehicle_id}", "asgi__group__service0"
+            )
+            command.watched_groups_checked_at = None
+
+            command.handle_item(item("2020-11-28T12:59:25+00:00", "52.4"))
+            command.save()
+
+        messages = [
+            message
+            for message in iter(pubsub.get_message, None)
+            if message["type"] == "message"
+        ]
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(
+            messages[0]["channel"], f"asgi__group__vehicle{journey.vehicle_id}".encode()
+        )
+        data = json.loads(messages[0]["data"])
+        self.assertEqual(data["type"], "move_vehicles")
+        self.assertEqual(data["items"][0]["coordinates"], [1.6, 52.4])
 
     def test_handle_item_2(self):
         command = import_bod_avl.Command()

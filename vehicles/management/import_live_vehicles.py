@@ -24,7 +24,12 @@ from bustimes.models import Route, Trip
 
 from .. import rtpi
 from ..models import Vehicle, VehicleCode, VehicleJourney
-from ..utils import VEHICLE_POSITIONS_CHANNEL, calculate_bearing, redis_client
+from ..utils import (
+    CHANNEL_GROUP_PREFIX,
+    VEHICLE_POSITIONS_CHANNEL,
+    calculate_bearing,
+    redis_client,
+)
 
 logger = logging.getLogger(__name__)
 fifteen_minutes = timedelta(minutes=15)
@@ -129,6 +134,8 @@ class ImportLiveVehiclesCommand(BaseCommand):
         self.recent_positions = {}  # vehicle id or identity: hashes of last few coordinates
         self.last_locations = {}  # vehicle id: last location (as in Redis)
         self.max_datetime = None  # newest item timestamp in the current update
+        self.watched_groups = set()
+        self.watched_groups_checked_at = None
 
     @staticmethod
     def get_datetime():
@@ -469,6 +476,8 @@ class ImportLiveVehiclesCommand(BaseCommand):
 
         geoadd = []
         sadd = defaultdict(list)
+        watched_groups = self.get_watched_groups()
+        group_items = defaultdict(list)
         items = []
         appendages = []
 
@@ -501,22 +510,22 @@ class ImportLiveVehiclesCommand(BaseCommand):
             # yes it seems wasteful doing this repeatedly
             # (rather than just for new journeys),
             # but it's cheap, and we can't be sure the last time wasn't more than 15 minutes ago
+            groups = [f"vehicle{vehicle.id}"]
             if location.journey.service_id:
-                key = f"service{location.journey.service_id}vehicles"
-                sadd[key].append(vehicle.id)
+                groups.append(f"service{location.journey.service_id}")
             if vehicle.operator_id:
-                key = f"operator{vehicle.operator_id}vehicles"
-                sadd[key].append(vehicle.id)
+                groups.append(f"operator{vehicle.operator_id}")
             try:
                 if (
                     location.journey.trip
                     and location.journey.trip.operator_id
                     and location.journey.trip.operator_id != vehicle.operator_id
                 ):
-                    key = f"operator{location.journey.trip.operator_id}vehicles"
-                    sadd[key].append(vehicle.id)
+                    groups.append(f"operator{location.journey.trip.operator_id}")
             except Trip.DoesNotExist:
                 location.journey.trip = None
+            for group in groups[1:]:
+                sadd[f"{group}vehicles"].append(vehicle.id)
 
             redis_json = location.get_redis_json(tz=self.tzinfo)
             if "block" in redis_json and (
@@ -562,6 +571,9 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 except Exception:
                     logger.exception("error calculating progress and delay")
             items.append(redis_json)
+            for group in groups:
+                if group in watched_groups:
+                    group_items[group].append(redis_json)
             pipeline.set(
                 f"vehicle{vehicle.id}",
                 encode(redis_json),
@@ -573,6 +585,12 @@ class ImportLiveVehiclesCommand(BaseCommand):
             pipeline.geoadd("vehicle_location_locations", geoadd)
         for key, value in sadd.items():
             pipeline.sadd(key, *value)
+        if group_items and (channel_layer := get_channel_layer()):
+            for group, value in group_items.items():
+                pipeline.publish(
+                    f"{CHANNEL_GROUP_PREFIX}{group}",
+                    channel_layer.serialize({"type": "move_vehicles", "items": value}),
+                )
 
         try:
             pipeline.execute()
@@ -592,6 +610,24 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 logger.error(e)
 
         self.to_save = []
+
+    def get_watched_groups(self):
+        now = monotonic()
+        if (
+            self.watched_groups_checked_at is None
+            or now - self.watched_groups_checked_at > 10
+        ):
+            self.watched_groups_checked_at = now
+            try:
+                channels = redis_client.pubsub_channels(f"{CHANNEL_GROUP_PREFIX}*")
+            except ConnectionError:
+                logger.exception("error getting watched groups")
+            else:
+                self.watched_groups = {
+                    channel.decode().removeprefix(CHANNEL_GROUP_PREFIX)
+                    for channel in channels
+                }
+        return self.watched_groups
 
     def do_source(self):
         if self.url:
