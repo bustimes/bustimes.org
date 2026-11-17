@@ -12,6 +12,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from haversine import Unit, haversine_vector
+from msgspec.json import decode
 from rest_framework import pagination, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import APIException
@@ -538,7 +539,17 @@ class VehicleJourneyViewSet(viewsets.ReadOnlyModelViewSet):
 
             extra_data["trip"] = trip_serializer.data
 
-        if current_trip or not instance.vehicle_id:
+        tracking = current_trip or not instance.vehicle_id
+        if (
+            not tracking
+            and redis_client
+            and (location := redis_client.get(f"vehicle{instance.vehicle_id}"))
+        ):
+            # e.g. briefly switched to the next journey and back, which left
+            # the next journey as the latest_journey
+            tracking = decode(location)["journey_id"] == instance.id
+
+        if tracking:
             if instance.service_id:
                 params = {
                     "service_ids": [instance.service_id],

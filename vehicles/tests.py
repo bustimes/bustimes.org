@@ -8,6 +8,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.gis.geos import Point
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
+from msgspec.json import encode
 
 from accounts.models import User
 from busstops.models import DataSource, Operator, OperatorGroup, Region, Service
@@ -313,6 +314,35 @@ class VehiclesTests(TestCase):
 
         response = self.client.get(f"/api/vehiclejourneys/{self.journey.id}.json")
         self.assertEqual(response.json()["vehicle"]["reg"], "FD54JYA")
+
+    def test_journey_details_live_not_latest_journey(self):
+        # vehicle briefly switched to a later journey and back,
+        # leaving the later journey as its latest_journey
+        later_journey = VehicleJourney.objects.get(id=self.journey.id + 2)
+        self.vehicle_1.latest_journey = later_journey
+        self.vehicle_1.save(update_fields=["latest_journey"])
+
+        fake_redis = fakeredis.FakeStrictRedis()
+        location = VehicleLocation(latlong=Point(1.3, 52.6))
+        location.id = self.vehicle_1.id
+        location.journey = self.journey
+        location.datetime = datetime.fromisoformat(self.datetime)
+        fake_redis.set(f"vehicle{self.vehicle_1.id}", encode(location.get_redis_json()))
+        fake_redis.sadd(f"service{self.journey.service_id}vehicles", self.vehicle_1.id)
+
+        with (
+            patch("vehicles.views.redis_client", fake_redis),
+            patch("api.views.redis_client", fake_redis),
+        ):
+            response = self.client.get(
+                f"/api/vehiclejourneys/{self.journey.id}/details/"
+            )
+            self.assertEqual(response.json()["live"][0]["journey_id"], self.journey.id)
+
+            response = self.client.get(
+                f"/api/vehiclejourneys/{later_journey.id}/details/"
+            )
+            self.assertNotIn("live", response.json())
 
     def test_location_json(self):
         location = VehicleLocation(latlong=Point(0, 51))
