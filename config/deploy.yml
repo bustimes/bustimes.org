@@ -53,8 +53,8 @@ servers:
         - SECRET_KEY
         - REDIS_URL
         - SENTRY_DSN
+        - DATABASE_URL  # only used by the /up check
     proxy:
-      host: bustimes.org
       path_prefix: /stream
       strip_path_prefix: false
       app_port: 8000
