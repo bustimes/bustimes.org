@@ -607,8 +607,9 @@ def handle_gtfs_upload(import_task, note=None):
                 "destination",
             ],
         )
-        # clear out old stop times for reused trips, they'll be recreated below
+        # clear out old stop times and notes for reused trips, they'll be recreated below
         StopTime.objects.filter(trip__in=existing_trips).delete()
+        TripNote.objects.filter(trip__in=existing_trips).delete()
 
         set_stop_time_defaults(feed)
 

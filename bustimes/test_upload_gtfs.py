@@ -158,6 +158,22 @@ class UploadGTFSTest(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(Note.objects.get().trip_set.count(), 3)
 
+        # a different note replaces the old one
+        response = self.client.post(
+            "/upload",
+            {"source_name": "TDTT", "file": make_zip(), "note": "Runs on Sundays"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Note.objects.get(text="Runs on Saturdays").trip_set.count(), 0)
+        self.assertEqual(Note.objects.get(text="Runs on Sundays").trip_set.count(), 3)
+
+        # no note removes it
+        response = self.client.post(
+            "/upload", {"source_name": "TDTT", "file": make_zip()}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Trip.objects.filter(notes__isnull=False).exists())
+
     def test_upload_with_shapes(self):
         self.client.force_login(self.user)
 
