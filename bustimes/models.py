@@ -266,6 +266,34 @@ class RouteLink(models.Model):
         return reverse("routelink_detail", args=(self.id,))
 
 
+# see the table in import_transxchange
+BANK_HOLIDAY_GROUPS = {
+    "AllBankHolidays": (
+        "AllHolidaysExceptChristmas",
+        "Christmas",
+        "DisplacementHolidays",
+    ),
+    "AllHolidaysExceptChristmas": ("Holidays", "HolidayMondays"),
+    "Holidays": ("NewYearsDay", "Jan2ndScotland", "GoodFriday", "StAndrewsDay"),
+    "HolidayMondays": (
+        "EasterMonday",
+        "MayDay",
+        "SpringBank",
+        "LateSummerBankHolidayNotScotland",
+        "AugustBankHolidayScotland",
+    ),
+    "Christmas": ("ChristmasDay", "BoxingDay"),
+    "DisplacementHolidays": (
+        "ChristmasDayHoliday",
+        "BoxingDayHoliday",
+        "NewYearsDayHoliday",
+        "Jan2ndScotlandHoliday",
+        "StAndrewsDayHoliday",
+    ),
+    "EarlyRunOffDays": ("ChristmasEve", "NewYearsEve"),
+}
+
+
 class BankHoliday(models.Model):
     id = models.SmallAutoField(primary_key=True)
     name = models.CharField(unique=True, max_length=255)

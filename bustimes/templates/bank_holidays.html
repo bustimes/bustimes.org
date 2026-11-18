@@ -32,9 +32,9 @@
         </tr>
     </thead>
     <tbody>
-        {% for date, row in table %}
+        {% for name, row in table %}
             <tr>
-                <th scope="row">{{ date }}</th>
+                <th scope="row">{{ name }}</th>
                 {% for cell in row %}
                     <td>{% if cell.scotland %}🏴󠁧󠁢󠁳󠁣󠁴󠁿{% elif cell.scotland is False %}🏴󠁧󠁢󠁥󠁮󠁧󠁿{% elif cell %}✓{% endif %}</td>
                 {% endfor %}

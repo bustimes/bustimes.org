@@ -258,6 +258,7 @@ class DataQualityObservationAdmin(admin.ModelAdmin):
 
 class BankHolidayDateInline(admin.StackedInline):
     model = BankHolidayDate
+    ordering = ("date",)
 
 
 @admin.register(BankHoliday)
@@ -276,7 +277,9 @@ class BankHolidayAdmin(admin.ModelAdmin):
         if "changelist" in request.resolver_match.view_name:
             queryset = queryset.annotate(
                 dates=StringAgg(
-                    Cast("bankholidaydate__date", output_field=CharField()), Value(", ")
+                    Cast("bankholidaydate__date", output_field=CharField()),
+                    Value(", "),
+                    order_by="bankholidaydate__date",
                 ),
                 calendars=SubqueryCount("calendarbankholiday"),
             )

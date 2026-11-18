@@ -54,6 +54,7 @@ from .forms import (
     UploadGTFSForm,
 )
 from .models import (
+    BANK_HOLIDAY_GROUPS,
     BankHolidayDate,
     Calendar,
     ImportTask,
@@ -883,32 +884,6 @@ def upload_gtfs(request):
     return render(request, "upload_gtfs.html", context)
 
 
-# see the table in import_transxchange
-BANK_HOLIDAY_GROUPS = {
-    "AllBankHolidays": (
-        "AllHolidaysExceptChristmas",
-        "Christmas",
-        "DisplacementHolidays",
-    ),
-    "AllHolidaysExceptChristmas": ("Holidays", "HolidayMondays"),
-    "HolidayMondays": (
-        "EasterMonday",
-        "MayDay",
-        "SpringBank",
-        "LateSummerBankHolidayNotScotland",
-        "AugustBankHolidayScotland",
-    ),
-    "Christmas": ("ChristmasDay", "BoxingDay"),
-    "DisplacementHolidays": (
-        "ChristmasDayHoliday",
-        "BoxingDayHoliday",
-        "NewYearsDayHoliday",
-        "Jan2ndScotlandHoliday",
-        "StAndrewsDayHoliday",
-    ),
-    "EarlyRunOffDays": ("ChristmasEve", "NewYearsEve"),
-}
-
 BANK_HOLIDAY_ORDER = (
     "AllBankHolidays",
     "AllHolidaysExceptChristmas",
@@ -979,10 +954,11 @@ def check_bank_holidays(table):
     return problems
 
 
+@require_GET
 def bank_holidays(request):
     columns = set()
 
-    table = defaultdict(dict)
+    table = defaultdict(dict, {name: {} for name in BANK_HOLIDAY_ORDER})
 
     for bhd in (
         BankHolidayDate.objects.select_related("bank_holiday")
@@ -998,16 +974,8 @@ def bank_holidays(request):
         "problems": check_bank_holidays(table),
         "columns": columns,
         "table": [
-            (date, [row.get(column) for column in columns])
-            for date, row in sorted(
-                table.items(),
-                key=lambda item: (
-                    BANK_HOLIDAY_ORDER.index(item[0])
-                    if item[0] in BANK_HOLIDAY_ORDER
-                    else len(BANK_HOLIDAY_ORDER),
-                    item[0],
-                ),
-            )
+            (name, [row.get(column) for column in columns])
+            for name, row in table.items()
         ],
     }
 

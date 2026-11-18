@@ -16,8 +16,8 @@ class BankHolidaysTest(TestCase):
         bhs = BankHoliday.objects.bulk_create(
             BankHoliday(name=name)
             for name in (
-                "Northern Ireland bank holidays",
                 "AllHolidaysExceptChristmas",
+                "Holidays",
                 "DisplacementHolidays",
                 "StAndrewsDayHoliday",
                 "AugustBankHolidayScotland",
@@ -51,7 +51,7 @@ class BankHolidaysTest(TestCase):
 
         with (
             use_cassette(fixtures_dir / "bank_holidays.yaml") as cassette,
-            self.assertNumQueries(6),
+            self.assertNumQueries(4),
             self.assertLogs(
                 "bustimes.management.commands.bank_holidays", "WARNING"
             ) as cm,
@@ -84,13 +84,20 @@ class BankHolidaysTest(TestCase):
             7, BankHolidayDate.objects.filter(bank_holiday__name="ChristmasDay").count()
         )
 
-        self.assertEqual(
-            103,
-            BankHolidayDate.objects.filter(
-                bank_holiday__name="Northern Ireland bank holidays"
-            ).count(),
-        )
+        def get_scotland(name, date):
+            return BankHolidayDate.objects.get(
+                bank_holiday__name=name, date=date
+            ).scotland
+
+        self.assertIsNone(get_scotland("SpringBank", "2027-05-31"))
+        self.assertIsNone(get_scotland("HolidayMondays", "2027-05-31"))
+        self.assertIsNone(get_scotland("AllBankHolidays", "2027-05-31"))
+        self.assertIsNone(get_scotland("EasterMonday", "2026-04-06"))
+        self.assertIs(get_scotland("HolidayMondays", "2026-04-06"), False)
+        self.assertIs(get_scotland("AllHolidaysExceptChristmas", "2026-04-06"), False)
+        self.assertIs(get_scotland("HolidayMondays", "2026-08-03"), True)
+        self.assertIsNone(get_scotland("Holidays", "2026-04-03"))
 
         # debug view
         response = self.client.get("/bank_holidays")
-        self.assertContains(response, "SpringBank 2027-05-31 is not in HolidayMondays")
+        self.assertNotContains(response, " is not in ")

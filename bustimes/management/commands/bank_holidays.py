@@ -3,9 +3,15 @@ import logging
 from django.core.management.base import BaseCommand
 from govuk_bank_holidays.bank_holidays import BankHolidays
 
-from bustimes.models import BankHoliday, BankHolidayDate
+from bustimes.models import BANK_HOLIDAY_GROUPS, BankHoliday, BankHolidayDate
 
 logger = logging.getLogger(__name__)
+
+BANK_HOLIDAY_PARENTS = {
+    child: parent
+    for parent, children in BANK_HOLIDAY_GROUPS.items()
+    for child in children
+}
 
 
 def get_bank_holiday_name(bank_holiday):
@@ -21,22 +27,23 @@ class Command(BaseCommand):
 
         bank_holidays = BankHolidays()
 
-        # Northern Ireland
-
-        bank_holiday_dates = [
-            BankHolidayDate(
-                bank_holiday=bhs["Northern Ireland bank holidays"],
-                date=bank_holiday["date"],
-            )
-            for bank_holiday in bank_holidays.get_holidays(
-                division=bank_holidays.NORTHERN_IRELAND
-            )
-        ]
-        BankHolidayDate.objects.bulk_create(bank_holiday_dates, ignore_conflicts=True)
-
         # England, Wales and Scotland
 
-        bank_holiday_dates = []
+        dates = {}
+
+        def add(name, date, scotland):
+            if name not in bhs:
+                return
+            key = (name, date)
+            if key in dates and dates[key] != scotland:
+                scotland = None
+            dates[key] = scotland
+
+        def add_with_ancestors(name, date, scotland):
+            add(name, date, None)
+            while name in BANK_HOLIDAY_PARENTS:
+                name = BANK_HOLIDAY_PARENTS[name]
+                add(name, date, scotland)
 
         scotland = bank_holidays.get_holidays(division=bank_holidays.SCOTLAND)
         england_and_wales = bank_holidays.get_holidays(
@@ -54,30 +61,10 @@ class Command(BaseCommand):
                     title = "LateSummerBankHolidayNotScotland"
 
             if title in bhs:
-                bh = bhs[title]
-                bank_holiday_dates.append(
-                    BankHolidayDate(bank_holiday=bh, date=bank_holiday["date"])
-                )
-                if bank_holiday["notes"] == "Substitute day":
-                    bank_holiday_dates.append(
-                        BankHolidayDate(
-                            bank_holiday=bhs["DisplacementHolidays"],
-                            date=bank_holiday["date"],
-                        )
-                    )
-                if title in {"ChristmasDay", "BoxingDay"}:
-                    bank_holiday_dates.append(
-                        BankHolidayDate(
-                            bank_holiday=bhs["Christmas"],
-                            date=bank_holiday["date"],
-                        )
-                    )
-                bank_holiday_dates.append(
-                    BankHolidayDate(
-                        bank_holiday=bhs["AllBankHolidays"],
-                        date=bank_holiday["date"],
-                        scotland=(False if bank_holiday not in scotland else None),
-                    )
+                add_with_ancestors(
+                    title,
+                    bank_holiday["date"],
+                    False if bank_holiday not in scotland else None,
                 )
             else:
                 logger.warning(title)
@@ -95,18 +82,16 @@ class Command(BaseCommand):
                     title = "AugustBankHolidayScotland"
 
             if title in bhs:
-                bh = bhs[title]
-                bank_holiday_dates.append(
-                    BankHolidayDate(bank_holiday=bh, date=bank_holiday["date"])
-                )
-                bank_holiday_dates.append(
-                    BankHolidayDate(
-                        bank_holiday=bhs["AllBankHolidays"],
-                        date=bank_holiday["date"],
-                        scotland=True,
-                    )
-                )
+                add_with_ancestors(title, bank_holiday["date"], True)
             else:
                 logger.warning(title)
 
-        BankHolidayDate.objects.bulk_create(bank_holiday_dates, ignore_conflicts=True)
+        BankHolidayDate.objects.bulk_create(
+            [
+                BankHolidayDate(bank_holiday=bhs[name], date=date, scotland=scotland)
+                for (name, date), scotland in dates.items()
+            ],
+            update_conflicts=True,
+            unique_fields=("bank_holiday", "date"),
+            update_fields=("scotland",),
+        )
