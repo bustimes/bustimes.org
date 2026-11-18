@@ -359,7 +359,7 @@ class ImportTransXChangeTest(TestCase):
 
         self.assertContains(
             response,
-            'data from <a href="https://www.travelinedata.org.uk/" rel="nofollow">'
+            'data from <a href="https://www.travelinedata.org.uk/traveline-open-data" rel="nofollow">'
             "the Traveline National Dataset (TNDS)</a>",
         )
 

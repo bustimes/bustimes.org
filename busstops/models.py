@@ -283,7 +283,7 @@ class DataSource(models.Model):
                     url = "https://data.bus-data.dft.gov.uk/coach/download"
                     text = "the Bus Open Data Service (BODS)"
                 case _:
-                    url = "https://www.travelinedata.org.uk/"
+                    url = "https://www.travelinedata.org.uk/traveline-open-data"
                     text = "the Traveline National Dataset (TNDS)"
         elif url:
             text = self.get_nice_name()
