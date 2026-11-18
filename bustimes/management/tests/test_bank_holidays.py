@@ -70,14 +70,26 @@ class BankHolidaysTest(TestCase):
             cm.output,
         )
 
-        # Christmas Eve and NYE are not really bank holidays,
-        # only they are the world of TransXChange,
-        # so we must create them manually elsewhere
+        years = {
+            d.year
+            for d in BankHolidayDate.objects.filter(
+                bank_holiday__name="AllBankHolidays"
+            ).values_list("date", flat=True)
+        }
         self.assertEqual(
-            0, BankHolidayDate.objects.filter(bank_holiday__name="ChristmasEve").count()
+            sorted(years),
+            sorted(
+                d.year
+                for d in BankHolidayDate.objects.filter(
+                    bank_holiday__name="ChristmasEve", date__month=12, date__day=24
+                ).values_list("date", flat=True)
+            ),
         )
         self.assertEqual(
-            0, BankHolidayDate.objects.filter(bank_holiday__name="NewYearsEve").count()
+            len(years),
+            BankHolidayDate.objects.filter(
+                bank_holiday__name="EarlyRunOffDays", date__month=12, date__day=31
+            ).count(),
         )
 
         self.assertEqual(

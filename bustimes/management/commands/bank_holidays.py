@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 
 from django.core.management.base import BaseCommand
 from govuk_bank_holidays.bank_holidays import BankHolidays
@@ -85,6 +86,10 @@ class Command(BaseCommand):
                 add_with_ancestors(title, bank_holiday["date"], True)
             else:
                 logger.warning(title)
+
+        for year in {bank_holiday["date"].year for bank_holiday in england_and_wales}:
+            add_with_ancestors("ChristmasEve", date(year, 12, 24), None)
+            add_with_ancestors("NewYearsEve", date(year, 12, 31), None)
 
         BankHolidayDate.objects.bulk_create(
             [
