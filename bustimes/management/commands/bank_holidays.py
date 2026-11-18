@@ -15,6 +15,19 @@ BANK_HOLIDAY_PARENTS = {
 }
 
 
+# in TransXChange these are always on the same date,
+# even at a weekend (unlike in the gov.uk data)
+FIXED_DATES = (
+    ("NewYearsDay", 1, 1, False),
+    ("Jan2ndScotland", 1, 2, True),
+    ("StAndrewsDay", 11, 30, True),
+    ("ChristmasEve", 12, 24, False),
+    ("ChristmasDay", 12, 25, False),
+    ("BoxingDay", 12, 26, False),
+    ("NewYearsEve", 12, 31, False),
+)
+
+
 def get_bank_holiday_name(bank_holiday):
     title = bank_holiday["title"].replace("\u2019", "").replace(" ", "")
     if bank_holiday["notes"] == "Substitute day":
@@ -88,8 +101,10 @@ class Command(BaseCommand):
                 logger.warning(title)
 
         for year in {bank_holiday["date"].year for bank_holiday in england_and_wales}:
-            add_with_ancestors("ChristmasEve", date(year, 12, 24), None)
-            add_with_ancestors("NewYearsEve", date(year, 12, 31), None)
+            for name, month, day, scotland_only in FIXED_DATES:
+                add_with_ancestors(
+                    name, date(year, month, day), True if scotland_only else None
+                )
 
         BankHolidayDate.objects.bulk_create(
             [

@@ -93,7 +93,8 @@ class BankHolidaysTest(TestCase):
         )
 
         self.assertEqual(
-            7, BankHolidayDate.objects.filter(bank_holiday__name="ChristmasDay").count()
+            len(years),
+            BankHolidayDate.objects.filter(bank_holiday__name="ChristmasDay").count(),
         )
 
         def get_scotland(name, date):
@@ -109,6 +110,12 @@ class BankHolidaysTest(TestCase):
         self.assertIs(get_scotland("AllHolidaysExceptChristmas", "2026-04-06"), False)
         self.assertIs(get_scotland("HolidayMondays", "2026-08-03"), True)
         self.assertIsNone(get_scotland("Holidays", "2026-04-03"))
+
+        # Saturday - the gov.uk data only has the substitute day (BoxingDayHoliday)
+        self.assertIsNone(get_scotland("BoxingDay", "2026-12-26"))
+        self.assertIsNone(get_scotland("Christmas", "2026-12-26"))
+        self.assertIsNone(get_scotland("BoxingDayHoliday", "2026-12-28"))
+        self.assertIs(get_scotland("AllBankHolidays", "2027-01-02"), True)
 
         # debug view
         response = self.client.get("/bank_holidays")
