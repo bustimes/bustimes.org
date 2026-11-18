@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import datetime
 import logging
+import random
 import subprocess
 from http import HTTPStatus
 from itertools import groupby, pairwise
@@ -535,7 +536,8 @@ async def vehicles_stream(request, kind, ids):
         try:
             for group in groups:
                 await layer.group_add(group, channel)
-            yield ": \n\n"
+            # spread out reconnections (when the stream servers restart)
+            yield f"retry: {random.randint(3000, 10000)}\n\n"
             while True:
                 done, _ = await asyncio.wait((receive,), timeout=30)
                 if done:

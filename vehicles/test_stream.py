@@ -16,7 +16,7 @@ class VehiclesStreamTest(SimpleTestCase):
         response = await self.async_client.get("/stream/services/1,2")
         self.assertEqual(response.headers["Content-Type"], "text/event-stream")
         stream = response.streaming_content
-        self.assertEqual(await anext(stream), b": \n\n")
+        self.assertRegex(await anext(stream), rb"^retry: \d+\n\n$")
 
         layer = get_channel_layer()
         await layer.group_send(

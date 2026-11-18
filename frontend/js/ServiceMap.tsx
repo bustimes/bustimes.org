@@ -138,6 +138,7 @@ export default function ServiceMap({ serviceId, buttonText }: ServiceMapProps) {
 
   React.useEffect(() => {
     let timeout: number;
+    let reconnect: number;
     let events: EventSource | undefined;
     let streaming = false;
     let loading = false;
@@ -175,15 +176,21 @@ export default function ServiceMap({ serviceId, buttonText }: ServiceMapProps) {
     };
 
     const connect = () => {
-      events = new EventSource(`/stream/services/${serviceIds}`);
-      events.onopen = () => {
+      const source = new EventSource(`/stream/services/${serviceIds}`);
+      events = source;
+      source.onopen = () => {
         streaming = true;
       };
-      events.onerror = () => {
-        // (the browser will try to reconnect)
+      source.onerror = () => {
         if (streaming) {
           streaming = false;
-          loadVehicles();
+          // a deploy drops everyone at once, so spread out the vehicles.json requests
+          clearTimeout(timeout);
+          timeout = window.setTimeout(loadVehicles, Math.random() * 10000);
+        }
+        if (source.readyState === EventSource.CLOSED) {
+          // the browser won't retry after an error response (e.g. 502 during a deploy)
+          reconnect = window.setTimeout(connect, 10000 + Math.random() * 20000);
         }
       };
       events.onmessage = (event) => {
@@ -217,6 +224,7 @@ export default function ServiceMap({ serviceId, buttonText }: ServiceMapProps) {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         clearTimeout(timeout);
+        clearTimeout(reconnect);
         events?.close();
         streaming = false;
       } else {
@@ -237,6 +245,7 @@ export default function ServiceMap({ serviceId, buttonText }: ServiceMapProps) {
     return () => {
       window.removeEventListener("visibilitychange", handleVisibilityChange);
       clearTimeout(timeout);
+      clearTimeout(reconnect);
       events?.close();
     };
   }, [isOpen, selectedServices]);
