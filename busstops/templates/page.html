@@ -92,7 +92,8 @@ if (window.__tcfapi) {
 gtag('js', new Date());
 var gaConfig = {
     timezone: tz,
-    webdriver: navigator.webdriver ? 'true' : 'false'
+    webdriver: navigator.webdriver ? 'true' : 'false',
+    cookie_domain: 'none'
 };
 if (bot) {
     gaConfig.traffic_type = 'bot';
