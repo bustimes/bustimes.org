@@ -109,6 +109,9 @@ class BankHolidaysTest(TestCase):
         self.assertIs(get_scotland("HolidayMondays", "2026-04-06"), False)
         self.assertIs(get_scotland("AllHolidaysExceptChristmas", "2026-04-06"), False)
         self.assertIs(get_scotland("HolidayMondays", "2026-08-03"), True)
+        self.assertIs(get_scotland("AugustBankHolidayScotland", "2026-08-03"), True)
+        self.assertIs(get_scotland("StAndrewsDay", "2026-11-30"), True)
+        self.assertIs(get_scotland("Jan2ndScotland", "2027-01-02"), True)
         self.assertIsNone(get_scotland("Holidays", "2026-04-03"))
 
         # Saturday - the gov.uk data only has the substitute day (BoxingDayHoliday)

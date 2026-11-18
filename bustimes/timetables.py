@@ -9,7 +9,7 @@ from functools import cached_property, cmp_to_key, partial
 
 from django.conf import settings
 from django.contrib.postgres.aggregates import ArrayAgg
-from django.db.models import Prefetch, Q, Value
+from django.db.models import F, Prefetch, Q, Value
 from django.utils.html import format_html
 from django.utils.timezone import localdate
 from sql_util.utils import Exists
@@ -74,7 +74,10 @@ class Timetable:
         self.loose_trip_chaining = loose_trip_chaining
 
         routes = list(
-            routes.order_by("id").select_related("source").with_service_modified_at()
+            routes.order_by("id")
+            .select_related("source")
+            .with_service_modified_at()
+            .annotate(region_id=F("service__region_id"))
         )
         # today where the service runs (e.g. Las Vegas), not necessarily in London
         self.today = localdate(
@@ -114,7 +117,10 @@ class Timetable:
 
         four_weeks_time = self.today + datetime.timedelta(days=28)
 
-        scotland = any(route.source.name == "S" for route in routes)
+        scotland = any(route.region_id == "S" for route in routes)
+        in_region = Q(
+            calendarbankholiday__bank_holiday__bankholidaydate__scotland=None
+        ) | Q(calendarbankholiday__bank_holiday__bankholidaydate__scotland=scotland)
 
         self.calendars = list(
             Calendar.objects.filter(Exists("trip", filter=Q(route__in=self.routes)))
@@ -122,6 +128,7 @@ class Timetable:
                 bank_holiday_inclusions=ArrayAgg(
                     "calendarbankholiday__bank_holiday__bankholidaydate__date",
                     filter=Q(
+                        in_region,
                         calendarbankholiday__operation=True,
                         calendarbankholiday__bank_holiday__bankholidaydate__date__range=[
                             self.today,
@@ -133,6 +140,7 @@ class Timetable:
                 bank_holiday_exclusions=ArrayAgg(
                     "calendarbankholiday__bank_holiday__bankholidaydate__date",
                     filter=Q(
+                        in_region,
                         calendarbankholiday__operation=False,
                         calendarbankholiday__bank_holiday__bankholidaydate__date__range=[
                             self.today,

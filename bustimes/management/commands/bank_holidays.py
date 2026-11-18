@@ -54,7 +54,7 @@ class Command(BaseCommand):
             dates[key] = scotland
 
         def add_with_ancestors(name, date, scotland):
-            add(name, date, None)
+            add(name, date, scotland or None)
             while name in BANK_HOLIDAY_PARENTS:
                 name = BANK_HOLIDAY_PARENTS[name]
                 add(name, date, scotland)
