@@ -7,6 +7,8 @@ from urllib.parse import urlsplit
 
 import dj_database_url
 from django.utils.csp import CSP
+from redis.asyncio.retry import Retry
+from redis.backoff import ExponentialWithJitterBackoff
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
@@ -214,7 +216,14 @@ if REDIS_URL:
         "default": {
             "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
             "CONFIG": {
-                "hosts": [{"address": REDIS_URL, "socket_timeout": 10}],
+                "hosts": [
+                    {
+                        "address": REDIS_URL,
+                        "socket_timeout": 10,
+                        # reconnect when the idle pubsub connection has been dropped
+                        "retry": Retry(ExponentialWithJitterBackoff(), 3),
+                    }
+                ],
             },
         },
         "bod_avl": {
