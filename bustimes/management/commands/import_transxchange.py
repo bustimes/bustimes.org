@@ -1320,6 +1320,8 @@ class Command(BaseCommand):
                         stop_time.timing_point = False
 
             for note_code, note_text in journey.notes.items():
+                if self.region_id == "NI" and re.fullmatch(r"VN\d+", note_code):
+                    continue  # Translink's restatement of the operating profile
                 note = self.get_note(note_code, note_text)
                 if not (
                     # trip_notes
