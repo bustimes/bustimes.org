@@ -121,7 +121,7 @@
 
 {% if date %}
     {# outside of the #journeys element! #}
-    <script src="{% static 'js/htmx.org/htmx.min.js' %}"></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'js/htmx.org/htmx.min.js' %}"></script>
 {% endif %}
 
 <div id="journeys" data-hx-history-elt>

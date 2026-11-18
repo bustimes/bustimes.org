@@ -15,5 +15,5 @@
 
 {% block footer %}
     {{ operator_data|json_script:"operator-data" }}
-    <script src="{% static 'dist/js/app.js' %}"></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'dist/js/app.js' %}"></script>
 {% endblock footer %}

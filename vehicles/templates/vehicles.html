@@ -10,7 +10,7 @@
 
 {% block content %}
 
-<script>
+<script nonce="{{ csp_nonce }}">
     if (window.location.hash) {
         window.location.href = '/map' + window.location.hash;
     }

@@ -159,7 +159,7 @@
 
 {% block foot %}
     {% if object.geometry %}
-    <script>
+    <script nonce="{{ csp_nonce }}">
         SERVICE_ID = {{ object.id }};
         EXTENT = [{{ object.geometry.extent|join(",") }}];
         LIVERIES_CSS_URL  = "/liveries.{{ liveries_css_version() }}.css";
@@ -175,15 +175,15 @@
         ];
     {% endif %}
     </script>
-    <script async src="{{ static('dist/js/app.js') }}"></script>
+    <script nonce="{{ csp_nonce }}" async src="{{ static('dist/js/app.js') }}"></script>
     {% else %}
-    <script>
+    <script nonce="{{ csp_nonce }}">
         SERVICE_ID = {{ object.id }};
     </script>
     {% endif %}
 
-    <script async src="{{ static('js/timetable.js') }}"></script>
+    <script nonce="{{ csp_nonce }}" async src="{{ static('js/timetable.js') }}"></script>
     {% if fare_tables %}
-        <script async src="{{ static('js/fares.js') }}"></script>
+        <script nonce="{{ csp_nonce }}" async src="{{ static('js/fares.js') }}"></script>
     {% endif %}
 {% endblock foot %}

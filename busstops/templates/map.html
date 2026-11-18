@@ -37,5 +37,5 @@
 
 {% block footer %}
     {{ initial_view_state|json_script:"initialViewState" }}
-    <script src="{% static 'dist/js/app.js' %}"></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'dist/js/app.js' %}"></script>
 {% endblock footer %}

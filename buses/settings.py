@@ -124,12 +124,22 @@ SECURE_CSP = {
     "object-src": [CSP.NONE],
     "base-uri": [CSP.NONE],
 }
+SECURE_CSP_REPORT_ONLY = {
+    "script-src": [
+        CSP.NONCE,
+        CSP.STRICT_DYNAMIC,
+        CSP.REPORT_SAMPLE,
+        CSP.UNSAFE_INLINE,
+        "https:",
+    ],
+}
 
 REPORTING_ENDPOINTS = None
 if SENTRY_DSN := os.environ.get("SENTRY_DSN"):
     dsn = urlsplit(SENTRY_DSN)
     REPORTING_ENDPOINTS = f'csp="{dsn.scheme}://{dsn.hostname}/api{dsn.path}/security/?sentry_key={dsn.username}"'
     SECURE_CSP["report-to"] = "csp"
+    SECURE_CSP_REPORT_ONLY["report-to"] = "csp"
 
 PERMISSIONS_POLICY = (
     "geolocation=(self), camera=(), microphone=(), midi=(), clipboard-read=(), "
@@ -291,6 +301,7 @@ TEMPLATES = [
             "debug": DEBUG,
             "context_processors": [
                 "django.template.context_processors.request",
+                "django.template.context_processors.csp",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "buses.context_processors.ad",
@@ -309,6 +320,7 @@ TEMPLATES = [
         "DIRS": ["busstops/templates/jinja2"],
         "OPTIONS": {
             "environment": "buses.jinja2.environment",
+            "context_processors": ["django.template.context_processors.csp"],
         },
     },
 ]

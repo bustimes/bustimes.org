@@ -25,5 +25,5 @@
 
 {% block footer %}
     <script id="trip-data" type="application/json">{{ stops_json }}</script>
-    <script src="{% static 'dist/js/app.js' %}"></script>
+    <script nonce="{{ csp_nonce }}" src="{% static 'dist/js/app.js' %}"></script>
 {% endblock footer %}

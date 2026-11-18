@@ -8,7 +8,7 @@
 
 {% block fuse %}
 {% load static %}
-<script src="{% static 'consent.js' %}"></script>
+<script nonce="{{ csp_nonce }}" src="{% static 'consent.js' %}"></script>
 {% endblock fuse %}
 
 {% block bodyclass %}narrow{% endblock %}

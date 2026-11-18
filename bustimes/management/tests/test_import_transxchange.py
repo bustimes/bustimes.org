@@ -1,7 +1,9 @@
+import re
 import xml.etree.ElementTree as ET
 import zipfile
 from contextlib import contextmanager
 from datetime import date
+from functools import partial
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -290,7 +292,8 @@ class ImportTransXChangeTest(TestCase):
             with self.assertNumQueries(13):
                 res_2 = self.client.get(url)
 
-        self.assertEqual(res.text, res_2.text)
+        strip_nonce = partial(re.sub, r'nonce="[^"]*"', "")
+        self.assertEqual(strip_nonce(res.text), strip_nonce(res_2.text))
 
         timetable = res.context_data["timetable"]
 

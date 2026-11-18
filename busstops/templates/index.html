@@ -115,7 +115,7 @@
 {% endblock content %}
 
 {% block foot %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function () {
     var link = document.getElementById("geolocate-map-link");
     if (!link || !navigator.geolocation) {

@@ -1,6 +1,6 @@
 {% load static %}
 
-<script src="{% static 'js/htmx.org/htmx.min.js' %}"></script>
+<script nonce="{{ csp_nonce }}" src="{% static 'js/htmx.org/htmx.min.js' %}"></script>
 
 <ul class="revisions-list">
     {% for revision in revisions %}

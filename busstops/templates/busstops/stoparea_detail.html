@@ -34,7 +34,7 @@
 {% block foot %}
     {% load static %}
     {% if when %}
-        <script async src="{% static 'js/departures.js' %}"></script>
+        <script nonce="{{ csp_nonce }}" async src="{% static 'js/departures.js' %}"></script>
     {% endif %}
 {% endblock foot %}
 
