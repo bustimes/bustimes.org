@@ -18,6 +18,7 @@ from .models import (
     District,
     Locality,
     Operator,
+    OperatorCode,
     PaymentMethod,
     Region,
     Service,
@@ -431,6 +432,16 @@ class ViewsTests(TestCase):
         with self.assertNumQueries(1):
             response = self.client.get("/operators/POOP")
             self.assertEqual(response.status_code, 404)
+
+    def test_operator_slug_redirect(self):
+        """An operator with no services should redirect to an operator with its slug as an old slug"""
+        OperatorCode.objects.create(
+            operator=self.chariots,
+            source=DataSource.objects.create(name="slug"),
+            code="nu-venture",
+        )
+        response = self.client.get("/operators/nu-venture")
+        self.assertRedirects(response, "/operators/ainsleys-chariots")
 
     def test_service(self):
         response = self.client.get("/services/45c-holt-norwich")

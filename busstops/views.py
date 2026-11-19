@@ -1169,8 +1169,12 @@ class OperatorDetailView(DetailView):
 
         if not context["services"] and not context["vehicles"]:
             alternative = Operator.objects.filter(
+                Q(name=self.object.name)
+                | Q(
+                    operatorcode__code=self.object.slug,
+                    operatorcode__source__name="slug",
+                ),
                 operator_has_current_services,
-                name=self.object.name,
             ).first()
             if alternative:
                 return redirect(alternative)

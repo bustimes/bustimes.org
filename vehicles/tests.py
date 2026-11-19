@@ -179,10 +179,18 @@ class VehiclesTests(TestCase):
 
     def test_fleet_lists(self):
         # operator has no vehicles
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             response = self.client.get("/operators/bova-and-over/vehicles")
             self.assertEqual(404, response.status_code)
             self.assertFalse(str(response.context["exception"]))
+
+        # operator has no vehicles, but another operator has its slug as an old slug
+        self.lynx.operatorcode_set.create(
+            source=DataSource.objects.create(name="slug"), code="bova-and-over"
+        )
+        with self.assertNumQueries(3):
+            response = self.client.get("/operators/bova-and-over/vehicles")
+        self.assertRedirects(response, "/operators/lynx/vehicles")
 
         # operator doesn't exist
         with self.assertNumQueries(2):

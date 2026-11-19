@@ -249,6 +249,17 @@ def operator_vehicles(request, slug=None, group_slug=None):
     )
 
     if not vehicles:
+        if not group:
+            alternative = (
+                Operator.objects.filter(
+                    operatorcode__code=operator.slug,
+                    operatorcode__source__name="slug",
+                )
+                .only("slug")
+                .first()
+            )
+            if alternative:
+                return redirect("operator_vehicles", alternative.slug)
         raise Http404
 
     vehicles = sorted(vehicles, key=get_vehicle_order)
