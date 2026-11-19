@@ -176,6 +176,10 @@ function Stops({
   const theme = React.useContext(ThemeContext);
 
   const font = getFont(theme);
+  // blue to match Protomaps' transit POI colour
+  const markerColour = theme.startsWith("protomaps_")
+    ? "rgba(49, 91, 207, 0.6)"
+    : "rgba(0, 0, 0, 0.6)";
 
   return (
     <React.Fragment>
@@ -200,16 +204,20 @@ function Stops({
               "icon-image": [
                 "case",
                 ["==", ["get", "bearing"], ["literal", null]],
-                "stop-marker-circle",
-                "stop-marker",
+                "stop-marker-circle-sdf",
+                "stop-marker-sdf",
               ],
               "icon-allow-overlap": true,
               "icon-ignore-placement": true,
               "text-ignore-placement": true,
               "icon-padding": [3],
+              "icon-size": 0.5,
             }}
             paint={{
               "text-color": "#ffffff",
+              "icon-color": markerColour,
+              "icon-halo-color": "#ffffff",
+              "icon-halo-width": 1,
             }}
           />
         </Source>

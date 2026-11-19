@@ -21,8 +21,8 @@ import routeStopMarkerDarkLarge from "data-url:../route-stop-marker-dark-large.p
 import routeStopMarkerDark from "data-url:../route-stop-marker-dark.png";
 import routeStopMarkerLarge from "data-url:../route-stop-marker-large.png";
 import routeStopMarker from "data-url:../route-stop-marker.png";
-import stopMarkerCircle from "data-url:../stop-marker-circle.png";
-import stopMarker from "data-url:../stop-marker.png";
+import stopMarkerCircleSdf from "data-url:../stop-marker-circle-sdf.png";
+import stopMarkerSdf from "data-url:../stop-marker-sdf.png";
 import osmBright from "url:../osm_bright.json";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./maps.css";
@@ -49,8 +49,8 @@ window.addEventListener("pageshow", () => {
 });
 
 const imagesByName: { [imageName: string]: string } = {
-  "stop-marker": stopMarker,
-  "stop-marker-circle": stopMarkerCircle,
+  "stop-marker-sdf": stopMarkerSdf,
+  "stop-marker-circle-sdf": stopMarkerCircleSdf,
   "route-stop-marker": routeStopMarker,
   "route-stop-marker-dark": routeStopMarkerDark,
   "route-stop-marker-large": routeStopMarkerLarge,
@@ -168,8 +168,12 @@ function MapChild({ onInit }: { onInit?: (map: MapLibreMap) => void }) {
           image.src = imagesByName[id];
           await image.decode();
           if (!_map.hasImage(id)) {
+            const sdf = id.endsWith("-sdf");
+            // SDF icons are drawn at icon-size 0.5 instead, which doubles the
+            // halo thickness (halos wider than 1 break overlapping icons)
             _map.addImage(id, image, {
-              pixelRatio: 2,
+              pixelRatio: sdf ? 1 : 2,
+              sdf,
             });
           }
         }
