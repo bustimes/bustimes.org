@@ -238,7 +238,18 @@ def get_descriptions(routes):
             ]
 
         # join "Holt - Sheringham" and "Sheringham - Cromer" for example
-        # (like dominoes)
+        # (like dominoes), dropping vias
+        if any(
+            parts[-1] == other_parts[0]
+            for parts in origins_and_destinations
+            for other_parts in origins_and_destinations
+            if parts is not other_parts
+        ):
+            origins_and_destinations = list(
+                dict.fromkeys(
+                    (parts[0], parts[-1]) for parts in origins_and_destinations
+                )
+            )
         for i, parts in enumerate(origins_and_destinations):
             for j, other_parts in enumerate(origins_and_destinations[i + 1 :], 1):
                 if parts[0] == other_parts[-1]:

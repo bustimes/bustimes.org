@@ -19,7 +19,7 @@ from .models import (
     Version,
 )
 from .timetables import Grouping
-from .utils import get_active_route_ids
+from .utils import get_active_route_ids, get_descriptions
 from .views import stop_time_json
 
 
@@ -279,6 +279,27 @@ class BusTimesTest(TestCase):
     @override_settings(
         CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
     )
+    def test_get_descriptions_dominoes(self):
+        routes = [
+            Route(
+                origin="Bristol Bus Station",
+                via="Temple Meads Station, Whitchurch, Pensford, Wells, Glastonbury",
+                destination="Wells Bus Station",
+            ),
+            Route(
+                origin="Wells Bus Station",
+                via="Glastonbury, Street, Ilchester",
+                destination="Yeovil Bus Station",
+            ),
+        ]
+        self.assertEqual(
+            get_descriptions(routes),
+            (
+                (),
+                [("Bristol Bus Station", "Wells Bus Station", "Yeovil Bus Station")],
+            ),
+        )
+
     def test_get_active_route_ids_cache(self):
         source = DataSource.objects.create(name="Lynx")
         service = Service.objects.create(line_name="55")
