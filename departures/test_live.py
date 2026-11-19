@@ -437,3 +437,15 @@ class LiveDeparturesTest(TestCase):
 
         response = self.client.get(f"{journey.vehicle.get_absolute_url()}/debug")
         self.assertEqual(response.headers["content-type"], "application/json")
+
+        kwargs["data"] = kwargs["data"] | {"VehicleRef": "FMR:66692"}
+        Vehicle.objects.update(latest_journey=None)
+        log_vehicle_journey(**kwargs)
+        self.assertEqual(Vehicle.objects.count(), 1)
+
+        kwargs["data"] = kwargs["data"] | {
+            "OperatorRef": "SCLK",
+            "VehicleRef": "SCLK:1234",
+        }
+        with self.assertNumQueries(0):
+            log_vehicle_journey(**kwargs)

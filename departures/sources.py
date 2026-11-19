@@ -367,7 +367,7 @@ class SiriSmDepartures(RemoteDepartures):
             "data": journey,
             "cancelled": departure_status == "cancelled"
             or arrival_status == "cancelled",
-            "vehicle": journey.get("VehicleRef"),
+            "vehicle": (journey.get("VehicleRef") or "").rpartition(":")[2] or None,
         }
 
     def get_poorly_key(self):

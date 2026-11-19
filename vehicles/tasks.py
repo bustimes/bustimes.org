@@ -131,13 +131,14 @@ def log_vehicle_journey(
 
     vehicle = data["VehicleRef"]
 
-    if operator_ref:
-        vehicle = vehicle.removeprefix(f"{operator_ref}-")
-
-    for prefix in ("WCM", "SHU", "MCG_Fleet", "112", "SCLK"):
-        vehicle = vehicle.removeprefix(f"{prefix}-")
+    for prefix in (operator_ref, "WCM", "SHU", "MCG_Fleet", "112", "SCLK"):
+        if prefix:
+            vehicle = vehicle.removeprefix(f"{prefix}-").removeprefix(f"{prefix}:")
 
     if not vehicle or vehicle == "-":
+        return
+
+    if operator_ref == "SCLK" and vehicle.isdigit():  # not a reg
         return
 
     operator = None
