@@ -11,14 +11,14 @@ from django.test import TestCase, override_settings
 from google.protobuf import json_format
 from google.transit import gtfs_realtime_pb2
 
-from busstops.models import Service
+from busstops.models import DataSource, Operator, Service, ServiceColour, StopPoint
 from disruptions import gtfsr_alerts
 from disruptions.models import Situation
 from vehicles.management.commands import import_gtfsr_feed
 from vehicles.models import Vehicle, VehicleJourney
 
 from ...gtfs_feeds import FEEDS
-from ...models import Trip
+from ...models import Calendar, Route, Trip
 from ..commands.import_gtfs_feed import TOWN_IN_STOP_NAME
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
@@ -394,3 +394,59 @@ class TownInStopNameTest(TestCase):
             self.assertEqual(TOWN_IN_STOP_NAME.fullmatch(name).groups(), groups)
         for name in ("AGORA", "CHERBOURG-GARE", "LES AIGUILLONS"):
             self.assertIsNone(TOWN_IN_STOP_NAME.fullmatch(name))
+
+
+@override_settings(DATA_DIR=FIXTURES_DIR)
+class FlibcoTest(TestCase):
+    def test_import_gtfs_feed(self):
+        colour = ServiceColour.objects.create(background="#ff6600")
+        operator = Operator.objects.create(noc="FLIB", name="Flibco", colour=colour)
+        other_source = DataSource.objects.create(name="iMarkeh Flibco GTFS")
+        other_service = Service.objects.create(
+            line_name="FL1", source=other_source, current=True
+        )
+        other_service.operator.add(operator)
+        other_route = Route.objects.create(
+            service=other_service, source=other_source, code="FL1"
+        )
+        calendar = Calendar.objects.create(start_date="2026-01-01")
+        other_trip = Trip.objects.create(
+            route=other_route, operator=operator, calendar=calendar, start="0", end="0"
+        )
+
+        with patch(
+            "bustimes.management.commands.import_gtfs_feed.download_if_modified",
+            return_value=(True, None),
+        ):
+            call_command("import_gtfs_feed", "flibco-lil")
+            call_command("import_gtfs_feed", "flibco-lil")
+
+        service = Service.objects.get(line_name="LIL")
+        self.assertEqual(service.route_set.count(), 2)
+        self.assertEqual(service.colour, colour)
+        self.assertTrue(service.geometry)
+        self.assertEqual(
+            list(
+                Trip.objects.filter(route__service=service)
+                .order_by("inbound")
+                .values_list("inbound", "headsign")
+            ),
+            [
+                (False, "Lille Centre (Flandre station)"),
+                (True, "Lille Airport (LIL)"),
+            ],
+        )
+        self.assertEqual(
+            StopPoint.objects.get(atco_code="flibco-lil-1018").common_name,
+            "Lille Airport (LIL)",
+        )
+
+        # another source's trips for the same operator are left alone
+        self.assertTrue(Trip.objects.filter(id=other_trip.id).exists())
+
+        response = self.client.get(service.get_absolute_url())
+        self.assertContains(response, 'id="map"')
+        self.assertContains(
+            response,
+            '<a href="https://transport.data.gouv.fr/datasets/flibco-lille-airport-gtfs" rel="nofollow">Flibco Lille</a>',
+        )

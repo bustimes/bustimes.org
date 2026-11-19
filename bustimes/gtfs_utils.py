@@ -492,7 +492,9 @@ def finish_gtfs_import(
         source.route_set.exclude(id__in=[route.id for route in routes]).delete()
     )
     logger.info(
-        operator.trip_set.exclude(id__in=[trip.id for trip in trip_objs]).delete()
+        Trip.objects.filter(route__source=source)
+        .exclude(id__in=[trip.id for trip in trip_objs])
+        .delete()
     )
     logger.info(
         operator.service_set.filter(current=True, route__isnull=True).update(

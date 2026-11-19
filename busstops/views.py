@@ -164,9 +164,13 @@ def flixbus_affiliate_link(**kwargs) -> str:
     return f"https://www.awin1.com/cread.php?{urlencode(query)}"
 
 
-def flibco_affiliate_link(
-    ued="https://www.flibco.com/en/shuttle/bus-coach-london-stansted-airport", **kwargs
-):
+FLIBCO_URLS = {
+    "Flibco Lille": "https://www.flibco.com/en/shuttle/bus-lille-airport",
+    "Flibco Charleroi": "https://www.flibco.com/en/shuttle/bus-brussels-charleroi-airport",
+}
+
+
+def flibco_affiliate_link(ued="https://www.flibco.com", **kwargs):
     return flixbus_affiliate_link(awinmid=53945, ued=ued, **kwargs)
 
 
@@ -1474,7 +1478,12 @@ class ServiceDetailView(DetailView):
                     )
                     break
                 if operator.name == "Flibco":
-                    context["tickets_link"] = flibco_affiliate_link()
+                    if self.object.source and (
+                        url := FLIBCO_URLS.get(self.object.source.name)
+                    ):
+                        context["tickets_link"] = flibco_affiliate_link(ued=url)
+                    else:
+                        context["tickets_link"] = flibco_affiliate_link()
                     context["links"].append(
                         {
                             "url": context["tickets_link"],

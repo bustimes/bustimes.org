@@ -1,8 +1,9 @@
 import re
+from html import unescape
 
 from django import template
 from django.template.defaultfilters import stringfilter
-from django.utils.html import urlize
+from django.utils.html import escape, urlize
 from django.utils.safestring import mark_safe
 
 from busstops.views import flibco_affiliate_link
@@ -15,7 +16,7 @@ register = template.Library()
 def urlise(value, autoescape=None):
     """Like the built-in Django urlize filter,
     but strips the 'https://www.' from the link text,
-    and replaces Megabus and National Express URLs with venal affiliate ones
+    and replaces National Express and Flibco URLs with venal affiliate ones
     """
 
     markup = (
@@ -30,10 +31,6 @@ def urlise(value, autoescape=None):
             "http://www.nationalexpress.com",
             "https://nationalexpress.prf.hn/click/camref:1011ljPYw",
         ),
-        (
-            "https://www.flibco.com",
-            flibco_affiliate_link(),
-        ),
     ):
         url = f'"{url}"'
         if url in markup:
@@ -46,6 +43,14 @@ def urlise(value, autoescape=None):
     markup = re.sub(
         r' href="(https://www\.nationalexpress\.com/en/[^"]+)"',
         r' href="https://nationalexpress.prf.hn/click/camref:1011ljPYw/destination:\1"',
+        markup,
+    )
+
+    markup = re.sub(
+        r' href="(https://www\.flibco\.com(?:/[^"]*)?)"',
+        lambda match: (
+            f' href="{escape(flibco_affiliate_link(ued=unescape(match[1])))}"'
+        ),
         markup,
     )
 

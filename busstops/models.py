@@ -24,6 +24,7 @@ from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from timezone_field import TimeZoneField
 
+from bustimes.gtfs_feeds import FEEDS
 from bustimes.models import Route, StopTime, TimetableDataSource
 from bustimes.timetables import Timetable
 from bustimes.utils import get_descriptions
@@ -232,6 +233,10 @@ class DataSource(models.Model):
     def get_nice_url(self):
         if not self.url:
             return
+
+        for feed in FEEDS.values():
+            if feed.info_url and feed.source_name == self.name:
+                return feed.info_url
 
         parsed_url = urlparse(self.url)
 

@@ -98,7 +98,7 @@ class Command(BaseCommand):
         new_stops = [
             StopPoint(
                 atco_code=f"{prefix}{stop.stop_id}",
-                common_name=stop.stop_name,
+                common_name=stop.stop_name.strip(),
                 indicator=get_platform_code(stop),
                 active=True,
                 source=source,
@@ -132,12 +132,15 @@ class Command(BaseCommand):
             for colour in ServiceColour.objects.all()
         }
 
-        for row in feed.get_routes(as_gdf=True).itertuples():
-            if row.route_short_name in existing_services:
-                service = existing_services[row.route_short_name]
+        line_names = dict(feed_config.line_names)
+
+        for row in feed.get_routes(as_gdf=feed.shapes is not None).itertuples():
+            line_name = line_names.get(row.route_id, row.route_short_name)
+            if line_name in existing_services:
+                service = existing_services[line_name]
             else:
-                service = Service(line_name=row.route_short_name)
-                existing_services[row.route_short_name] = service
+                service = Service(line_name=line_name)
+                existing_services[line_name] = service
 
             if row.route_id in existing_routes:
                 route = existing_routes[row.route_id]
@@ -146,7 +149,7 @@ class Command(BaseCommand):
             route.timezone = timezone
             route.source = source
             route.service = service
-            route.line_name = row.route_short_name
+            route.line_name = line_name
             service.source = source
             service.description = route.description = get_str(
                 row, "route_long_name"
@@ -161,9 +164,11 @@ class Command(BaseCommand):
                         background=bg, foreground=fg
                     )
                 service.colour = colours[(bg, fg)]
+            else:
+                service.colour_id = operator.colour_id
 
             service.mode = MODES[row.route_type]
-            if row.geometry:
+            if getattr(row, "geometry", None):
                 service.geometry = row.geometry.wkt
 
             service.save()
@@ -175,7 +180,8 @@ class Command(BaseCommand):
             existing_routes[route.code] = route  # deals with duplicate rows
 
         existing_trips = {
-            trip.vehicle_journey_code: trip for trip in operator.trip_set.all()
+            trip.vehicle_journey_code: trip
+            for trip in Trip.objects.filter(route__source=source)
         }
         trips = {}
         for row in feed.trips.itertuples():
@@ -184,7 +190,8 @@ class Command(BaseCommand):
             trip = Trip(
                 route=route,
                 calendar=calendars[row.service_id],
-                inbound=row.direction_id == 1,
+                inbound=getattr(row, "direction_id", None) == 1
+                or row.route_id in feed_config.inbound_routes,
                 ticket_machine_code=row.trip_id,
                 vehicle_journey_code=row.trip_id,
                 block=get_str(row, "block_id", None),
@@ -256,6 +263,12 @@ class Command(BaseCommand):
             StopTime.objects.filter(trip__in=existing_trips).delete()
             StopTime.objects.bulk_create(stop_times)
 
-            finish_gtfs_import(source, operator, routes, trip_objs)
+            finish_gtfs_import(
+                source,
+                operator,
+                routes,
+                trip_objs,
+                update_geometry=feed.shapes is None,
+            )
 
             source.save(update_fields=["url", "datetime"])
