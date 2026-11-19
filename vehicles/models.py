@@ -14,7 +14,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape, format_html
 from simple_history.models import HistoricalRecords
-from webcolors import HTML5SimpleColor, html5_parse_legacy_color
 
 from busstops.fields import AutoSlugField
 from busstops.models import DataSource, Operator, Service
@@ -68,24 +67,45 @@ def get_css(colours, direction=None, horizontal=False, angle=None):
     return background
 
 
-def get_brightness(colour: HTML5SimpleColor) -> float:
-    """Returns a "relative luminance" between 0 and 255"""
-    return 0.299 * colour.red + 0.587 * colour.green + 0.114 * colour.blue
+def normalise_colour(colour: str | None) -> str:
+    """Expands #rgb to #rrggbb and lowercases hex colours, leaves anything else alone"""
+    colour = (colour or "").strip()
+    if re.fullmatch(r"#[0-9a-fA-F]{3}", colour):
+        colour = "#" + "".join(c * 2 for c in colour[1:])
+    if re.fullmatch(r"#[0-9a-fA-F]{6}", colour):
+        return colour.lower()
+    return colour
 
 
-def get_text_colour(colours) -> str:
+def get_lightness(colour: str) -> float | None:
+    """Returns OKLab L, between 0 and 1"""
+    colour = normalise_colour(colour)
+    if not re.fullmatch(r"#[0-9a-f]{6}", colour):
+        return
+    rgb = bytes.fromhex(colour[1:])
+
+    def linear(c):
+        c /= 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (linear(c) for c in rgb)
+    l_ = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b
+    m_ = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b
+    s_ = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b
+    return (
+        0.2104542553 * l_ ** (1 / 3)
+        + 0.7936177850 * m_ ** (1 / 3)
+        - 0.0040720468 * s_ ** (1 / 3)
+    )
+
+
+def get_text_colour(colours: str) -> str | None:
     """Returns "#fff" if the colour is dark, otherwise None"""
     if not colours:
         return
-    colours = colours.split()
-    colours = [html5_parse_legacy_color(colour) for colour in colours]
-    brightnesses = [get_brightness(colour) for colour in colours]
-    colours_length = len(colours)
-    if colours_length > 2:
-        # ignore the leftmost and rightmost strips
-        brightnesses = brightnesses[1:-1]
-        colours_length -= 2
-    if (sum(brightnesses) / colours_length) <= 186:
+    lightnesses = [get_lightness(colour) for colour in colours.split()]
+    lightnesses = [lightness for lightness in lightnesses if lightness is not None]
+    if lightnesses and (sum(lightnesses) / len(lightnesses)) < 0.67:
         return "#fff"
 
 
@@ -213,7 +233,9 @@ class Livery(models.Model):
             if self.colours:
                 self.set_css()
                 if self.colours and not self.id:
-                    self.white_text = get_text_colour(self.colours) == "#fff"
+                    self.white_text = (
+                        get_text_colour(self.stroke_colour or self.colours) == "#fff"
+                    )
             if self.right_css:
                 self.right_css = self.minify(self.right_css)
                 self.left_css = self.minify(self.left_css)

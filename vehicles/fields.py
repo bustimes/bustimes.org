@@ -1,14 +1,8 @@
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db.models import CharField
-from webcolors import html5_parse_simple_color
 
-
-def validate_colour(value):
-    if value:
-        try:
-            html5_parse_simple_color(value)
-        except ValueError as e:
-            raise ValidationError(str(e)) from e
+validate_colour = RegexValidator(r"^#[0-9a-fA-F]{6}$", "Must be a colour like #ff0000")
 
 
 def validate_colours(value):

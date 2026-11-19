@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from .models import Livery, Vehicle
+from .models import Livery, Vehicle, get_text_colour, normalise_colour
 
 
 class VehicleModelTests(TestCase):
@@ -110,6 +110,22 @@ class VehicleModelTests(TestCase):
         livery.stroke_colour = "transparent"
         with self.assertRaisesMessage(
             ValidationError,
-            "{'stroke_colour': ['An HTML5 simple color must be a Unicode string seven characters long.', 'Ensure this value has at most 7 characters (it has 11).']}",
+            "{'stroke_colour': ['Must be a colour like #ff0000', 'Ensure this value has at most 7 characters (it has 11).']}",
         ):
             livery.full_clean()
+
+    def test_get_text_colour(self):
+        self.assertIsNone(get_text_colour(""))
+        self.assertIsNone(get_text_colour("transparent"))
+        self.assertEqual(normalise_colour(" #ABC"), "#aabbcc")
+        self.assertEqual(normalise_colour("#FF0000"), "#ff0000")
+        self.assertEqual(normalise_colour("rgb(1, 2, 3)"), "rgb(1, 2, 3)")
+        self.assertEqual(normalise_colour(None), "")
+        self.assertEqual(get_text_colour("#000"), "#fff")
+        self.assertEqual(get_text_colour("#ff0000"), "#fff")
+        self.assertIsNone(get_text_colour("#ffaa00"))
+        self.assertIsNone(get_text_colour("#ffffff #ffffff #ffffff #0eab4c"))
+
+        livery = Livery(name="test", colours="#00205b", stroke_colour="#ffd200")
+        livery.save()
+        self.assertFalse(livery.white_text)

@@ -42,7 +42,7 @@ from busstops.models import (
 )
 from busstops.utils import get_coord_transform, get_datetime
 from disruptions.models import AffectedJourney
-from vehicles.models import VehicleJourney, get_text_colour
+from vehicles.models import VehicleJourney, get_text_colour, normalise_colour
 from vosa.models import Registration
 
 from ...models import (
@@ -1671,13 +1671,16 @@ class Command(BaseCommand):
                 service.description = description
 
             if line.colour:
-                background = f"#{line.colour}"
-                foreground = get_text_colour(background) or "#000"
-                service.colour, _ = ServiceColour.objects.get_or_create(
-                    background=background,
-                    foreground=foreground,
-                    use_name_as_brand=False,
-                )
+                background = normalise_colour(f"#{line.colour}")
+                foreground = normalise_colour(get_text_colour(background) or "#000")
+                lookup = {
+                    "background": background,
+                    "foreground": foreground,
+                    "use_name_as_brand": False,
+                }
+                service.colour = ServiceColour.objects.filter(**lookup).order_by(
+                    "id"
+                ).first() or ServiceColour.objects.create(**lookup)
             elif service_code and service.mode == "bus" and service_code[:4] == "tfl_":
                 # London bus red
                 service.colour_id = 127

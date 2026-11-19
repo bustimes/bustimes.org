@@ -183,8 +183,8 @@ class ImportBusOpenDataTest(TestCase):
         response = self.client.get(route.service.get_absolute_url())
         self.assertContains(response, "school or works service")
 
-        self.assertEqual(route.service.colour.background, "#12198B")
-        self.assertEqual(route.service.colour.foreground, "#fff")
+        self.assertEqual(route.service.colour.background, "#12198b")
+        self.assertEqual(route.service.colour.foreground, "#ffffff")
 
         # LineColour
         response = self.client.get(f"/services/{route.service_id}/timetable")

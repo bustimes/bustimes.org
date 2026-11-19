@@ -9,6 +9,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from busstops.models import DataSource, Operator, Service, ServiceColour, StopPoint
+from vehicles.models import normalise_colour
 
 from ...download_utils import download_if_modified
 from ...gtfs_feeds import FEEDS
@@ -153,8 +154,8 @@ class Command(BaseCommand):
             service.current = True
 
             if route_color := get_str(row, "route_color"):
-                bg = f"#{route_color}"
-                fg = f"#{get_str(row, 'route_text_color', '000000')}"
+                bg = normalise_colour(f"#{route_color}")
+                fg = normalise_colour(f"#{get_str(row, 'route_text_color', '000000')}")
                 if (bg, fg) not in colours:
                     colours[(bg, fg)] = ServiceColour.objects.create(
                         background=bg, foreground=fg

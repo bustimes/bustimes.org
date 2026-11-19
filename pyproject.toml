@@ -25,7 +25,6 @@ dependencies = [
     "Shapely>=2.0.1,<3",
     "titlecase~=2.3",
     "uk-postcode-utils~=1.1",
-    "webcolors~=25.10.0",
     "whitenoise>=6.2.0,<7",
     "django-cors-headers>=4.2.0,<5",
     "pygments>=2.15.1,<3",

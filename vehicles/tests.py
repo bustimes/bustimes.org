@@ -838,11 +838,7 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
             response = self.client.post(url, initial)
             self.assertEqual(
                 response.context["form"].errors,
-                {
-                    "other_colour": [
-                        "An HTML5 simple color must be a Unicode string seven characters long."
-                    ]
-                },
+                {"other_colour": ["Must be a colour like #ff0000"]},
             )
 
     def test_remove_fleet_number(self):

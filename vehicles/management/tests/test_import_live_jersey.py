@@ -40,9 +40,9 @@ class JerseyImportTest(TestCase):
         self.assertContains(
             response,
             """{
-    background: #96DCFD;
-    border-color: #000;
-    color: #000;
+    background: #96dcfd;
+    border-color: #000000;
+    color: #000000;
 }""",
         )
 

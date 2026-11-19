@@ -97,5 +97,5 @@ class EdinburghImportTest(TestCase):
         self.assertContains(response, '/map">Map</a>')
         self.assertContains(response, '/vehicles">Vehicles</a>')
 
-        self.assertContains(response, "background: #0C1436;")  # N14
-        self.assertContains(response, "background: #002C4D;")  # 100
+        self.assertContains(response, "background: #0c1436;")  # N14
+        self.assertContains(response, "background: #002c4d;")  # 100
