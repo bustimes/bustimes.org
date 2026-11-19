@@ -48,10 +48,10 @@ trip_3,12:30:00,12:30:00,C,2
 
 SHAPES_FILES = {
     **GTFS_FILES,
-    "trips.txt": """route_id,service_id,trip_id,shape_id
-route_1,svc_1,trip_1,shape_1
-route_2,svc_1,trip_2,shape_2
-route_3,svc_1,trip_3,
+    "trips.txt": """route_id,service_id,trip_id,shape_id,block_id
+route_1,svc_1,trip_1,shape_1,block_1
+route_2,svc_1,trip_2,shape_2,block_1
+route_3,svc_1,trip_3,,
 """,
     "shapes.txt": """shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence
 shape_1,53.79,-2.41,1
@@ -193,4 +193,9 @@ class UploadGTFSTest(TestCase):
         self.assertEqual(
             sorted(RouteLink.objects.values_list("from_stop_id", "to_stop_id")),
             [("A", "B"), ("B", "A")],
+        )
+
+        self.assertEqual(
+            dict(Trip.objects.values_list("ticket_machine_code", "block")),
+            {"trip_1": "block_1", "trip_2": "block_1", "trip_3": None},
         )

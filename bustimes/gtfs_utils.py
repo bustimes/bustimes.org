@@ -581,6 +581,7 @@ def handle_gtfs_upload(import_task, note=None):
                 inbound=getattr(row, "direction_id", None) == 1,
                 headsign=get_str(row, "trip_headsign"),
                 ticket_machine_code=row.trip_id,
+                block=get_str(row, "block_id", None),
                 operator=route_operators[row.route_id],
             )
             if row.trip_id in existing_trip_ids:
@@ -603,6 +604,7 @@ def handle_gtfs_upload(import_task, note=None):
                 "inbound",
                 "headsign",
                 "ticket_machine_code",
+                "block",
                 "operator",
                 "start",
                 "end",

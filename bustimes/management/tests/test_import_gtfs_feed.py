@@ -450,3 +450,7 @@ class FlibcoTest(TestCase):
             response,
             '<a href="https://transport.data.gouv.fr/datasets/flibco-lille-airport-gtfs" rel="nofollow">Flibco Lille</a>',
         )
+        self.assertContains(
+            response,
+            "ued=https%3A%2F%2Fwww.flibco.com%2Fen%2Fshuttle%2Fbus-lille-airport",
+        )
