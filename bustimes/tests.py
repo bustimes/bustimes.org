@@ -276,9 +276,6 @@ class BusTimesTest(TestCase):
         self.assertEqual(command.merge_split_trips(service.id), "merge")
         self.assertEqual(Trip.objects.get().stoptime_set.count(), 3)
 
-    @override_settings(
-        CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
-    )
     def test_get_descriptions_dominoes(self):
         routes = [
             Route(
@@ -300,6 +297,9 @@ class BusTimesTest(TestCase):
             ),
         )
 
+    @override_settings(
+        CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    )
     def test_get_active_route_ids_cache(self):
         source = DataSource.objects.create(name="Lynx")
         service = Service.objects.create(line_name="55")
