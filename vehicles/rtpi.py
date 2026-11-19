@@ -25,6 +25,7 @@ EARTH_RADIUS = 6371008.8  # mean radius - the sphere ST_DistanceSphere uses
 NEARBY_ROUTE_LINK = 300
 NEARBY_STRAIGHT_LINE = 600
 STRAY_PER_METRE = 0.5
+AT_STOP = 50  # metres
 
 
 def local_metres(coords, cos_latitude):
@@ -259,11 +260,18 @@ def prefetch_stop_times(trips):
 
 
 class Progress:
-    def __init__(self, stop_times, prev_stop_time, next_stop_time, progress, distance):
+    def __init__(
+        self, stop_times, prev_stop_time, next_stop_time, progress, distance, length
+    ):
         self.stop_times = stop_times
         self.sequence = self.stop_times.index(prev_stop_time)
         self.prev_stop_time = prev_stop_time
         self.next_stop_time = next_stop_time
+        # snap to 0 or 1 if at (or near) the prev or next stop
+        if progress * length <= AT_STOP:
+            progress = 0
+        elif (1 - progress) * length <= AT_STOP:
+            progress = 1
         self.progress = round(progress, 3)
         self.distance = distance
         self.delay = None
@@ -295,13 +303,13 @@ def get_delay(progress, date, when, tzinfo=None) -> int | None:
         return None
 
     # if the bus is at prev stop and within its scheduled dwell, it's on time
-    if progress.progress <= 0.1:
+    if progress.progress == 0:
         prev_arr = prev.arrival_datetime(date, tzinfo)
         if prev_arr and prev_arr < prev_dep and prev_arr <= when <= prev_dep:
             return 0
 
     # likewise if the bus is at next stop and within its scheduled dwell
-    elif progress.progress >= 0.9:
+    elif progress.progress == 1:
         next_dep = next_.departure_datetime(date, tzinfo)
         if next_dep and next_arr < next_dep and next_arr <= when <= next_dep:
             return 0
@@ -370,7 +378,12 @@ def get_progress(
 
     prev_stop_time, next_stop_time = pairs.pairs[closest[0]]
     progress = Progress(
-        stop_times, prev_stop_time, next_stop_time, closest[2], closest[3]
+        stop_times,
+        prev_stop_time,
+        next_stop_time,
+        closest[2],
+        closest[3],
+        closest[1].length,
     )
     progress.delay = get_delay(progress, date, when, tzinfo)
 
@@ -385,7 +398,12 @@ def get_progress(
             or next_stop_time.stop_id == alt_prev.stop_id
         ):
             alt = Progress(
-                stop_times, alt_prev, alt_next, next_closest[2], next_closest[3]
+                stop_times,
+                alt_prev,
+                alt_next,
+                next_closest[2],
+                next_closest[3],
+                next_closest[1].length,
             )
             alt.delay = get_delay(alt, date, when, tzinfo)
             if progress.delay is None or (

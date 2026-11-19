@@ -145,7 +145,7 @@ const vehicle: Vehicle = {
     sequence: 2,
     prev_stop: "2900N1237",
     next_stop: "2900N12909",
-    progress: 0.022,
+    progress: 0,
   },
   delay: 252,
 };

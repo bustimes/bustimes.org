@@ -143,7 +143,7 @@ function Row({
 
   if (vehicle?.progress && diff === 0) {
     actual = <strong>{vehicle.datetime.slice(11, 16)}</strong>;
-    if (vehicle.progress.progress > 0.1) {
+    if (vehicle.progress.progress > 0) {
       actualRowSpan = (actualRowSpan || 1) + 1;
     }
   } else if (diff !== 1 && !covered) {
@@ -263,7 +263,7 @@ const TripTimetable = React.memo(function TripTimetable({
   const diffs = times.map((stop) => getDiff(stop, vehicle));
   const vehicleIndex = diffs.indexOf(0);
   const coveredIndex =
-    vehicleIndex !== -1 && vehicle?.progress && vehicle.progress.progress > 0.1
+    vehicleIndex !== -1 && vehicle?.progress && vehicle.progress.progress > 0
       ? vehicleIndex + 1
       : -1;
 

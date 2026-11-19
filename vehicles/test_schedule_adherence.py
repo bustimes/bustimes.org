@@ -691,6 +691,40 @@ class SplitTripDeparturesTest(TestCase):
         # no prev_time
         self.assertTrue(is_before_stop("x", 8, id=1, prev_time=None))
 
+    def test_get_delay_dwell(self):
+        date = datetime.date(2026, 11, 19)
+        prev = StopTime(
+            arrival=datetime.timedelta(hours=8, minutes=25),
+            departure=datetime.timedelta(hours=8, minutes=30),
+        )
+        next_ = StopTime(
+            arrival=datetime.timedelta(hours=10),
+            departure=datetime.timedelta(hours=10, minutes=5),
+        )
+
+        def get_delay(progress, length, when):
+            progress = rtpi.Progress([prev, next_], prev, next_, progress, 0, length)
+            when = datetime.datetime.fromisoformat(when)
+            return rtpi.get_delay(progress, date, when, datetime.UTC)
+
+        # snapped to a stop if within 50m (40m here)
+        self.assertEqual(
+            rtpi.Progress([prev, next_], prev, next_, 0.04, 0, 1000).progress, 0
+        )
+        self.assertEqual(
+            rtpi.Progress([prev, next_], prev, next_, 0.96, 0, 1000).progress, 1
+        )
+        self.assertEqual(
+            rtpi.Progress([prev, next_], prev, next_, 0.05, 0, 90000).progress, 0.05
+        )
+
+        # within dwell at prev stop
+        self.assertEqual(get_delay(0.04, 1000, "2026-11-19T08:28:00Z"), 0)
+        self.assertEqual(get_delay(0.05, 90000, "2026-11-19T08:28:00Z"), -390)
+        # within dwell at next stop
+        self.assertEqual(get_delay(0.96, 1000, "2026-11-19T10:02:00Z"), 0)
+        self.assertEqual(get_delay(0.95, 90000, "2026-11-19T10:02:00Z"), 390)
+
     def test_adjacent_pair(self):
         # 3/4 of the way from a to b, but also near enough to b-c
         item = self.get_item(coordinates=[0, 51.015], datetime="2026-09-07T08:10:00Z")
