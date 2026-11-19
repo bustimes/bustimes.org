@@ -42,6 +42,9 @@ export function getFont(theme: string) {
   if (theme.indexOf("aws") === 0) {
     return ["Amazon Ember Condensed RC Regular", "Noto Sans Regular"];
   }
+  if (theme.indexOf("protomaps_") === 0) {
+    return ["Noto Sans Medium"];
+  }
   return ["Stadia Regular"];
 }
 

@@ -66,6 +66,24 @@ if (initialViewStateElement) {
   );
 }
 
+// the page is cached, so use the user's time zone to guess where they are
+const timeZoneViewStates: { [timeZone: string]: MapProps["initialViewState"] } =
+  {
+    "Europe/Dublin": { latitude: 53.45, longitude: -7.5, zoom: 5 },
+    "Europe/Jersey": { latitude: 49.21, longitude: -2.13, zoom: 11 },
+    "Europe/Guernsey": { latitude: 49.46, longitude: -2.58, zoom: 11 },
+    "Europe/Isle_of_Man": { latitude: 54.23, longitude: -4.53, zoom: 10 },
+    "Europe/Paris": { latitude: 49.63, longitude: -1.62, zoom: 11 }, // Cherbourg
+    "Europe/Warsaw": { latitude: 53.43, longitude: 14.55, zoom: 11 }, // Szczecin
+    America: { latitude: 36.17, longitude: -115.14, zoom: 10 }, // Las Vegas
+  };
+const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const timeZoneViewState =
+  timeZoneViewStates[timeZone] || timeZoneViewStates[timeZone.split("/")[0]];
+if (INITIAL_VIEW_STATE && timeZoneViewState) {
+  INITIAL_VIEW_STATE = timeZoneViewState;
+}
+
 if (INITIAL_VIEW_STATE && !window.location.hash) {
   try {
     if (localStorage.vehicleMap) {

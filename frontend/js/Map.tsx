@@ -28,8 +28,11 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./maps.css";
 import maplibreWorkerUrl from "worklet:./maplibre-worker.ts";
 import {
+  type ExpressionSpecification,
   type FilterSpecification,
+  type LayerSpecification,
   type Map as MapLibreMap,
+  type StyleSpecification,
   setWorkerUrl,
 } from "maplibre-gl";
 import { ErrorBoundary } from "./LoadingSorry";
@@ -80,9 +83,17 @@ const mapStyles: { [key: string]: string } = {
   alidade_smooth_dark: "Smooth dark",
   osm_bright: "Bright",
   aws_satellite: "Satellite",
-  os_light: "Ordnance Survey light",
-  os_dark: "Ordnance Survey night",
 };
+
+// Ordnance Survey maps only cover Great Britain
+if (Intl.DateTimeFormat().resolvedOptions().timeZone === "Europe/London") {
+  mapStyles.os_light = "Ordnance Survey light";
+  mapStyles.os_dark = "Ordnance Survey night";
+  mapStyles.protomaps_light = "Protomaps light";
+  mapStyles.protomaps_dark = "Protomaps dark";
+}
+
+const protomapsTileJSON = "http://localhost:8080/gb.json";
 
 type StyleSwitcherProps = {
   style: string;
@@ -227,6 +238,99 @@ export default function BusTimesMap(
     [darkModeQuery.matches],
   );
 
+  const [basemaps, setBasemaps] =
+    React.useState<typeof import("@protomaps/basemaps")>();
+
+  useEffect(() => {
+    if (mapStyle.startsWith("protomaps_") && !basemaps) {
+      import("@protomaps/basemaps").then(setBasemaps);
+    }
+  }, [mapStyle, basemaps]);
+
+  // memoised so react-map-gl doesn't call setStyle on every render
+  const protomapsStyle = React.useMemo((): StyleSpecification | undefined => {
+    if (!basemaps || !mapStyle.startsWith("protomaps_")) {
+      return;
+    }
+    const flavor = mapStyle === "protomaps_dark" ? "dark" : "light";
+    const theme = basemaps.namedFlavor(flavor);
+    // whole word " bus " to avoid matching "Business Park"
+    const busy: ExpressionSpecification = [
+      "any",
+      ...[" bus ", " buses ", "coach", "depot"].map(
+        (word): ExpressionSpecification => [
+          "in",
+          word,
+          ["concat", " ", ["downcase", ["coalesce", ["get", "name"], ""]], " "],
+        ],
+      ),
+    ];
+    const industrial: LayerSpecification = {
+      id: "pois_industrial",
+      type: "symbol",
+      source: "protomaps",
+      "source-layer": "pois",
+      filter: [
+        "all",
+        ["==", ["get", "kind"], "industrial"],
+        [">=", ["zoom"], ["case", busy, 15, 16]],
+      ],
+      layout: {
+        "text-field": ["get", "name"],
+        "text-font": [
+          "case",
+          busy,
+          ["literal", ["Noto Sans Medium"]],
+          ["literal", ["Noto Sans Regular"]],
+        ],
+        "text-size": 11,
+        "text-max-width": 8,
+      },
+      paint: {
+        "text-color": [
+          "case",
+          busy,
+          theme.pois?.lapis ?? "#315bcf",
+          theme.pois?.slategray ?? "#6a5b8f",
+        ],
+        "text-halo-color": theme.earth,
+        "text-halo-width": 1,
+      },
+    };
+    return {
+      version: 8,
+      sources: {
+        protomaps: {
+          type: "vector",
+          url: protomapsTileJSON,
+          attribution:
+            '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+        },
+      },
+      glyphs:
+        "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
+      sprite: `https://protomaps.github.io/basemaps-assets/sprites/v4/${flavor}`,
+      layers: basemaps
+        .layers("protomaps", theme, { lang: "en" })
+        .flatMap((layer): LayerSpecification[] => {
+          if (layer.id === "pois" && layer.type === "symbol") {
+            return [
+              {
+                ...layer,
+                filter: [
+                  "all",
+                  layer.filter as ExpressionSpecification,
+                  ["!=", ["get", "kind"], "bus_stop"],
+                ],
+              },
+              industrial,
+            ];
+          }
+          return [layer];
+        }),
+    };
+  }, [basemaps, mapStyle]);
+
   const [contextMenu, setContextMenu] = React.useState<LngLat>();
 
   const onContextMenu = (e: MapLayerMouseEvent | PopupEvent) => {
@@ -245,8 +349,11 @@ export default function BusTimesMap(
     );
   }, [mapStyle, darkModeQuery.matches]);
 
-  let mapStyleURL = `https://tiles.stadiamaps.com/styles/${mapStyle}.json`;
-  if (mapStyle === "os_light") {
+  let mapStyleURL: string | StyleSpecification | undefined =
+    `https://tiles.stadiamaps.com/styles/${mapStyle}.json`;
+  if (mapStyle.startsWith("protomaps_")) {
+    mapStyleURL = protomapsStyle;
+  } else if (mapStyle === "os_light") {
     mapStyleURL = "https://tiles.bustimes.org.uk/styles/light/style.json";
   } else if (mapStyle === "os_dark") {
     mapStyleURL = "https://tiles.bustimes.org.uk/styles/night/style.json";

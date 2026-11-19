@@ -23,6 +23,7 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@protomaps/basemaps": "^5.7.2",
     "@sentry/browser": "^11.9.0",
     "@types/lodash": "^4.14.197",
     "@types/node": "^24.19.0",
@@ -48,6 +49,7 @@
     "react-dom": "./frontend/js/preact-compat.ts",
     "react-dom/client": "preact/compat/client",
     "react/jsx-runtime": "preact/jsx-runtime",
+    "react/jsx-dev-runtime": "preact/jsx-runtime",
     "wouter": "wouter-preact",
     "wouter/use-browser-location": "wouter-preact/src/use-browser-location.js"
   },

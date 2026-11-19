@@ -1061,10 +1061,6 @@ https://www.flickr.com/photos/goodwinjoshua/51046126023/ blah""",
             response = self.client.get("/maps")
             self.assertRedirects(response, "/map", 301)
 
-        # 🇮🇪
-        response = self.client.get("/map", headers={"CF-IPCountry": "IE"})
-        self.assertContains(response, '{"latitude": 53.45, ')
-
     def test_vehicles(self):
         with self.assertNumQueries(3):
             self.client.get("/vehicles")
