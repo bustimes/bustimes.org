@@ -48,6 +48,7 @@
     "react-dom": "./frontend/js/preact-compat.ts",
     "react-dom/client": "preact/compat/client",
     "react/jsx-runtime": "preact/jsx-runtime",
+    "react/jsx-dev-runtime": "preact/jsx-runtime",
     "wouter": "wouter-preact",
     "wouter/use-browser-location": "wouter-preact/src/use-browser-location.js"
   },
