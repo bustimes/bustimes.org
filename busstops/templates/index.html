@@ -112,6 +112,21 @@
     </li>
 </ul>
 
+{% if tracked_services or tracked_operators or tracked_vehicles %}
+    <h2>Being tracked</h2>
+
+    {% include 'service_list.html' with services=tracked_services class="has-smalls" %}
+
+    <ul>
+        {% for operator in tracked_operators %}
+            <li><a href="{{ operator.get_absolute_url }}/map">{{ operator }}</a></li>
+        {% endfor %}
+        {% for vehicle in tracked_vehicles %}
+            <li><a href="{{ vehicle.get_absolute_url }}">{{ vehicle }}</a></li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
 {% endblock content %}
 
 {% block foot %}

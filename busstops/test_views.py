@@ -177,6 +177,22 @@ class ViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Home")
 
+    def test_index_tracked(self):
+        self.client.force_login(
+            User.objects.create(username="me", is_superuser=True, is_staff=True)
+        )
+        with patch("busstops.views.redis_client") as redis_client:
+            redis_client.zcard.return_value = 0
+            redis_client.pubsub_channels.return_value = [
+                f"asgi__group__service{self.service.id}".encode(),
+                b"asgi__group__operatorAINS",
+                b"asgi__group__servicenonsense",
+            ]
+            response = self.client.get("/")
+        self.assertContains(response, "<h2>Being tracked</h2>")
+        self.assertContains(response, self.service.get_absolute_url())
+        self.assertContains(response, '/operators/ainsleys-chariots/map">')
+
     def test_robots_txt(self):
         response = self.client.get("/robots.txt")
         self.assertContains(response, "\n\nUser-agent: *\nDisallow: /\n")

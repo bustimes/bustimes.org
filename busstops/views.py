@@ -5,6 +5,7 @@ import csv
 import datetime
 import logging
 import os
+import random
 from http import HTTPStatus
 from itertools import groupby
 from urllib.parse import urlencode
@@ -50,7 +51,7 @@ from departures import live
 from disruptions.models import Consequence, Situation
 from fares.models import FareTable
 from vehicles.models import Vehicle, VehicleJourney
-from vehicles.utils import get_statuses, redis_client
+from vehicles.utils import CHANNEL_GROUP_PREFIX, get_statuses, redis_client
 from vosa.models import Registration
 
 from . import forms
@@ -186,6 +187,30 @@ def index(request):
         }
 
     context = {"stats": stats}
+
+    if request.user.is_superuser and redis_client:
+        # things someone has a live map of open right now
+        tracked = {"service": [], "operator": [], "vehicle": []}
+        for channel in redis_client.pubsub_channels(f"{CHANNEL_GROUP_PREFIX}*"):
+            group = channel.decode().removeprefix(CHANNEL_GROUP_PREFIX)
+            for kind, ids in tracked.items():
+                id = group.removeprefix(kind)
+                # (anyone can open a stream for a nonsense id)
+                if id != group and (kind == "operator" or id.isdigit()):
+                    ids.append(id)
+        tracked = {
+            kind: random.sample(ids, min(len(ids), 10)) for kind, ids in tracked.items()
+        }
+        context["tracked_services"] = list(
+            Service.objects.with_line_names()
+            .annotate(operators=operator_names)
+            .filter(id__in=tracked["service"])
+        )
+        context["colours"] = get_colours(context["tracked_services"])
+        context["tracked_operators"] = Operator.objects.filter(
+            noc__in=tracked["operator"]
+        )
+        context["tracked_vehicles"] = Vehicle.objects.filter(id__in=tracked["vehicle"])
 
     return render(request, "index.html", context)
 
