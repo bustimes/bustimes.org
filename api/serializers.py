@@ -1,8 +1,11 @@
+from itertools import pairwise
+
 import sentry_sdk
 from rest_framework import serializers
 
 from busstops.models import Operator, Service, StopPoint
 from bustimes.models import Garage, Note, Trip
+from bustimes.utils import get_route_link_geometries
 from vehicles.models import Livery, Vehicle, VehicleJourney, VehicleType
 
 
@@ -215,15 +218,10 @@ class TripSerializer(serializers.ModelSerializer):
         tzinfo = self.context.get("tzinfo")
 
         if obj.route and obj.route.service:
-            stop_ids = {
-                stop_time.stop_id for stop_time in obj.stops if stop_time.stop_id
-            }
-            route_links = {
-                (link.from_stop_id, link.to_stop_id): link
-                for link in obj.route.service.routelink_set.filter(
-                    from_stop__in=stop_ids
-                )
-            }
+            route_links = get_route_link_geometries(
+                obj.route.service_id,
+                pairwise(stop_time.stop_id for stop_time in obj.stops),
+            )
         else:
             route_links = {}
         previous_stop_id = None
@@ -272,7 +270,7 @@ class TripSerializer(serializers.ModelSerializer):
                         time[key] = getattr(stop_time, key)
 
                 if route_link := route_links.get((previous_stop_id, stop_time.stop_id)):
-                    time["track"] = route_link.geometry.coords
+                    time["track"] = route_link.coords
 
                 times.append(time)
                 previous_stop_id = stop_time.stop_id

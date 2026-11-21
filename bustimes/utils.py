@@ -21,9 +21,39 @@ from django.db.models.functions import Abs, Least
 from django.utils import timezone
 from sql_util.utils import Exists
 
-from .models import Calendar, Route, StopTime, Trip
+from .models import Calendar, Route, RouteLink, StopTime, Trip
 
 differ = Differ(charjunk=lambda _: True)
+
+
+def get_route_link_geometries(service_id, pairs) -> dict:
+    """{(from_stop_id, to_stop_id): geometry} - the service's own route links,
+    or failing that another service's for the same pair of stops"""
+    pairs = {pair for pair in pairs if all(pair)}
+    if not pairs:
+        return {}
+    geometries = {}
+    if service_id:
+        for from_stop_id, to_stop_id, geometry in RouteLink.objects.filter(
+            service=service_id,
+            from_stop__in={pair[0] for pair in pairs},
+            to_stop__in={pair[1] for pair in pairs},
+        ).values_list("from_stop", "to_stop", "geometry"):
+            if (key := (from_stop_id, to_stop_id)) in pairs:
+                geometries[key] = geometry
+    if missing := pairs - geometries.keys():
+        for from_stop_id, to_stop_id, geometry in (
+            RouteLink.objects.filter(
+                from_stop__in={pair[0] for pair in missing},
+                to_stop__in={pair[1] for pair in missing},
+            )
+            .order_by("from_stop", "to_stop", "-override", "-id")
+            .distinct("from_stop", "to_stop")
+            .values_list("from_stop", "to_stop", "geometry")
+        ):
+            if (key := (from_stop_id, to_stop_id)) in missing:
+                geometries[key] = geometry
+    return geometries
 
 
 def get_sha1(path):

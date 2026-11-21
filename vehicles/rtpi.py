@@ -10,8 +10,8 @@ import numpy as np
 import shapely
 from django.db.models import Prefetch, prefetch_related_objects
 
-from bustimes.models import RouteLink, StopTime, Trip
-from bustimes.utils import contiguous_stoptimes_only
+from bustimes.models import StopTime, Trip
+from bustimes.utils import contiguous_stoptimes_only, get_route_link_geometries
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +49,8 @@ _route_links_cache: OrderedDict[int, tuple] = OrderedDict()
 
 def _fetch_route_links(service_id, keys) -> dict:
     route_links = dict.fromkeys(keys)  # None - no route link
-    for from_stop_id, to_stop_id, geometry in RouteLink.objects.filter(
-        service=service_id,
-        from_stop__in={key[0] for key in keys},
-        to_stop__in={key[1] for key in keys},
-    ).values_list("from_stop", "to_stop", "geometry"):
-        if (key := (from_stop_id, to_stop_id)) in route_links:
+    for key, geometry in get_route_link_geometries(service_id, keys).items():
+        if key in route_links:
             coords = shapely.get_coordinates(shapely.from_wkb(bytes(geometry.wkb)))
             cos_latitude = math.cos(math.radians(coords[0][1]))
             route_links[key] = (

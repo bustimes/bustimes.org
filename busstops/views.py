@@ -47,6 +47,7 @@ from ukpostcodeutils import validation
 
 from buses.context_processors import ad
 from bustimes.models import Route, StopTime, Trip
+from bustimes.utils import get_route_link_geometries
 from departures import live
 from disruptions.models import Consequence, Situation
 from fares.models import FareTable
@@ -1690,12 +1691,7 @@ def service_map_data(request, service_id):
                     pairs.add((previous_stop_id, stop_id))
                 previous_stop_id = stop_id
 
-        route_links = {
-            (route_link.from_stop_id, route_link.to_stop_id): route_link
-            for route_link in service.routelink_set.filter(
-                from_stop__in={pair[0] for pair in pairs}
-            )
-        }
+        route_links = get_route_link_geometries(service.id, pairs)
 
         line_string = []
         multi_line_string = [line_string]
@@ -1711,7 +1707,7 @@ def service_map_data(request, service_id):
                 line_string = []
                 multi_line_string.append(line_string)
             if pair in route_links:
-                line_string += route_links[pair].geometry.coords
+                line_string += route_links[pair].coords
             elif origin in stops and destination in stops:
                 origin = stops[origin]
                 destination = stops[destination]

@@ -474,7 +474,8 @@ class ScheduleAdherenceTest(TestCase):
         trip = Trip.objects.select_related("route__service").get(
             id=self.journey.trip_id
         )
-        with self.assertNumQueries(2):  # stop times, route links
+        with self.assertNumQueries(3):
+            # stop times, route links, other services' route links
             rtpi.prefetch_stop_times([trip])
 
         with self.assertNumQueries(0):
