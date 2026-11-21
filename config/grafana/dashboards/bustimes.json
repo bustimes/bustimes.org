@@ -180,7 +180,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (instance) (granian_blocking_queue)",
+          "expr": "sum by (instance) (granian_blocking_queue{role!=\"stream\"})",
           "legendFormat": "{{instance}}",
           "datasource": {
             "type": "prometheus",
@@ -211,7 +211,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (instance) (rate(granian_blocking_busy_cumulative[$__rate_interval])) / (sum by (instance) (rate(granian_blocking_busy_cumulative[$__rate_interval])) + sum by (instance) (rate(granian_blocking_idle_cumulative[$__rate_interval])))",
+          "expr": "sum by (instance) (rate(granian_blocking_busy_cumulative{role!=\"stream\"}[$__rate_interval])) / (sum by (instance) (rate(granian_blocking_busy_cumulative{role!=\"stream\"}[$__rate_interval])) + sum by (instance) (rate(granian_blocking_idle_cumulative{role!=\"stream\"}[$__rate_interval])))",
           "legendFormat": "{{instance}}",
           "datasource": {
             "type": "prometheus",
@@ -242,7 +242,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (instance) (rate(granian_py_wait_cumulative[$__rate_interval])) / sum by (instance) (rate(granian_requests_handled[$__rate_interval]))",
+          "expr": "sum by (instance) (rate(granian_py_wait_cumulative{role!=\"stream\"}[$__rate_interval])) / sum by (instance) (rate(granian_requests_handled{role!=\"stream\"}[$__rate_interval]))",
           "legendFormat": "{{instance}}",
           "datasource": {
             "type": "prometheus",

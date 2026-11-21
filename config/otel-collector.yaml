@@ -1,4 +1,4 @@
-# Collects granian's prometheus metrics from the web containers and re-exposes
+# Collects granian's prometheus metrics from the web and stream containers and re-exposes
 # them on a single stable port, for prometheus (on another server) to scrape.
 #
 # The web containers can't publish port 9090 themselves: kamal boots the new
@@ -19,8 +19,10 @@ receivers:
               regex: bustimes
               action: keep
             - source_labels: [__meta_docker_container_label_role]
-              regex: web
+              regex: web|stream
               action: keep
+            - source_labels: [__meta_docker_container_label_role]
+              target_label: role
             # each container exposes 8000 and 9090 - only scrape the metrics one
             - source_labels: [__address__]
               regex: .+:9090

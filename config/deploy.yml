@@ -43,7 +43,7 @@ servers:
     hosts:
       - 10.131.240.97
       - 10.131.240.98
-    cmd: granian --host 0.0.0.0 --interface asginl buses.asgi:application
+    cmd: granian --host 0.0.0.0 --interface asginl --metrics --metrics-address 0.0.0.0 buses.asgi:application
     options:
       ulimit: nofile=65536:65536
     env:
@@ -62,7 +62,7 @@ servers:
         responses: false
 
 accessories:
-  # re-exposes the web containers' granian metrics on port 9394 for prometheus
+  # re-exposes the web and stream containers' granian metrics on port 9394 for prometheus
   metrics:
     image: otel/opentelemetry-collector-contrib:0.159.0
     roles:
