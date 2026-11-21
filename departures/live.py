@@ -84,19 +84,19 @@ def update_trip_ids(departures: list, live_rows: list) -> None:
 
 
 def get_departures(stop, services, when) -> dict:
-    live_departures = None
+    tfl_departures = None
 
     # Transport for London
     if not when and type(stop) is StopPoint:
         tfl_services = [s for s in services if s.service_code[:4] == "tfl_"]
         if tfl_services:
-            live_departures = TflDepartures(stop, tfl_services).get_departures()
-            if live_departures:
+            tfl_departures = TflDepartures(stop, tfl_services).get_departures()
+            if tfl_departures:
                 # non-TfL services
                 services = [s for s in services if s.service_code[:4] != "tfl_"]
                 if not services:
                     return {
-                        "departures": live_departures,
+                        "departures": tfl_departures,
                     }
 
     routes = (
@@ -130,7 +130,7 @@ def get_departures(stop, services, when) -> dict:
     )
     gtfsr_available = gtfsr_feed_name is not None
 
-    if not when and live_departures is None and not gtfsr_available:
+    if not when and not gtfsr_available:
         vehicle_locations = avl.get_tracking(stop, services)
         if vehicle_locations:
             by_trip = rtpi.by_trip_id(vehicle_locations)
@@ -203,7 +203,7 @@ def get_departures(stop, services, when) -> dict:
 
     trip_updates = None
     if gtfsr_available and (trip_updates := gtfsr.get_trip_updates(gtfsr_feed_name)):
-        if not when and live_departures is None:
+        if not when:
             # include late-running trips' already-scheduled departures, like for AVL
             trips = Trip.objects.filter(
                 route__in=routes, ticket_machine_code__in=trip_updates.keys()
@@ -230,13 +230,10 @@ def get_departures(stop, services, when) -> dict:
         if trip_updates:
             gtfsr.update_stop_departures(departures, trip_updates)
 
-    if live_departures:
-        departures = live_departures + departures
-
     one_hour = datetime.timedelta(hours=1)
     one_hour_ago = now - one_hour
 
-    if when or live_departures or type(stop) is not StopPoint:
+    if when or type(stop) is not StopPoint:
         pass
     elif not departures or (
         (departures[0]["time"] - now) < one_hour
@@ -296,6 +293,9 @@ def get_departures(stop, services, when) -> dict:
                                     else None
                                 ),
                             )
+
+    if tfl_departures:
+        departures = sorted(tfl_departures + departures, key=get_departure_order)
 
     return {
         "departures": departures,

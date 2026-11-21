@@ -29,7 +29,8 @@ TIMEZONE = ZoneInfo("Europe/London")
 
 def get_departure_order(departure):
     if departure.get("live") and (
-        not departure["time"] or departure["time"].date() == departure["live"].date()
+        not departure.get("time")
+        or departure["time"].date() == departure["live"].date()
     ):
         time = departure["live"]
     else:
