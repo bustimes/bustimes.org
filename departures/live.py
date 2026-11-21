@@ -83,6 +83,20 @@ def update_trip_ids(departures: list, live_rows: list) -> None:
                 break
 
 
+def apply_trip_updates(departures, route_feeds, trip_updates) -> set:
+    """returns the ids of departures with a trip update"""
+    updated = set()
+    if trip_updates:
+        for departure in departures:
+            trip = departure["stop_time"].trip
+            if (
+                feed_trip_updates := trip_updates.get(route_feeds.get(trip.route_id))
+            ) and (trip_update := feed_trip_updates.get(trip.ticket_machine_code)):
+                gtfsr.update_departure(departure, trip_update)
+                updated.add(id(departure))
+    return updated
+
+
 def get_departures(stop, services, when) -> dict:
     tfl_departures = None
 
@@ -119,32 +133,50 @@ def get_departures(stop, services, when) -> dict:
 
     departures = None
 
-    gtfsr_feed_name = next(
-        (
-            feed_name
-            for route in routes
-            if (feed_name := gtfsr.FEED_NAMES.get(route.source.name))
-            and feed_name != "flixbus"
-        ),
-        None,
-    )
-    gtfsr_available = gtfsr_feed_name is not None
+    route_feeds = {
+        route.id: feed_name
+        for route in routes
+        if (feed_name := gtfsr.FEED_NAMES.get(route.source.name))
+    }
+    trip_updates = {
+        feed_name: feed_trip_updates
+        for feed_name in set(route_feeds.values())
+        if (feed_trip_updates := gtfsr.get_trip_updates(feed_name))
+    }
 
-    if not when and not gtfsr_available:
-        vehicle_locations = avl.get_tracking(stop, services)
-        if vehicle_locations:
+    if not when:
+        by_trip = None
+        late_trip_ids = []
+        if vehicle_locations := avl.get_tracking(stop, services):
             by_trip = rtpi.by_trip_id(vehicle_locations)
             by_block = {
                 (item["date"], item.get("operator_id"), item["block"]): item
                 for item in vehicle_locations
                 if item.get("block")
             }
+            late_trip_ids += by_trip
+        if trip_updates:
+            # include late-running trips' already-scheduled departures
+            q = Q()
+            for feed_name, feed_trip_updates in trip_updates.items():
+                q |= Q(
+                    route__in=[
+                        route_id
+                        for route_id, name in route_feeds.items()
+                        if name == feed_name
+                    ],
+                    ticket_machine_code__in=feed_trip_updates.keys(),
+                )
+            late_trip_ids += Trip.objects.filter(q).values_list("id", flat=True)
+
+        if by_trip or trip_updates:
+            departures = TimetableDepartures(
+                stop, services, now, routes, late_trip_ids
+            ).get_departures()
+
+            updated = apply_trip_updates(departures, route_feeds, trip_updates)
 
             if by_trip:
-                departures = TimetableDepartures(
-                    stop, services, now, routes, by_trip
-                ).get_departures()
-
                 for departure in departures:
                     if departure["time"] - now > datetime.timedelta(hours=12):
                         break
@@ -154,6 +186,9 @@ def get_departures(stop, services, when) -> dict:
 
                     stop_time = departure["stop_time"]
                     date = str(departure["date"])
+
+                    if id(departure) in updated:
+                        continue
 
                     if (item := by_trip.get(stop_time.trip_id)) and item[
                         "date"
@@ -196,39 +231,23 @@ def get_departures(stop, services, when) -> dict:
                         if journey := journeys.get(departure.get("journey_id")):
                             departure["vehicle"] = journey.vehicle
 
-                # filter out departures that have already happened
-                departures = [
-                    d for d in departures if "overdue" not in d or "live" in d
-                ]
-
-    trip_updates = None
-    if gtfsr_available and (trip_updates := gtfsr.get_trip_updates(gtfsr_feed_name)):
-        if not when:
-            # include late-running trips' already-scheduled departures, like for AVL
-            trips = Trip.objects.filter(
-                route__in=routes, ticket_machine_code__in=trip_updates.keys()
-            ).values_list("id", flat=True)
-            departures = TimetableDepartures(
-                stop, services, now, routes, list(trips)
-            ).get_departures()
-            gtfsr.update_stop_departures(departures, trip_updates)
-
             # filter out departures that have already happened
             minute = now.replace(second=0, microsecond=0)
-            departures = [
-                d
-                for d in departures
-                if d["time"] >= minute or d.get("live") and d["live"] >= now
-            ]
-        else:
-            departures = None
+
+            def has_happened(d):
+                if id(d) in updated:
+                    return d["time"] < minute and not (
+                        d.get("live") and d["live"] >= now
+                    )
+                return d["time"] < minute and "live" not in d
+
+            departures = [d for d in departures if not has_happened(d)]
 
     if departures is None:
         departures = TimetableDepartures(
             stop, services, when or now, routes
         ).get_departures()
-        if trip_updates:
-            gtfsr.update_stop_departures(departures, trip_updates)
+        apply_trip_updates(departures, route_feeds, trip_updates)
 
     one_hour = datetime.timedelta(hours=1)
     one_hour_ago = now - one_hour

@@ -157,10 +157,3 @@ def update_departure(departure: dict, trip_update: dict) -> None:
         and "licensePlate" in trip_update["vehicle"]
     ):
         departure["vehicle"] = trip_update["vehicle"]["licensePlate"]
-
-
-def update_stop_departures(departures: list, trip_updates: dict) -> None:
-    for departure in departures:
-        trip_id = departure["stop_time"].trip.ticket_machine_code
-        if trip_update := trip_updates.get(trip_id):
-            update_departure(departure, trip_update)

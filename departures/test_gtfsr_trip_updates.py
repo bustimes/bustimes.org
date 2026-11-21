@@ -167,9 +167,6 @@ class GTFSRTTest(TestCase):
         # departed at 06:46
         self.assertNotContains(response, self.trip.get_absolute_url())
 
-    def test_no_trip_updates(self):
-        self.assertIsNone(gtfsr.update_stop_departures((), {}))
-
     def test_update_departure_without_stop_time_updates(self):
         departure = {"stop_time": StopTime(sequence=1)}
         gtfsr.update_departure(departure, {"trip": {}})
