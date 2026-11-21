@@ -159,7 +159,7 @@
         SERVICE_ID = {{ object.id }};
         EXTENT = [{{ object.geometry.extent|join(",") }}];
         LIVERIES_CSS_URL  = "/liveries.{{ liveries_css_version() }}.css";
-    {% if request.user.is_superuser %}
+    {% if request.user.is_authenticated %}
         STREAM = true;
     {% endif %}
     {% if related %}
