@@ -771,6 +771,11 @@ export default function BigMap(
   const vehiclesAbortController = React.useRef<AbortController | null>(null);
   const vehiclesLength = React.useRef<number>(0);
   const vehiclesLoadedAt = React.useRef<number>(0);
+  // when the event stream is working, poll only to add new vehicles and remove expired ones
+  const streaming = React.useRef(false);
+  // what the stream merges its updates into
+  // (a ref, so two messages before a re-render don't lose the first one's updates)
+  const latestVehicles = React.useRef<VehicleLocation[] | undefined>(undefined);
 
   const [loadingBuses, setLoadingBuses] = React.useState(true);
 
@@ -876,6 +881,7 @@ export default function BigMap(
           }
 
           vehiclesLength.current = items.length;
+          latestVehicles.current = items;
           setVehicles(items);
         }
       };
@@ -899,7 +905,10 @@ export default function BigMap(
             }
 
             if (!document.hidden) {
-              vehiclesTimeout.current = window.setTimeout(loadVehicles, 12000); // 12 seconds
+              vehiclesTimeout.current = window.setTimeout(
+                loadVehicles,
+                streaming.current ? 60000 : 12000,
+              );
             }
           },
           () => {
@@ -927,6 +936,7 @@ export default function BigMap(
           (journey.live?.find((v) => v.journey_id === journey.id) ?? null);
       // sort of duplicating `handleItems`
       vehiclesHighWaterMark.current = null;
+      latestVehicles.current = journey.live;
       setVehicles(journey.live);
       vehiclesLength.current = journey.live?.length || 0;
       if (item) {
@@ -967,7 +977,10 @@ export default function BigMap(
       if (journey?.id?.toString() === props.journeyId) {
         document.title = `${journey.route_name} – ${journey.destination} – bustimes.org`;
         if (!document.hidden) {
-          vehiclesTimeout.current = window.setTimeout(loadVehicles, 12000); // 12 seconds
+          vehiclesTimeout.current = window.setTimeout(
+            loadVehicles,
+            streaming.current ? 60000 : 12000,
+          );
         }
       } else {
         setTrip(undefined);
@@ -1055,6 +1068,157 @@ export default function BigMap(
       window.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [loadVehicles, loadJourney, props.mode, journey]);
+
+  // server-sent events of vehicles' new positions
+
+  const journeyIsLive = !!journey?.live;
+  const journeyServiceId = journey?.service?.id;
+  const journeyVehicleId = journey?.vehicle?.id;
+
+  const streamPath = useMemo(() => {
+    if (!window.STREAM) {
+      return;
+    }
+    switch (props.mode) {
+      case MapMode.Operator:
+        if (operator) {
+          return `operators/${encodeURIComponent(operator.noc)}`;
+        }
+        break;
+      case MapMode.Trip:
+        if (trip?.service?.id) {
+          return `services/${trip.service.id}`;
+        }
+        break;
+      case MapMode.Journey:
+        if (journeyIsLive) {
+          if (journeyServiceId) {
+            return `services/${journeyServiceId}`;
+          }
+          if (journeyVehicleId) {
+            return `vehicles/${journeyVehicleId}`;
+          }
+          // (journey-based tracking with no vehicle isn't streamed)
+        }
+    }
+  }, [
+    props.mode,
+    operator,
+    trip?.service?.id,
+    journeyIsLive,
+    journeyServiceId,
+    journeyVehicleId,
+  ]);
+
+  // the stream outlives renders, so it reads these via refs
+  const loadVehiclesRef = useRef(loadVehicles);
+  const isTripVehicle = useRef<(item: VehicleLocation) => boolean>(() => false);
+  useEffect(() => {
+    loadVehiclesRef.current = loadVehicles;
+    isTripVehicle.current = (item) =>
+      Boolean(
+        (trip && trip.id === item.trip_id) ||
+          (journey &&
+            (journey.vehicle?.id
+              ? journey.vehicle.id === item.id
+              : journey.id === item.journey_id)),
+      );
+  }, [loadVehicles, trip, journey]);
+
+  useEffect(() => {
+    if (!streamPath) {
+      return;
+    }
+    let events: EventSource | undefined;
+    let reconnect: number | undefined;
+    let newVehicleLoadedAt = 0;
+
+    const pollSoon = () => {
+      // a deploy drops everyone at once, so spread out the vehicles.json requests
+      if (vehiclesTimeout.current) {
+        clearTimeout(vehiclesTimeout.current);
+      }
+      vehiclesTimeout.current = window.setTimeout(
+        () => loadVehiclesRef.current(),
+        Math.random() * 10000,
+      );
+    };
+
+    const connect = () => {
+      const source = new EventSource(`${apiRoot}stream/${streamPath}`);
+      events = source;
+      source.onopen = () => {
+        streaming.current = true;
+      };
+      source.onerror = () => {
+        if (streaming.current) {
+          streaming.current = false;
+          pollSoon();
+        }
+        if (source.readyState === EventSource.CLOSED) {
+          // the browser won't retry after an error response (e.g. 502 during a deploy)
+          reconnect = window.setTimeout(connect, 10000 + Math.random() * 20000);
+        }
+      };
+      source.onmessage = (event) => {
+        const items: VehicleLocation[] = JSON.parse(event.data);
+        const updates = new Map(items.map((item) => [item.id, item]));
+        let tripVehicleUpdate: VehicleLocation | undefined;
+        const previous = latestVehicles.current || [];
+        const current = previous.map((vehicle) => {
+          const item = updates.get(vehicle.id);
+          if (!item) {
+            return vehicle;
+          }
+          updates.delete(vehicle.id);
+          // keep the extra stuff (livery etc) that vehicles.json adds
+          const merged = {
+            ...vehicle,
+            ...item,
+            service: vehicle.service && { ...vehicle.service, ...item.service },
+          };
+          if (isTripVehicle.current(merged)) {
+            tripVehicleUpdate = merged;
+          }
+          return merged;
+        });
+        if (updates.size < items.length) {
+          latestVehicles.current = current;
+          setVehicles(current);
+        }
+        if (tripVehicleUpdate) {
+          setTripVehicle(tripVehicleUpdate);
+        }
+        // a new vehicle - but not too often, as loadVehicles aborts any request in flight,
+        // so a busy stream with a vehicle vehicles.json won't return would starve it
+        if (updates.size && Date.now() - newVehicleLoadedAt > 10000) {
+          newVehicleLoadedAt = Date.now();
+          loadVehiclesRef.current();
+        }
+      };
+    };
+
+    const handleVisibilityChange = () => {
+      clearTimeout(reconnect);
+      events?.close();
+      streaming.current = false;
+      if (!document.hidden) {
+        connect();
+      }
+    };
+
+    if (!document.hidden) {
+      connect();
+    }
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearTimeout(reconnect);
+      events?.close();
+      streaming.current = false;
+    };
+  }, [streamPath]);
 
   const [clickedVehicleMarkerId, setClickedVehicleMarker] =
     React.useState<number>();

@@ -35,6 +35,12 @@
     </div>
 {% endblock content %}
 
+{% block foot %}
+    {% if request.user.is_authenticated %}
+        <script>STREAM = true;</script>
+    {% endif %}
+{% endblock foot %}
+
 {% block footer %}
     {{ initial_view_state|json_script:"initialViewState" }}
     <script src="{% static 'dist/js/app.js' %}"></script>
