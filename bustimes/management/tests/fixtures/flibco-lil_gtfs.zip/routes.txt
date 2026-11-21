@@ -1,0 +1,3 @@
+route_id,agency_id,route_short_name,route_long_name,route_type
+AIR_LIL,flibco,AIR_LIL,Lille Airport - Lille Centre,3
+LIL_AIR,flibco,LIL_AIR,Lille Centre - Lille Airport,3

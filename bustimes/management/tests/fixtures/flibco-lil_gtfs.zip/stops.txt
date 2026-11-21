@@ -1,0 +1,3 @@
+stop_id,stop_name,stop_lat,stop_lon
+1019,Lille Centre (Flandre station),50.637528,3.070969
+1018, Lille Airport (LIL), 50.572038, 3.10594

@@ -1,0 +1,3 @@
+route_id,service_id,trip_id,trip_headsign
+AIR_LIL,WD_0,WD_0_AIR LIL-Lille A1,Lille Centre (Flandre station)
+LIL_AIR,WD_0,WD_0_Lille-LIL AIR R1,Lille Airport (LIL)

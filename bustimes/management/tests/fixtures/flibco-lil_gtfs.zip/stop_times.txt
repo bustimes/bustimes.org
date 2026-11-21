@@ -1,0 +1,5 @@
+trip_id,arrival_time,departure_time,stop_id,stop_sequence
+WD_0_AIR LIL-Lille A1,05:30:00,05:30:00,1018,1
+WD_0_AIR LIL-Lille A1,05:50:00,05:50:00,1019,2
+WD_0_Lille-LIL AIR R1,05:00:00,05:00:00,1019,1
+WD_0_Lille-LIL AIR R1,05:20:00,05:20:00,1018,2
