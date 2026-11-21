@@ -561,6 +561,11 @@ async def vehicles_stream(request, kind, ids):
             receive.cancel()
             for group in groups:
                 await layer.group_discard(group, channel)
+            # if a message had just arrived, cancel() was too late for receive() to clean up
+            # (not the in-memory test layer)
+            get_shard = getattr(layer, "_get_shard", None)
+            if get_shard and layer.channels.pop(channel, None) is not None:
+                await get_shard(channel).unsubscribe(channel)
 
     return StreamingHttpResponse(
         stream(),
