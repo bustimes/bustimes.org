@@ -7,13 +7,9 @@
     <meta property="og:description" content="{{ operators.0 }}">
 
     {% if object.colour %}
-    <style>
-        .colour-{{ object.colour_id }} {
-            background: {{ object.colour.background }};
-            border-color: {{ object.colour.foreground }};
-            color: {{ object.colour.foreground }};
-        }
-    </style>
+        <style>
+            {{ object.colour.css() }}
+        </style>
     {% endif %}
 {% endblock head %}
 

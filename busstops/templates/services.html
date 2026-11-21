@@ -1,11 +1,7 @@
 {% if colours %}
 <style>
 {% for colour in colours %}
-.colour-{{ colour.id }} {
-    background: {{ colour.background }};
-    border-color: {{ colour.foreground }};
-    color: {{ colour.foreground }};
-}
+{{ colour.css }}
 {% endfor %}
 </style>
 {% endif %}

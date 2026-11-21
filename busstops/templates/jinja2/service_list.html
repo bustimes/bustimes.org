@@ -1,9 +1,5 @@
 {% if colours %}<style>{% for colour in colours %}
-.colour-{{ colour.id }} {
-    background: {{ colour.background }};
-    border-color: {{ colour.foreground }};
-    color: {{ colour.foreground }};
-}
+    {{ colour.css() }}
 {% endfor %}</style>{% endif %}
 
 <ul class="service-list{% if class_name %} {{ class_name }}{% endif %}">

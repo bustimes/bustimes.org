@@ -777,6 +777,15 @@ class ServiceColour(models.Model):
             self.name or "-",
         )
 
+    def css(self):
+        return f"""
+.colour-{self.id} {{
+    background: {self.background};
+    border-color: {self.border or self.foreground};
+    color: {self.foreground};
+}}
+"""
+
 
 class ServiceQuerySet(models.QuerySet):
     def with_documents(self):
