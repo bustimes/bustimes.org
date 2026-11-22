@@ -33,7 +33,7 @@ class Command(GTFSRCommand):
         self.tzinfo = ZoneInfo("Europe/London")
         self.source, _ = DataSource.objects.get_or_create(name=self.source_name)
         self.source.datetime = None
-        self.url = "https://rt.flix.baguette.pirnet.si/rt.pb"
+        self.url = "https://flix-gtfs-rt.fly.dev/rt.pb"
         self.livery = Livery.objects.filter(name="FlixBus").first()
         self.interval = None  # observed gap between feed timestamps
         self.source_timestamp = None

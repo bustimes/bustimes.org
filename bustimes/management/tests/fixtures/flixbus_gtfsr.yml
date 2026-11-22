@@ -11,7 +11,7 @@ interactions:
       User-Agent:
       - python-requests/2.34.2
     method: GET
-    uri: https://rt.flix.baguette.pirnet.si/rt.pb
+    uri: https://flix-gtfs-rt.fly.dev/rt.pb
   response:
     body:
       string: !!binary |
@@ -64,7 +64,7 @@ interactions:
       User-Agent:
       - python-requests/2.34.2
     method: GET
-    uri: https://rt.flix.baguette.pirnet.si/rt.pb
+    uri: https://flix-gtfs-rt.fly.dev/rt.pb
   response:
     body:
       string: !!binary |
