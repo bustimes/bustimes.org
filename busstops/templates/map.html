@@ -36,9 +36,7 @@
 {% endblock content %}
 
 {% block foot %}
-    {% if request.user.is_authenticated %}
-        <script>STREAM = true;</script>
-    {% endif %}
+    <script>STREAM = true;</script>
 {% endblock foot %}
 
 {% block footer %}
