@@ -287,7 +287,12 @@ def bus_open_data(api_key, specific_operator):
                 command.source.datetime = dataset["modified"]
 
                 with log_time_taken(logger):
-                    download(path, url=command.source.url, session=session)
+                    try:
+                        download(path, url=command.source.url, session=session)
+                    except requests.RequestException:
+                        # carry on, so finish_services still runs for the others
+                        logger.exception(f"error downloading {dataset['name']}")
+                        continue
 
                     handle_file(command, path, comment=dataset["comment"])
                     check_lines(command, dataset["lines"])

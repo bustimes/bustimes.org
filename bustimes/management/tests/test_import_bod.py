@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import ANY, patch
 
 import fakeredis
+import requests
 import time_machine
 from django.core.files.storage import storages
 from django.core.management import call_command
@@ -60,6 +61,38 @@ class ImportBusOpenDataTest(TestCase):
             ]
         )
         cls.user = User.objects.create()
+
+    @use_cassette(FIXTURES_DIR / "bod_lynx.yaml")
+    def test_import_bod_download_error(self):
+        source = TimetableDataSource.objects.create(name="LYNX", search="LYNX")
+        source.operators.add("LYNX")
+
+        with (
+            TemporaryDirectory() as directory,
+            override_settings(DATA_DIR=Path(directory)),
+            patch(
+                "bustimes.management.commands.import_bod_timetables.download",
+                side_effect=requests.ReadTimeout,
+            ),
+            patch.object(
+                import_bod_timetables.TransXChangeCommand, "finish_services"
+            ) as finish_services,
+            self.assertLogs(
+                "bustimes.management.commands.import_bod_timetables", "ERROR"
+            ),
+        ):
+            call_command(
+                "import_bod_timetables", "0123456789abc19abc190123456789abc19abc19"
+            )
+
+        # carried on, to finish services for any other datasets
+        finish_services.assert_called_once()
+        # will try again next time
+        self.assertIsNone(
+            DataSource.objects.get(
+                url="https://data.bus-data.dft.gov.uk/timetable/dataset/35/download/"
+            ).datetime
+        )
 
     @use_cassette(FIXTURES_DIR / "bod_lynx.yaml")
     @time_machine.travel("2020-05-01T00:00:00Z", tick=False)
