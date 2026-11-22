@@ -84,3 +84,33 @@ class GetTripTest(TestCase):
         self.assertFalse(trip.calendar.thu)
         self.assertFalse(trip.calendar.fri)
         self.assertTrue(trip.calendar.sat)
+
+    def test_line_name(self):
+        source = DataSource.objects.get()
+        calendar = Calendar.objects.create(start_date="2025-07-01", sun=True)
+        service = Service.objects.create(line_name="X44")
+        route_44 = Route.objects.create(
+            line_name="44", code="44", service=service, source=source
+        )
+        route_x41 = Route.objects.create(
+            line_name="X41", code="X41", service=service, source=source
+        )
+        for route in (route_44, route_x41):
+            Trip.objects.create(
+                route=route,
+                ticket_machine_code="1245",
+                start="12:45:00",
+                end="13:05:00",
+                calendar=calendar,
+            )
+
+        journey = VehicleJourney(
+            service=service,
+            route_name="X41",
+            code="1245",
+            datetime=datetime(2025, 7, 13, 11, 50, tzinfo=UTC),
+        )
+        self.assertEqual(journey.get_trip().route, route_x41)
+
+        journey.route_name = "44"
+        self.assertEqual(journey.get_trip().route, route_44)

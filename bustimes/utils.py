@@ -488,6 +488,10 @@ def get_trip(
         score += Case(When(destination, then=1), default=0)
     if origin:
         score += Case(When(origin, then=1), default=0)
+    if journey.route_name:
+        score += Case(
+            When(route__line_name__iexact=journey.route_name, then=1), default=0
+        )
 
     if approximate_datetime:
         start_time = timezone.localtime(datetime)
