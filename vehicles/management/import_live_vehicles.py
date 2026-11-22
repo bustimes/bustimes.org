@@ -46,8 +46,9 @@ Status = namedtuple(
         "changed_items",
         "time_taken",
         "last_modified",
+        "error",
     ),
-    defaults=(None,),
+    defaults=(None, None),
 )
 
 JOURNEY_UPDATE_FIELDS = (

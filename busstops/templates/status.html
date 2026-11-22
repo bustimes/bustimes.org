@@ -48,12 +48,16 @@
         {% for item in items %}
             <tr>
                 <td>{{ item.fetched_at|date:'H:i:s' }}</td>
+                {% if item.error %}
+                <td colspan="{% if key == "bod_avl_status" %}6{% else %}5{% endif %}">{{ item.error }}</td>
+                {% else %}
                 {% if key == "bod_avl_status" %}<td>{{ item.last_modified|date:'H:i:s' }}</td>{% endif %}
                 <td>{{ item.timestamp|date:'H:i:s' }}</td>
                 <td>{{ item.age.total_seconds|floatformat:1 }}</td>
                 <td>{{ item.total_items|intcomma }}</td>
                 <td>{{ item.changed_items|intcomma }}</td>
                 <td>{{ item.time_taken|floatformat:2 }}</td>
+                {% endif %}
             </tr>
         {% endfor %}
     </tbody>

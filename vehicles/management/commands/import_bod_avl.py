@@ -1013,8 +1013,12 @@ class Command(ImportLiveVehiclesCommand):
                         changed_journey_identities,
                         total_items,
                     ) = self.get_changed_items()
-                except requests.exceptions.RequestException:
+                except requests.exceptions.RequestException as e:
                     logger.exception("error getting changed items")
+                    append_status(
+                        "bod_avl_status",
+                        Status(now, None, None, None, None, None, error=repr(e)),
+                    )
                     self.session.close()
                     self.session = requests.Session()
                     self.errors += 1

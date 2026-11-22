@@ -14,7 +14,7 @@ from channels.layers import get_channel_layer
 from django.db import connection
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
-from requests.exceptions import HTTPError
+from requests.exceptions import HTTPError, ReadTimeout
 from vcr import use_cassette
 
 from busstops.models import (
@@ -255,9 +255,25 @@ class BusOpenDataVehicleLocationsTest(TestCase):
 
             self.assertEqual(50, len(command.identifiers))
 
+            with (
+                mock.patch.object(
+                    command.session, "get", side_effect=ReadTimeout("timed out")
+                ),
+                self.assertLogs("vehicles.management.commands.import_bod_avl", "ERROR"),
+            ):
+                self.assertEqual(command.update(), 2)
+
             # status page
 
             response = self.client.get("/status")
+            self.assertContains(
+                response,
+                """<tr>
+                <td>00:00:00</td>
+                <td colspan="6">ReadTimeout(&#x27;timed out&#x27;)</td>
+            </tr>""",
+                html=True,
+            )
 
         self.assertContains(
             response,

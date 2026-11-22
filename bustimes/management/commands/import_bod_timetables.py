@@ -12,6 +12,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import DataError
 from django.db.models import Exists, OuterRef, Q
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from busstops.models import DataSource, Service
 
@@ -189,6 +191,17 @@ def bus_open_data(api_key, specific_operator):
     command = get_command()
 
     session = requests.Session()
+    session.mount(
+        "https://",
+        HTTPAdapter(
+            max_retries=Retry(
+                total=2,
+                backoff_factor=10,
+                status_forcelist=(502, 503, 504),
+                raise_on_status=False,
+            )
+        ),
+    )
 
     url_prefix = "https://data.bus-data.dft.gov.uk"
     path_prefix = settings.DATA_DIR / "bod"
