@@ -882,8 +882,26 @@ class Command(ImportLiveVehiclesCommand):
         if self.last_modified:
             headers["if-modified-since"] = http_date(self.last_modified.timestamp())
 
-        response = self.session.get(self.source.url, headers=headers, timeout=35)
+        try:
+            response = self.session.get(self.source.url, headers=headers, timeout=5)
+        except requests.Timeout:
+            # the bulk_archive redirect sometimes hangs for 30s
+            fallback_url = (self.source.settings or {}).get("fallback_url")
+            if not fallback_url:
+                raise
+            logger.warning("bulk archive timed out, trying fallback_url")
+            response = self.session.get(fallback_url, timeout=10)
         self.fetched_at = timezone.now()
+
+        for hop in response.history:
+            if hop.elapsed > timedelta(seconds=2):
+                logger.warning(
+                    "slow %s from %s: %s x-amz-cf-id=%s",
+                    hop.status_code,
+                    hop.url,
+                    hop.elapsed,
+                    hop.headers.get("x-amz-cf-id"),
+                )
 
         self.not_modified = response.status_code == HTTPStatus.NOT_MODIFIED
         if self.not_modified:
@@ -900,6 +918,8 @@ class Command(ImportLiveVehiclesCommand):
             self.last_modified = datetime.fromtimestamp(last_modified, UTC)
 
         if response.headers["content-type"] == "application/zip":
+            # e.g. sirivm_2026-11-23_112238.zip
+            logger.info("archive %s", response.url.split("?")[0].rsplit("/", 1)[-1])
             with (
                 sentry_sdk.start_span(name="unzip"),
                 zipfile.ZipFile(io.BytesIO(response.content)) as archive,

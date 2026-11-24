@@ -2,7 +2,7 @@ import asyncio
 import copy
 import json
 from contextlib import contextmanager
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from time import monotonic
 from unittest import mock
@@ -181,7 +181,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         command.source.datetime = datetime(2020, 5, 1, tzinfo=UTC)
         command.last_modified = datetime(2020, 5, 1, tzinfo=UTC)
 
-        response = mock.Mock(status_code=304, content=b"")
+        response = mock.Mock(status_code=304, content=b"", history=[])
         with mock.patch.object(command.session, "get", return_value=response) as get:
             self.assertIsNone(command.get_items())
 
@@ -206,6 +206,52 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         command.not_modified = False
         with mock.patch.object(command, "get_items", return_value=None):
             self.assertEqual(command.update(), 10)
+
+    @time_machine.travel("2020-05-01T00:00:11+00:00", tick=False)
+    def test_fallback_url(self):
+        command = import_bod_avl.Command()
+        command.source = self.source
+        command.source.datetime = None
+        command.source.settings = {"fallback_url": "https://example.com/api"}
+
+        redirect = mock.Mock(
+            status_code=302,
+            url="https://data.bus-data.dft.gov.uk/avl/download/bulk_archive",
+            elapsed=timedelta(seconds=30),
+            headers={"x-amz-cf-id": "abc=="},
+        )
+        response = mock.Mock(
+            status_code=200,
+            history=[redirect],
+            headers={"content-type": "text/xml"},
+            content=b"""<Siri xmlns="http://www.siri.org.uk/siri"><ServiceDelivery>
+                <ResponseTimestamp>2020-05-01T00:00:05+00:00</ResponseTimestamp>
+                <VehicleMonitoringDelivery/></ServiceDelivery></Siri>""",
+        )
+        with (
+            mock.patch.object(
+                command.session, "get", side_effect=[ReadTimeout(), response]
+            ) as get,
+            self.assertLogs(
+                "vehicles.management.commands.import_bod_avl", "WARNING"
+            ) as logs,
+        ):
+            self.assertEqual(command.get_items(), [])
+
+        self.assertEqual(get.call_args.args, ("https://example.com/api",))
+        self.assertEqual(
+            logs.output[1],
+            "WARNING:vehicles.management.commands.import_bod_avl:slow 302 from "
+            "https://data.bus-data.dft.gov.uk/avl/download/bulk_archive: "
+            "0:00:30 x-amz-cf-id=abc==",
+        )
+
+        command.source.settings = None
+        with (
+            mock.patch.object(command.session, "get", side_effect=ReadTimeout()),
+            self.assertRaises(ReadTimeout),
+        ):
+            command.get_items()
 
     @time_machine.travel("2020-05-01T00:00:03+00:00", tick=False)
     def test_wait(self):
