@@ -9,7 +9,6 @@ from asgiref.sync import async_to_sync
 from channels.exceptions import ChannelFull
 from channels.layers import get_channel_layer
 from django.contrib.gis.geos import Point
-from django.core.cache import cache
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 from django.db.models import Exists, OuterRef, Q
@@ -27,6 +26,7 @@ from ..models import Vehicle, VehicleCode, VehicleJourney
 from ..utils import (
     CHANNEL_GROUP_PREFIX,
     VEHICLE_POSITIONS_CHANNEL,
+    append_status,
     calculate_bearing,
     redis_client,
 )
@@ -109,8 +109,11 @@ class ImportLiveVehiclesCommand(BaseCommand):
     url = ""
     vehicles = Vehicle.objects.select_related("latest_journey__trip")
     wait = 66
-    status_key = None
     tzinfo = None
+
+    @property
+    def status_key(self):
+        return f"{self.source_name.replace(' ', '_')}_status"
 
     @staticmethod
     def add_arguments(parser):
@@ -119,7 +122,6 @@ class ImportLiveVehiclesCommand(BaseCommand):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.session = requests.Session()
-        self.status = []
         self.to_save = []
         self.eager_progress = True
         self.journeys_to_create = {}
@@ -869,8 +871,13 @@ class ImportLiveVehiclesCommand(BaseCommand):
                         changed_journey_identities,
                         total_items,
                     ) = self.get_changed_items()
-                except requests.exceptions.RequestException:
+                except requests.exceptions.RequestException as e:
                     logger.exception("error getting changed items")
+                    if self.source_name:
+                        append_status(
+                            self.status_key,
+                            Status(now, None, None, None, None, None, error=repr(e)),
+                        )
                     return self.wait
 
             handling_started = timezone.now()
@@ -884,6 +891,8 @@ class ImportLiveVehiclesCommand(BaseCommand):
 
         if not total_items:
             # perhaps it's night time?
+            if self.source_name:
+                append_status(self.status_key, Status(now, None, None, 0, 0, None))
             return 120
 
         # just the handling, not the fetch
@@ -895,22 +904,17 @@ class ImportLiveVehiclesCommand(BaseCommand):
                 # the feed has no timestamp of its own
                 timestamp = self.max_datetime
 
-            self.status.append(
+            changed = len(changed_items) + len(changed_journey_items)
+            append_status(
+                self.status_key,
                 Status(
-                    now,
-                    timestamp,
-                    now - timestamp,
-                    total_items,
-                    len(changed_items) + len(changed_journey_items),
-                    time_taken,
-                )
+                    now, timestamp, now - timestamp, total_items, changed, time_taken
+                ),
             )
-            self.status = self.status[-50:]
-            cache.set(self.status_key, self.status, None)
 
             sentry_sdk.metrics.count(
                 "vehicle_locations",
-                self.status[-1].changed_items,
+                changed,
                 attributes={"source": self.source_name},
             )
 
@@ -920,10 +924,6 @@ class ImportLiveVehiclesCommand(BaseCommand):
         return 0  # took longer than minimum wait
 
     def handle(self, immediate=False, *args, **options):
-        if self.source_name:
-            self.status_key = f"{self.source_name.replace(' ', '_')}_status"
-            self.status = cache.get(self.status_key, [])
-
         if not immediate:
             sleep(self.wait)
         self.do_source()

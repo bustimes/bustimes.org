@@ -11,6 +11,7 @@ from busstops.models import DataSource, Operator, Region, Service, StopPoint
 from bustimes.models import Route, StopTime, Trip
 
 from ...models import Vehicle
+from ...utils import get_statuses
 from ..commands.lothian import Command
 
 
@@ -55,8 +56,12 @@ class EdinburghImportTest(TestCase):
             command = Command()
             command.do_source()
 
-            with mock.patch(
-                "vehicles.management.import_live_vehicles.redis_client", redis_client
+            with (
+                mock.patch(
+                    "vehicles.management.import_live_vehicles.redis_client",
+                    redis_client,
+                ),
+                mock.patch("vehicles.utils.redis_client", redis_client),
             ):
                 with self.assertNumQueries(191):
                     command.update()
@@ -67,7 +72,8 @@ class EdinburghImportTest(TestCase):
                 # the feed has no timestamp of its own,
                 # so the newest vehicle location timestamp is used
                 self.assertEqual(
-                    str(command.status[-1].timestamp), "2025-12-18 02:47:53+00:00"
+                    str(get_statuses("TfE_status")[-1].timestamp),
+                    "2025-12-18 02:47:53+00:00",
                 )
 
                 cassette.rewind()

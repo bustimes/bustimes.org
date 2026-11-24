@@ -17,7 +17,7 @@ from bustimes.models import Trip
 
 from ... import rtpi
 from ...models import Livery, VehicleJourney
-from ...utils import VEHICLE_POSITIONS_CHANNEL, calculate_bearing
+from ...utils import VEHICLE_POSITIONS_CHANNEL, append_status, calculate_bearing
 from .. import import_live_vehicles
 from .import_gtfsr_ie import Command as GTFSRCommand
 
@@ -127,18 +127,17 @@ class Command(GTFSRCommand):
 
         age = now - self.source.datetime
 
-        self.status.append(
+        append_status(
+            self.status_key,
             import_live_vehicles.Status(
                 now,
                 self.source.datetime,
                 age,
                 total_items,
                 len(changed_items) + len(changed_journey_items),
-                (datetime.now(UTC) - now).total_seconds,
-            )
+                (datetime.now(UTC) - now).total_seconds(),
+            ),
         )
-        self.status = self.status[-50:]
-        import_live_vehicles.cache.set(self.status_key, self.status, None)
 
         if not self.interval:
             return self.wait

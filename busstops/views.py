@@ -18,7 +18,6 @@ from django.contrib.gis.geos import Point
 from django.contrib.postgres.aggregates import ArrayAgg, BoolOr
 from django.contrib.postgres.search import SearchHeadline, SearchQuery, SearchRank
 from django.contrib.sitemaps import Sitemap
-from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.core.mail import EmailMessage
 from django.core.paginator import Paginator
@@ -415,10 +414,11 @@ def status(request):
         ),
     }
 
-    statuses = {"bod_avl_status": get_statuses("bod_avl_status")} | cache.get_many(
-        [
-            f"{key}_status"
-            for key in (
+    keys = [
+        "bod_avl_status",
+        *(
+            f"{source}_status"
+            for source in (
                 "Transport_for_Wales",
                 "Bus_Open_Data",
                 "Todd's_Travel",
@@ -431,8 +431,9 @@ def status(request):
                 "TfE",
                 "jersey",
             )
-        ]
-    )
+        ),
+    ]
+    statuses = {key: items for key in keys if (items := get_statuses(key))}
     context["statuses"] = statuses.items()
     context["worker_statuses"] = get_statuses("bod_avl_workers_status")
 

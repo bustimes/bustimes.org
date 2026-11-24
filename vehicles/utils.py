@@ -28,7 +28,7 @@ def append_status(key, status, maxlen=50):
     pipeline = redis_client.pipeline(transaction=False)
     pipeline.rpush(key, pickle.dumps(status))
     pipeline.ltrim(key, -maxlen, -1)
-    pipeline.expire(key, 800)
+    pipeline.expire(key, 86400)
     pipeline.execute()
 
 
