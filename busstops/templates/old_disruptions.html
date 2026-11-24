@@ -1,0 +1,42 @@
+{% extends "page.html" %}
+
+{% block title %}Hidden disruptions{% endblock %}
+
+{% block canonical %}<meta name="robots" content="noindex,noarchive">{% endblock %}
+
+{% block bodyclass %}{% endblock %}
+
+{% block content %}
+
+<p><strong>Updated</strong> {{ updated_at }}</p>
+
+<p>Disruptions that still appear in the BODS feed but we&rsquo;ve manually hidden, because we think they may no longer be relevant, and often the links no longer work.</p>
+
+<table style="font-size: 14px; white-space: nowrap;">
+    <thead>
+        <tr>
+            <th scope="col" style="width: 200px">SituationNumber</th>
+            <th scope="col">ParticipantRef</th>
+            <th scope="col">Summary</th>
+            <th scope="col">Created</th>
+            <th scope="col">Modified</th>
+            <th scope="col">Link</th>
+            {% if show_hidden_by %}<th scope="col">Hidden</th>{% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for situation in situations %}
+            <tr>
+                <td><code>{{ situation.situation_number }}</code></td>
+                <td><code>{{ situation.participant_ref }}</code></td>
+                <td class="link"><a href="{{ situation.get_absolute_url }}">{{ situation.summary }}</a></td>
+                <td>{{ situation.created_at|date }}</td>
+                <td>{{ situation.modified_at|date }}</td>
+                <td class="link">{% for link in situation.link_set.all %}{{ link.url|urlize }}{% endfor %}</td>
+                {% if show_hidden_by %}<td>{% if situation.hidden %}{{ situation.hidden.action_time|date }} ({{ situation.hidden.user.id }}){% endif %}</td>{% endif %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock content %}
