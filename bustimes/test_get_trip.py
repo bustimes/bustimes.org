@@ -114,3 +114,25 @@ class GetTripTest(TestCase):
 
         journey.route_name = "44"
         self.assertEqual(journey.get_trip().route, route_44)
+
+    def test_approximate_before_midnight(self):
+        """A trip starting at 23:59, and a bus that's first seen at 00:01"""
+        source = DataSource.objects.get()
+        service = Service.objects.create(line_name="N25")
+        route = Route.objects.create(
+            line_name="N25", code="N25", service=service, source=source
+        )
+        trip = Trip.objects.create(route=route, start="23:59:00", end="24:41:00")
+
+        journey = VehicleJourney(
+            service=service, datetime=datetime(2026, 11, 21, 0, 1, tzinfo=UTC)
+        )
+        self.assertEqual(journey.get_trip(approximate_datetime=True), trip)
+        self.assertEqual(str(journey.date), "2026-11-20")
+
+        # bus first seen at 23:58
+        journey = VehicleJourney(
+            service=service, datetime=datetime(2026, 11, 20, 23, 58, tzinfo=UTC)
+        )
+        self.assertEqual(journey.get_trip(approximate_datetime=True), trip)
+        self.assertEqual(str(journey.date), "2026-11-20")

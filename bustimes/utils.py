@@ -362,6 +362,13 @@ def get_service_routes(service, when) -> list:
     return routes_by_date[when]
 
 
+def is_previous_days_trip(trip, datetime) -> bool:
+    """e.g. a trip starting at 23:59 or 24:10, and it's now 00:05"""
+    datetime = timezone.localtime(datetime)
+    time = timedelta(hours=datetime.hour, minutes=datetime.minute)
+    return trip.start - time > timedelta(hours=12)
+
+
 def get_trip(
     journey,
     datetime=None,
@@ -541,10 +548,7 @@ def get_trip(
     trips = trips.filter(condition).annotate(score=score).order_by("-score")
 
     if trips:
-        if (
-            trips[0].start >= timedelta(days=1)
-            and timezone.localtime(departure_time or datetime).hour < 12
-        ):
+        if is_previous_days_trip(trips[0], departure_time or datetime):
             date -= timedelta(days=1)
         if len(trips) > 1 and trips[0].score == trips[1].score:
             filtered_trips = trips.active_on(date)

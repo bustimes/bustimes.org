@@ -20,6 +20,7 @@ from tenacity import before_sleep_log, retry, wait_exponential
 
 from busstops.models import DataSource
 from bustimes.models import Route, Trip
+from bustimes.utils import is_previous_days_trip
 
 from .. import rtpi
 from ..models import Vehicle, VehicleCode, VehicleJourney
@@ -358,13 +359,9 @@ class ImportLiveVehiclesCommand(BaseCommand):
             journey.source = self.source
             if not journey.date:
                 journey.date = timezone.localdate(journey.datetime)
-                if (
-                    journey.trip
-                    and journey.trip.start >= timedelta(days=1)
-                    and timezone.localtime(journey.datetime).hour < 12
+                if journey.trip and is_previous_days_trip(
+                    journey.trip, journey.datetime
                 ):
-                    # if the driver signed in before midnight on the service date,
-                    # the calendar date is already correct — don't roll back
                     journey.date -= timedelta(days=1)
 
             if (
