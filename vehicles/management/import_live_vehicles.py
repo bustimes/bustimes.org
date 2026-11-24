@@ -586,12 +586,8 @@ class ImportLiveVehiclesCommand(BaseCommand):
             pipeline.geoadd("vehicle_location_locations", geoadd)
         for key, value in sadd.items():
             pipeline.sadd(key, *value)
-        if group_items and (channel_layer := get_channel_layer()):
-            for group, value in group_items.items():
-                pipeline.publish(
-                    f"{CHANNEL_GROUP_PREFIX}{group}",
-                    channel_layer.serialize({"type": "move_vehicles", "items": value}),
-                )
+        for group, value in group_items.items():
+            pipeline.publish(f"{CHANNEL_GROUP_PREFIX}{group}", encode(value))
 
         try:
             pipeline.execute()

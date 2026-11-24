@@ -802,8 +802,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
             messages[0]["channel"], f"asgi__group__vehicle{journey.vehicle_id}".encode()
         )
         data = json.loads(messages[0]["data"])
-        self.assertEqual(data["type"], "move_vehicles")
-        self.assertEqual(data["items"][0]["coordinates"], [1.6, 52.4])
+        self.assertEqual(data[0]["coordinates"], [1.6, 52.4])
 
     def test_handle_item_2(self):
         command = import_bod_avl.Command()

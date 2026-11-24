@@ -42,7 +42,7 @@ def get_statuses(key) -> list:
 # for the distribute_vehicle_locations worker to extend journeys' polylines
 VEHICLE_POSITIONS_CHANNEL = "vehicle_positions"
 
-# the Redis pub/sub channel name prefix that channels_redis's RedisPubSubChannelLayer uses for groups
+# Redis pub/sub channel name prefix for streams of vehicle locations (see stream.py)
 CHANNEL_GROUP_PREFIX = "asgi__group__"
 
 

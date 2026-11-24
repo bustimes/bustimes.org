@@ -9,7 +9,6 @@ from itertools import groupby, pairwise
 from urllib.parse import unquote
 
 import xmltodict
-from channels.layers import get_channel_layer
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.models import Permission
@@ -49,7 +48,7 @@ from django.views.decorators.http import require_GET, require_POST, require_safe
 from django.views.generic.detail import DetailView
 from django_msgspec.http import JsonResponse
 from haversine import haversine
-from msgspec.json import decode, encode
+from msgspec.json import decode
 from redis.exceptions import ConnectionError
 from requests import RequestException
 from sql_util.utils import Exists, SubqueryMax, SubqueryMin
@@ -81,8 +80,14 @@ from .models import (
     VehicleRevisionFeature,
     get_text_colour,
 )
+from .stream import broadcaster
 from .tasks import queue_siri_post
-from .utils import apply_revision, get_revision, redis_client
+from .utils import (
+    CHANNEL_GROUP_PREFIX,
+    apply_revision,
+    get_revision,
+    redis_client,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -537,35 +542,21 @@ def cachable_400():
 @require_safe
 async def vehicles_stream(request, kind, ids):
     """Server-sent events of vehicles' new positions, published by import_live_vehicles"""
-    layer = get_channel_layer()
-    groups = [f"{kind}{id}" for id in ids.split(",")[:20]]
+    channels = {f"{CHANNEL_GROUP_PREFIX}{kind}{id}" for id in ids.split(",")[:20]}
 
     async def stream():
-        channel = await layer.new_channel()
-        # (cancelling receive() unsubscribes the channel, so keep one going across keepalives)
-        receive = asyncio.ensure_future(layer.receive(channel))
+        queue = asyncio.Queue()
         try:
-            for group in groups:
-                await layer.group_add(group, channel)
+            await broadcaster.add(channels, queue)
             # spread out reconnections (when the stream servers restart)
             yield f"retry: {random.randint(3000, 10000)}\n\n"
             while True:
-                done, _ = await asyncio.wait((receive,), timeout=30)
-                if done:
-                    items = receive.result()["items"]
-                    receive = asyncio.ensure_future(layer.receive(channel))
-                    yield f"data: {encode(items).decode()}\n\n"
-                else:
+                try:
+                    yield await asyncio.wait_for(queue.get(), 30)
+                except TimeoutError:
                     yield ": \n\n"  # keepalive
         finally:
-            receive.cancel()
-            for group in groups:
-                await layer.group_discard(group, channel)
-            # if a message had just arrived, cancel() was too late for receive() to clean up
-            # (not the in-memory test layer)
-            get_shard = getattr(layer, "_get_shard", None)
-            if get_shard and layer.channels.pop(channel, None) is not None:
-                await get_shard(channel).unsubscribe(channel)
+            await broadcaster.discard(channels, queue)
 
     return StreamingHttpResponse(
         stream(),
