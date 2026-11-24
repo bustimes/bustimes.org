@@ -121,15 +121,18 @@ class Command(ImportLiveVehiclesCommand):
         return Vehicle.objects.get_or_create(code=vehicle_code, source=self.source)
 
     def get_journey(self, item, vehicle):
-        # GTFS spec for working out datetimes:
-        start_date = datetime.strptime(
-            f"{item.vehicle.trip.start_date} 12:00:00",
-            "%Y%m%d %H:%M:%S",
-        )
-        start_time = parse_duration(item.vehicle.trip.start_time)
-        start_date_time = (start_date + start_time - timedelta(hours=12)).replace(
-            tzinfo=self.tzinfo
-        )
+        if item.vehicle.trip.start_date:
+            # GTFS spec for working out datetimes:
+            start_date = datetime.strptime(
+                f"{item.vehicle.trip.start_date} 12:00:00",
+                "%Y%m%d %H:%M:%S",
+            )
+            start_time = parse_duration(item.vehicle.trip.start_time)
+            start_date_time = (start_date + start_time - timedelta(hours=12)).replace(
+                tzinfo=self.tzinfo
+            )
+        else:
+            start_date_time = None
 
         # assert not (datetime.fromtimestamp(item.vehicle.timestamp) - start_date_time > timedelta(hours=12))
 
@@ -142,12 +145,13 @@ class Command(ImportLiveVehiclesCommand):
 
         journey.datetime = start_date_time
 
+        service = trip = None
+
         if journey.code in self.trips:
             trip = self.trips[journey.code]
             service = trip.route.service
             # simple. not sure we need the other shite any more
-        else:
-            service = None
+        elif journey.code:
             services = Service.objects.filter(
                 current=True,
                 route__source=self.source,
@@ -170,8 +174,6 @@ class Command(ImportLiveVehiclesCommand):
             trips = Trip.objects.filter(ticket_machine_code=journey.code)
             if service:
                 trips = trips.filter(route__service=service)
-
-            trip = None
 
             if service and not trips:
                 trips = Trip.objects.filter(
