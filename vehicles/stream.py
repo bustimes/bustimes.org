@@ -57,11 +57,15 @@ class Broadcaster:
                 logger.exception("error receiving from Redis")
                 await asyncio.sleep(1)
                 continue
-            if not message or message["type"] != "message":
-                continue
-            queues = self.queues.get(message["channel"].decode())
-            if not queues:
-                continue
+            try:
+                self.broadcast(message)
+            except Exception:
+                logger.exception("error broadcasting message")
+
+    def broadcast(self, message):
+        if not message or message["type"] != "message":
+            return
+        if queues := self.queues.get(message["channel"].decode()):
             data = message["data"]
             if not data.startswith(b"["):
                 # old channels_redis msgpack format - remove once the importers are redeployed

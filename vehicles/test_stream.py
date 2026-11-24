@@ -41,6 +41,12 @@ class VehiclesStreamTest(SimpleTestCase):
             )
             self.assertEqual(await anext(stream), b'data: [{"id":5}]\n\n')
 
+            # a bad message doesn't kill the listener
+            with self.assertLogs("vehicles.stream", "ERROR"):
+                await redis.publish("asgi__group__service1", b"junk")
+                await redis.publish("asgi__group__service1", b'[{"id":6}]')
+                self.assertEqual(await anext(stream), b'data: [{"id":6}]\n\n')
+
             # client disconnects - Django cancels the response task
             task = asyncio.ensure_future(anext(stream))
             await asyncio.sleep(0.01)
