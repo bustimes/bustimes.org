@@ -1151,7 +1151,14 @@ class Service(models.Model):
                     existing.delete()
                 StopUsage.objects.bulk_create(proposed)
 
+    def apply_overrides(self):
+        for o in self.serviceoverride_set.all():
+            setattr(self, o.field, o.value)
+
     def update_description(self):
+        if self.serviceoverride_set.filter(field="description").exists():
+            return
+
         routes = self.route_set.all()
 
         inbound_outbound_descriptions, origins_and_destinations = get_descriptions(

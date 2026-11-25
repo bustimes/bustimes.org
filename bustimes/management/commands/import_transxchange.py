@@ -668,6 +668,7 @@ class Command(BaseCommand):
                         Q(end_date=None) | Q(end_date__gte=self.today),
                         revision_number__lt=OuterRef("revision_number"),
                         service_code=OuterRef("service_code"),
+                        service__isnull=False,
                     )
                 ),
                 end_date__lt=self.today,
@@ -1663,10 +1664,17 @@ class Command(BaseCommand):
             if service_code:
                 service.service_code = service_code
 
-            if description and (
-                not service.description
-                or "Origin - " not in description
-                and " - Destination" not in description
+            # don't let expired files' descriptions overwrite current ones
+            keep_description = skip_journeys and bool(service.description)
+
+            if (
+                description
+                and not keep_description
+                and (
+                    not service.description
+                    or "Origin - " not in description
+                    and " - Destination" not in description
+                )
             ):
                 service.description = description
 
@@ -1737,7 +1745,7 @@ class Command(BaseCommand):
 
             # inbound and outbound descriptions
 
-            if (
+            if not keep_description and (
                 line.outbound_description != line.inbound_description
                 or txc_service.origin in STUPID_ORIGINS_DESTINATIONS
             ):
