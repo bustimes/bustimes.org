@@ -125,6 +125,8 @@ class RouteQuerySet(models.QuerySet):
                 Q(start_date=None) | Q(start_date__lte=when),
                 ~Exists(
                     Route.objects.filter(
+                        Q(version=None)
+                        | Q(version__start_date__lte=when, version__end_date__gte=when),
                         service__isnull=False,
                         source=OuterRef("source"),
                         service_code=OuterRef("service_code"),

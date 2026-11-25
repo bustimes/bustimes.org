@@ -666,6 +666,28 @@ class BusTimesTest(TestCase):
             active_routes(routes + extra_routes, date(2024, 4, 29)), [extra_routes[0]]
         )
 
+        # a higher revision in a future version doesn't supersede the current one yet
+        future = Version.objects.create(
+            source=tds,
+            name="mcgills_1714399999.zip",
+            start_date=date(2024, 6, 1),
+            end_date=date(2025, 6, 1),
+        )
+        future_route = Route.objects.create(
+            version=future,
+            code="mcgills_1714399999.zip/foo.xml",
+            source=ds,
+            service=Service.objects.create(line_name="2"),
+            line_name="2",
+            revision_number=1,
+            start_date=date(2024, 1, 1),
+        )
+        routes.append(future_route)
+        self.assertQuerySetEqual(active_routes(routes, date(2024, 5, 14)), [routes[1]])
+        self.assertQuerySetEqual(
+            active_routes(routes, date(2024, 6, 1)), [future_route]
+        )
+
     def test_garage(self):
         garage = Garage(code="LOW", name="LOWESTOFT TOWN")
         self.assertEqual(str(garage), "Lowestoft Town")
