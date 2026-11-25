@@ -108,7 +108,7 @@ if (location.hostname === 'bustimes.org') {
 {% endblock fuse %}
 
 </head>
-<body class="{% block bodyclass %}wide{% endblock %}{% if ad is False %} no-ads{% endif %}">
+<body class="{% block bodyclass %}wide{% endblock %}{% if ad is False %} no-ads{% elif user.is_superuser %} debug{% endif %}">
 <script>
 (function () {
     if (window.noAds) {
