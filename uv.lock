@@ -2386,7 +2386,7 @@ wheels = [
 [[package]]
 name = "transxchange-parser"
 version = "0.0.1"
-source = { git = "https://github.com/bustimes/transxchange-parser#c529e302bbebb9b9a8328cd670d647a187463cd6" }
+source = { git = "https://github.com/bustimes/transxchange-parser#6909fca7577696a9665c58ecab7cf370fe7e1ece" }
 
 [[package]]
 name = "twisted"
