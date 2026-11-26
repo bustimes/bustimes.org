@@ -1564,11 +1564,15 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         route = Route.objects.create(
             service=service, source=DataSource.objects.create(name="L")
         )
-        trip = Trip.objects.create(route=route, start="17:13:00", end="18:30:00")
+        trip = Trip.objects.create(
+            route=route, start="17:13:00", end="18:30:00", headsign="Paddington"
+        )
         for atco_code in ("490004206J", "490000144P"):
             trip.stoptime_set.create(
                 stop=StopPoint.objects.create(atco_code=atco_code, active=True)
             )
+        trip.destination_id = "490000144P"
+        trip.save(update_fields=["destination"])
         vehicle = Vehicle.objects.create(code="MF25HKP")
 
         item = {
@@ -1593,6 +1597,7 @@ class BusOpenDataVehicleLocationsTest(TestCase):
         journey = command.get_journey(item, vehicle)
         self.assertEqual(journey.trip, trip)
         self.assertIsNone(journey.date)  # for handle_item to work out from the trip
+        self.assertEqual(journey.destination, "Paddington")
 
         # latest_journey_data from another source
         journey.trip = None

@@ -2,8 +2,10 @@ import xml.etree.ElementTree as ET
 import zipfile
 from contextlib import contextmanager
 from datetime import date
+from itertools import pairwise
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import time_machine
@@ -783,6 +785,38 @@ class ImportTransXChangeTest(TestCase):
         self.assertEqual(date_options[-1], date(2017, 1, 27))
 
         self.assertEqual(34, service.stopusage_set.count())
+
+    @time_machine.travel("2018-09-24")
+    def test_headsigns(self):
+        with patch.object(import_transxchange, "HEADSIGN_OPERATORS", ("PLYC",)):
+            self.handle_files("EA.zip", ["20-plymouth-city-centre-plympton.xml"])
+        self.assertEqual(
+            set(Trip.objects.values_list("inbound", "headsign")),
+            {(False, "Plympton"), (True, "City Centre")},
+        )
+
+    def test_get_headsign(self):
+        def journey(*ddds):
+            stop_usages = [SimpleNamespace(dynamic_destination_display=d) for d in ddds]
+            timing_links = [
+                SimpleNamespace(origin=a, destination=b)
+                for a, b in pairwise(stop_usages)
+            ]
+            return SimpleNamespace(
+                destination_display=None,
+                journey_pattern=SimpleNamespace(
+                    destination_display="Grays Bus Station, 5",
+                    get_timinglinks=lambda: timing_links,
+                ),
+            )
+
+        get_headsign = import_transxchange.get_headsign
+        self.assertEqual(get_headsign(journey()), "Grays Bus Station")
+        self.assertEqual(get_headsign(journey(None, " ", None)), "Grays Bus Station")
+        self.assertEqual(get_headsign(journey("Cove", "Cove", "Cove")), "Cove")
+        self.assertEqual(
+            get_headsign(journey("City Centre", "Southampton")), "Grays Bus Station"
+        )
 
     @time_machine.travel("2018-09-24")
     def test_timetable_plymouth(self):

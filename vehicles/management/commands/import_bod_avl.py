@@ -772,14 +772,20 @@ class Command(ImportLiveVehiclesCommand):
                 if not first_attempt:
                     journey.date = None  # work out again from the trip
 
-                if (
+                if trip.headsign and (
+                    # not if the vehicle's going further (split/chained trips)
+                    not destination_ref
+                    or trip.destination_id
+                    and trip.destination_id.upper().lstrip("0")
+                    == destination_ref.upper().lstrip("0")
+                ):
+                    journey.destination = trip.headsign
+                elif (
                     not (destination_ref and journey.destination)
                     and trip.destination_id
                 ):
                     journey.destination = (
-                        trip.headsign
-                        or get_destination_name(trip.destination_id)
-                        or journey.destination
+                        get_destination_name(trip.destination_id) or journey.destination
                     )
 
                 if (

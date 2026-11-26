@@ -104,6 +104,65 @@ def initialisms(word, **kwargs):
 
 STUPID_ORIGINS_DESTINATIONS = {"Origin", "Destination", "Unknown"}
 
+# use DestinationDisplay as Trip.headsign
+HEADSIGN_OPERATORS = (
+    # Go-Ahead:
+    "BLUS",
+    "DAMY",
+    "WDBC",
+    "SWWD",
+    "SVCT",
+    "TDTR",
+    "UNIL",
+    "THTR",
+    "OXBC",
+    "PULH",
+    "TFCN",
+    "MNGN",
+    "SCSO",
+    # First:
+    "FBRI",
+    "FSYO",
+    "FECS",
+    "FSMR",
+    "FYOR",
+    "FBRA",
+    "FPOT",
+    "FLEI",
+    "TPEN",
+    # Stagecoach:
+    "SCNE",
+    "SCEM",
+    "SCFI",
+    "SCEK",
+    "STWS",
+    "SCGL",
+    "SCOX",
+    "MNSC",
+    "SYRK",
+    # Transdev Blazefield:
+    "LNUD",
+    "KDTR",
+    "FLYE",
+    "HRGT",
+    "YCST",
+    # Arriva:
+    "AMID",
+    # others:
+    "ENSB",
+    "TBTN",
+    "DIAM",
+    "RBUS",
+    "CNTY",
+    "FSRV",
+    "NCTR",
+    "SYFT",
+    "STUR",
+    "NXMT",
+    "METR",
+    "COMT",
+)
+
 
 def get_summary(summary: str):
     summary = summary.strip()
@@ -440,6 +499,32 @@ def get_times(journey, departure_time_is_departure: bool):
             cell.arrival_time -= offset
             cell.departure_time -= offset
         yield cell
+
+
+def get_dynamic_destination_displays(journey_pattern):
+    if not hasattr(journey_pattern, "dynamic_destination_displays"):
+        journey_pattern.dynamic_destination_displays = {
+            stop_usage.dynamic_destination_display.strip()
+            for timing_link in journey_pattern.get_timinglinks()
+            for stop_usage in (timing_link.origin, timing_link.destination)
+            if stop_usage.dynamic_destination_display
+            and stop_usage.dynamic_destination_display.strip()
+        }
+    return journey_pattern.dynamic_destination_displays
+
+
+def get_headsign(journey):
+    dynamic = get_dynamic_destination_displays(journey.journey_pattern)
+    if len(dynamic) == 1:
+        # same all the way, so what's actually on the blind
+        headsign = next(iter(dynamic))
+    else:
+        headsign = (
+            journey.destination_display or journey.journey_pattern.destination_display
+        )
+    if headsign:
+        # "Grays Bus Station, 5" - remove stand letter/number
+        return re.sub(r", \w{1,2}$", "", headsign)
 
 
 def get_description(txc_service):
@@ -925,8 +1010,7 @@ class Command(BaseCommand):
 
             trip_a.end = trip_b.end
             trip_a.destination_id = trip_b.destination_id
-            if trip_b.headsign:
-                trip_a.headsign = trip_b.headsign
+            trip_a.headsign = trip_b.headsign
             trip_a.save(update_fields=["end", "destination", "headsign"])
 
             # reassign things that point at trip_b
@@ -1203,6 +1287,9 @@ class Command(BaseCommand):
                 operator=operators.get(operator_ref),
             )
 
+            if trip.operator and trip.operator.noc in HEADSIGN_OPERATORS:
+                trip.headsign = get_headsign(journey)
+
             if journey.block and journey.block.code:
                 trip.block = journey.block.code
             elif (
@@ -1352,6 +1439,7 @@ class Command(BaseCommand):
                             route=trip.route,
                             journey_pattern=trip.journey_pattern,
                             operator=trip.operator,
+                            headsign=trip.headsign,
                             start=trip.start + journey.frequency_interval,
                         )
                         journey.departure_time = trip.start
@@ -1412,6 +1500,7 @@ class Command(BaseCommand):
                     "garage",
                     "vehicle_type",
                     "operator",
+                    "headsign",
                 ],
                 batch_size=1000,
             )
