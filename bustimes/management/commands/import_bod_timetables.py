@@ -310,6 +310,11 @@ def bus_open_data(api_key, specific_operator):
                     handle_file(command, path, comment=dataset["comment"])
                     check_lines(command, dataset["lines"])
 
+                    if not command.route_ids:
+                        # perhaps we downloaded an error page
+                        logger.warning(f"no routes in {dataset['name']}")
+                        continue
+
                     command.mark_old_services_as_not_current()
 
                     command.source.sha1 = get_sha1(path)

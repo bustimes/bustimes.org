@@ -14,6 +14,11 @@ def write_file(path, response):
 def download(path, url, session=None):
     response = (session or requests).get(url, stream=True, timeout=61)
     response.raise_for_status()
+    # BODS CloudFront error page can have status 200
+    if response.headers.get("content-type") == "text/html":
+        raise requests.HTTPError(
+            f"HTML response from {url} {response.headers} {response}"
+        )
     write_file(path, response)
 
 
