@@ -915,14 +915,6 @@ class Command(ImportLiveVehiclesCommand):
 
         response.raise_for_status()
 
-        # when this archive was published - a steadier guide to when to poll
-        # next than the ResponseTimestamp inside it, which lags it by a
-        # variable amount depending on which cycle the archiver caught
-        if last_modified := parse_http_date_safe(
-            response.headers.get("last-modified", "")
-        ):
-            self.last_modified = datetime.fromtimestamp(last_modified, UTC)
-
         if response.headers["content-type"] == "application/zip":
             # e.g. sirivm_2026-11-23_112238.zip
             logger.info("archive %s", response.url.split("?")[0].rsplit("/", 1)[-1])
@@ -945,6 +937,15 @@ class Command(ImportLiveVehiclesCommand):
 
         if service_delivery is None:  # downloaded error page
             return
+
+        # when this archive was published - a steadier guide to when to poll
+        # next than the ResponseTimestamp inside it, which lags it by a
+        # variable amount depending on which cycle the archiver caught.
+        # (only from real archives - error pages have stale ones)
+        last_modified = parse_http_date_safe(response.headers.get("last-modified", ""))
+        self.last_modified = (
+            datetime.fromtimestamp(last_modified, UTC) if last_modified else None
+        )
 
         previous_time = self.source.datetime
 
